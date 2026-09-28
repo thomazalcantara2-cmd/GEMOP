@@ -6,7 +6,7 @@ exportadas do sistema de RH:
 | Planilha | Aba usada | Campos |
 |---|---|---|
 | `INDICE CEDIDOS SAD` | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
-| `relFichaCadastralCompleta` | `Lotacoes` (e `Servidores`) | Lotação atual, Órgão de origem, Status funcional |
+| `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Status funcional |
 
 ## Como usar
 
@@ -30,6 +30,10 @@ complementares) ficam salvos no computador.
   (`SECRETARIA MUNICIPAL DE ADMINISTRACAO` ou `SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO, GOVERNO DIGITAL E INOVAÇÃO`).
   Se o servidor sempre esteve na Administração, usa o órgão atual e mostra um aviso.
   A lista de órgãos ignorados pode ser alterada na seção *Regra do órgão de origem*.
+- **Tipo de afastamento**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
+  em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
+  (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
+  Sem afastamentos, o campo fica com `x - x - x`.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.

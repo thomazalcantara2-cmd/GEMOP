@@ -61,27 +61,29 @@
   .dica { text-align: center; color: var(--suave); font-size: 12px; margin: 10px 0 0; }
 
   /* ---------- Folha A4 (sempre em cores de papel) ---------- */
-  .folha { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 10mm 18mm 8mm;
+  .folha { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 8mm 18mm 8mm;
     box-shadow: 0 2px 16px rgba(0,0,0,.18); font-family: Arial, "Liberation Sans", Helvetica, sans-serif; font-size: 10.5pt; }
   .folha [contenteditable]:hover { outline: 1px dashed #9bb8dc; }
   .folha [contenteditable]:focus { outline: 1px solid #1f5fa8; }
   .cab { text-align: center; }
-  .cab img { height: 20mm; display: block; margin: 0 auto 2mm; }
+  .cab img { height: 18mm; display: block; margin: 0 auto 2mm; }
   .cab p { font-family: "Times New Roman", Times, serif; font-size: 10pt; margin: 0; line-height: 1.15; }
   .grade { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .grade td { border: 1px solid #555; padding: 1.6mm 2.2mm; vertical-align: top; }
+  .grade td { border: 1px solid #555; padding: 1.3mm 2.2mm; vertical-align: top; }
   .topo td.titulo { font-size: 16pt; font-weight: 700; line-height: 1.1; vertical-align: middle; }
   .topo td.centro { text-align: center; font-size: 11pt; }
   .topo .peq { font-size: 9pt; font-weight: 700; }
-  .dados { margin-top: 6mm; }
-  .dados td { font-size: 11pt; height: 8mm; }
+  .dados { margin-top: 5mm; }
+  .dados td { font-size: 11pt; height: 7mm; }
   .dados .valor { text-align: center; font-size: 9pt; text-transform: uppercase; }
   .dados .valor.esq { text-align: left; text-transform: none; }
+  .dados .valor.afast { text-align: left; text-transform: none; font-size: 7.5pt; line-height: 1.3; }
+  .dados .valor.afast div { padding-left: 3mm; text-indent: -3mm; }
   .dados .xis { display: block; white-space: nowrap; overflow: hidden; text-transform: none; }
-  .compl { margin-top: 6mm; }
+  .compl { margin-top: 5mm; }
   .compl ol { margin: 1mm 0 0; padding-left: 5mm; font-size: 9.5pt; }
-  .local { text-align: right; margin: 6mm 0 0; }
-  .assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 30mm; margin-top: 15mm; text-align: center; font-size: 9pt; }
+  .local { text-align: right; margin: 5mm 0 0; }
+  .assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 30mm; margin-top: 11mm; text-align: center; font-size: 9pt; }
   .assinaturas .linha { display: block; border-top: 1px solid #000; margin-bottom: 1mm; }
 
   @media (max-width: 900px) {
@@ -152,9 +154,7 @@
       <input id="cfg-cidade" type="text">
     </details>
     <details>
-      <summary>Afastamento e informações complementares</summary>
-      <label class="campo" for="cfg-afastamento">Tipo de afastamento (vazio = x-x-x)</label>
-      <input id="cfg-afastamento" type="text">
+      <summary>Informações complementares</summary>
       <label class="campo" for="cfg-complementares">Informações complementares (uma por linha; {ano} = ano da emissão)</label>
       <textarea id="cfg-complementares" rows="7"></textarea>
     </details>

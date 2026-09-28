@@ -196,6 +196,44 @@
     return null;
   }
 
+  function diaSeguinte(dt) {
+    var d = new Date(Date.UTC(dt.a, dt.m - 1, dt.d + 1));
+    return { a: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+  }
+
+  /*
+   * Agrupa os afastamentos por tipo (descrição), em ordem cronológica.
+   * Períodos do mesmo tipo que se emendam (fim + 1 dia = próximo início, ou sobrepostos)
+   * são unidos: ex. 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 -> 01/01/2025 a 31/12/2026.
+   */
+  function agruparAfastamentos(afastamentos) {
+    var ordenados = afastamentos.filter(function (x) { return x.descricao && x.inicio; })
+      .sort(function (x, y) { return valorData(x.inicio) - valorData(y.inicio); });
+    var grupos = [], porTipo = {};
+    ordenados.forEach(function (x) {
+      var g = porTipo[x.descricao];
+      if (!g) {
+        g = porTipo[x.descricao] = { descricao: x.descricao, periodos: [] };
+        grupos.push(g);
+      }
+      var ultimo = g.periodos[g.periodos.length - 1];
+      if (ultimo && ultimo.fim && valorData(x.inicio) <= valorData(diaSeguinte(ultimo.fim))) {
+        if (!x.fim || valorData(x.fim) > valorData(ultimo.fim)) ultimo.fim = x.fim;
+      } else if (!ultimo || ultimo.fim) {
+        g.periodos.push({ inicio: x.inicio, fim: x.fim });
+      }
+    });
+    return grupos;
+  }
+
+  function formatarAfastamentos(grupos) {
+    return grupos.map(function (g) {
+      return g.descricao + ': ' + g.periodos.map(function (p) {
+        return dataBR(p.inicio) + ' a ' + (p.fim ? dataBR(p.fim) : 'atual');
+      }).join('; ') + '.';
+    });
+  }
+
   function coluna(linha, nomes) {
     var chaves = Object.keys(linha);
     for (var i = 0; i < nomes.length; i++) {
@@ -210,7 +248,7 @@
   /*
    * Monta a base a partir das planilhas.
    * indiceLinhas: linhas da aba SERVIDORES do "INDICE CEDIDOS SAD".
-   * ficha: { servidores: [...], lotacoes: [...] } do "relFichaCadastralCompleta".
+   * ficha: { servidores: [...], lotacoes: [...], afastamentos: [...] } do "relFichaCadastralCompleta".
    * orgaosCessao (opcional): prefixos de órgão que indicam cessão (padrão ORGAOS_CESSAO).
    */
   function montarBase(indiceLinhas, ficha, orgaosCessao) {
@@ -227,6 +265,17 @@
       (lotacoes[k] = lotacoes[k] || []).push({
         orgao: String(coluna(l, ['Órgão (descrição)']) || '').trim(),
         local: String(coluna(l, ['Local de Trabalho (descrição)']) || '').trim(),
+        inicio: paraData(coluna(l, ['Início'])),
+        fim: paraData(coluna(l, ['Fim']))
+      });
+    });
+
+    var afastamentos = {};
+    (ficha.afastamentos || []).forEach(function (l) {
+      var k = chaveMatricula(coluna(l, ['Matrícula']));
+      if (!k) return;
+      (afastamentos[k] = afastamentos[k] || []).push({
+        descricao: String(coluna(l, ['Descrição (descrição)']) || '').trim(),
         inicio: paraData(coluna(l, ['Início'])),
         fim: paraData(coluna(l, ['Fim']))
       });
@@ -259,6 +308,7 @@
         origemEncontrada: !!origem,
         origemPeriodo: origem,
         historico: hist,
+        afastamentos: agruparAfastamentos(afastamentos[matricula] || []),
         semFicha: !hist.length
       };
     }).filter(function (s) { return s.nome; })
@@ -289,6 +339,8 @@
     valorExtenso: valorExtenso,
     ordenarLotacoes: ordenarLotacoes,
     orgaoDeOrigem: orgaoDeOrigem,
+    agruparAfastamentos: agruparAfastamentos,
+    formatarAfastamentos: formatarAfastamentos,
     montarBase: montarBase,
     buscar: buscar
   };

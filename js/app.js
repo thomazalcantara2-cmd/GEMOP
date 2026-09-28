@@ -10,7 +10,6 @@
     de: 'SANDRA MOTTA\nUnidade de Gestão de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
     para: 'LUIZ CARLOS AGUIAR BAYMA FILHO\nAssessoria de Movimentação de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
     assunto: 'Renovação de cessão de servidor',
-    afastamento: '',
     complementares: [
       'FICHA financeira: {ano}.',
       'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',
@@ -96,7 +95,8 @@
   function identificar(wb, nomeArquivo) {
     var lotacoes = linhasDaAba(wb, 'Lotacoes');
     if (lotacoes) {
-      return { tipo: 'ficha', nome: nomeArquivo, servidores: linhasDaAba(wb, 'Servidores') || [], lotacoes: lotacoes };
+      return { tipo: 'ficha', nome: nomeArquivo, servidores: linhasDaAba(wb, 'Servidores') || [],
+        lotacoes: lotacoes, afastamentos: linhasDaAba(wb, 'Afastamentos') || [] };
     }
     for (var i = 0; i < wb.SheetNames.length; i++) {
       var linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { raw: true, defval: null });
@@ -220,7 +220,7 @@
 
     var de = cfg('de').split('\n');
     var para = cfg('para').split('\n');
-    var afast = cfg('afastamento').trim();
+    var afast = s ? D.formatarAfastamentos(s.afastamentos) : [];
 
     var v = function (x) { return s ? esc(x) : ''; };
 
@@ -250,8 +250,8 @@
         '<tr><td colspan="2"><b>CARGO:</b> <b contenteditable>' + v(s && s.cargo) + '</b></td></tr>' +
         '<tr><td colspan="2"><b>ÓRGÃO DE ORIGEM:</b><div class="valor" contenteditable>' + v(s && s.orgaoOrigem) + '</div></td></tr>' +
         '<tr><td colspan="2"><b>LOTAÇÃO:</b><div class="valor" contenteditable>' + v(s && s.lotacao) + '</div></td></tr>' +
-        '<tr><td colspan="2"><b>TIPO DE AFASTAMENTO:</b><div class="valor" contenteditable>' +
-          (afast ? esc(afast) : '<span class="xis">' + new Array(35).join('x - ') + 'x</span>') + '</div></td></tr>' +
+        '<tr><td colspan="2"><b>TIPO DE AFASTAMENTO:</b><div class="valor' + (afast.length ? ' afast' : '') + '" contenteditable>' +
+          (afast.length ? afast.map(function (a) { return '<div>' + esc(a) + '</div>'; }).join('') : '<span class="xis">' + new Array(35).join('x - ') + 'x</span>') + '</div></td></tr>' +
         '<tr><td colspan="2"><b>TIPO DE VÍNCULO:</b><div class="valor" contenteditable>' + v(s && s.vinculo) + '</div></td></tr>' +
         '<tr><td colspan="2"><b>TEMPO DE SERVIÇO:</b> <b contenteditable>' + v(tempo) + '</b></td></tr>' +
         '<tr><td colspan="2"><b>INFORMAÇÕES FINANCEIRAS:</b><div class="valor esq" contenteditable>' + v(financeiro) + '</div></td></tr>' +

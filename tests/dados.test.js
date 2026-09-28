@@ -62,3 +62,21 @@ test('busca sem acento, por matrícula ou CPF', () => {
   assert.strictEqual(D.buscar(base, '20766')[0].nome, 'JULIANA GOES MOREIRA');
   assert.strictEqual(D.buscar(base, '583.813')[0].nome, 'JULIANA GOES MOREIRA');
 });
+
+test('afastamentos agrupados por tipo, com períodos emendados unidos', () => {
+  const af = (descricao, ini, fim) => ({ descricao, inicio: D.paraData(ini), fim: D.paraData(fim) });
+  const ced = 'CEDIDO PARA OUTRO ORGÃO COM ÔNUS PARA ÓRGÃO DE ORIGEM';
+  const grupos = D.agruparAfastamentos([
+    af(ced, '01/01/2026', '31/12/2026'),
+    af('LICENCA MÉDICA - EFETIVOS', '01/03/2022', '05/03/2022'),
+    af(ced, '04/07/2022', '31/12/2022'),
+    af(ced, '01/01/2023', '31/01/2023'),
+    af(ced, '07/03/2023', '31/12/2023'),
+    af(ced, '01/01/2025', '31/12/2025'),
+    af('LICENCA MÉDICA - EFETIVOS', '29/04/2026', null)
+  ]);
+  assert.deepStrictEqual(D.formatarAfastamentos(grupos), [
+    'LICENCA MÉDICA - EFETIVOS: 01/03/2022 a 05/03/2022; 29/04/2026 a atual.',
+    ced + ': 04/07/2022 a 31/01/2023; 07/03/2023 a 31/12/2023; 01/01/2025 a 31/12/2026.'
+  ]);
+});
