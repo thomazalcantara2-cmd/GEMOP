@@ -40,7 +40,7 @@ complementares) ficam salvos no computador.
 - `js/dados.js` — regras de extração (funções puras, testadas)
 - `js/app.js` — leitura das planilhas, busca e montagem da folha
 - `vendor/xlsx.full.min.js` — [SheetJS](https://sheetjs.com) 0.18.5 (Apache-2.0), leitura de `.xlsx`
-- `tests/` — testes das regras: `node --test tests/`
+- `tests/` — testes das regras: `node --test`
 
 > As planilhas contêm dados pessoais (CPF, endereço etc.). O `.gitignore` impede que arquivos
 > `.xlsx`/`.pdf` sejam enviados ao repositório — mantenha-as fora dele.

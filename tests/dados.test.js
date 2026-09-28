@@ -1,4 +1,4 @@
-// Testes das regras de extração. Execute com: node --test tests/
+// Testes das regras de extração. Execute com: node --test
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
