@@ -1,0 +1,6 @@
+# Planilhas e requerimentos gerados contêm dados pessoais: nunca versionar
+*.xlsx
+*.xls
+*.csv
+*.pdf
+node_modules/

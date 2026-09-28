@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Requerimento do Servidor</title>
+<style>
+  :root {
+    --bg: #eef1f5; --painel: #ffffff; --texto: #1c2430; --suave: #5b6675; --borda: #d4dae3;
+    --destaque: #1f5fa8; --destaque-texto: #ffffff; --ok: #1e7a46; --aviso-bg: #fff6dd; --aviso: #7a5600;
+    --erro-bg: #fde8e8; --erro: #9b1c1c; --sel: #e6f0fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181e; --painel: #1d232b; --texto: #e4e8ee; --suave: #9aa5b3; --borda: #333c48;
+      --destaque: #5b9be0; --destaque-texto: #0d1117; --ok: #5cc98a; --aviso-bg: #3a3017; --aviso: #f1d27a;
+      --erro-bg: #3d1d1d; --erro: #f3a6a6; --sel: #22354b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
+  .app { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+  aside { background: var(--painel); border-right: 1px solid var(--borda); padding: 20px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--suave); margin: 0 0 18px; font-size: 13px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); margin: 22px 0 8px; }
+  #zona { border: 2px dashed var(--borda); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; display: block; }
+  #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
+  #zona input { display: none; }
+  #zona span { color: var(--destaque); font-weight: 600; }
+  .arquivo { font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--borda); color: var(--suave); }
+  .arquivo.ok { color: var(--texto); border-color: var(--ok); }
+  .arquivo.ok b::before { content: "✓ "; color: var(--ok); }
+  .arquivo small { color: var(--suave); }
+  .busca-wrap { position: relative; }
+  input[type=text], input[type=search], input[type=date], textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel); color: var(--texto); font: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; font-size: 13px; }
+  #busca { font-size: 15px; padding: 11px 12px; }
+  #busca:disabled { opacity: .6; }
+  #resultados { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel);
+    position: absolute; left: 0; right: 0; z-index: 5; max-height: 340px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+  #resultados li { padding: 7px 9px; border-radius: 6px; cursor: pointer; }
+  #resultados li:hover, #resultados li.sel { background: var(--sel); }
+  #resultados li small { display: block; color: var(--suave); font-size: 12px; }
+  #resultados li.vazio { color: var(--suave); cursor: default; }
+  label.campo { display: block; font-size: 12px; color: var(--suave); margin: 10px 0 4px; }
+  .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
+  .botoes { display: flex; gap: 8px; margin-top: 18px; }
+  button { font: inherit; border-radius: 8px; padding: 10px 14px; border: 1px solid var(--borda); background: var(--painel); color: var(--texto); cursor: pointer; }
+  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 600; flex: 1; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  #erro { background: var(--erro-bg); color: var(--erro); padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+  #avisos { background: var(--aviso-bg); color: var(--aviso); padding: 8px 12px; border-radius: 8px; font-size: 13px; width: 210mm; max-width: 100%; margin: 0 auto 12px; }
+  #avisos p { margin: 4px 0; }
+  .nota { font-size: 12px; color: var(--suave); margin-top: 14px; }
+  main { padding: 24px 16px; overflow-x: auto; }
+  .dica { text-align: center; color: var(--suave); font-size: 12px; margin: 10px 0 0; }
+
+  /* ---------- Folha A4 (sempre em cores de papel) ---------- */
+  .folha { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000; padding: 10mm 18mm 8mm;
+    box-shadow: 0 2px 16px rgba(0,0,0,.18); font-family: Arial, "Liberation Sans", Helvetica, sans-serif; font-size: 10.5pt; }
+  .folha [contenteditable]:hover { outline: 1px dashed #9bb8dc; }
+  .folha [contenteditable]:focus { outline: 1px solid #1f5fa8; }
+  .cab { text-align: center; }
+  .cab img { height: 20mm; display: block; margin: 0 auto 2mm; }
+  .cab p { font-family: "Times New Roman", Times, serif; font-size: 10pt; margin: 0; line-height: 1.15; }
+  .grade { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .grade td { border: 1px solid #555; padding: 1.6mm 2.2mm; vertical-align: top; }
+  .topo td.titulo { font-size: 16pt; font-weight: 700; line-height: 1.1; vertical-align: middle; }
+  .topo td.centro { text-align: center; font-size: 11pt; }
+  .topo .peq { font-size: 9pt; font-weight: 700; }
+  .dados { margin-top: 6mm; }
+  .dados td { font-size: 11pt; height: 8mm; }
+  .dados .valor { text-align: center; font-size: 9pt; text-transform: uppercase; }
+  .dados .valor.esq { text-align: left; text-transform: none; }
+  .dados .xis { display: block; white-space: nowrap; overflow: hidden; text-transform: none; }
+  .compl { margin-top: 6mm; }
+  .compl ol { margin: 1mm 0 0; padding-left: 5mm; font-size: 9.5pt; }
+  .local { text-align: right; margin: 6mm 0 0; }
+  .assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 30mm; margin-top: 15mm; text-align: center; font-size: 9pt; }
+  .assinaturas .linha { display: block; border-top: 1px solid #000; margin-bottom: 1mm; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--borda); }
+    main { padding: 16px; }
+    .folha { transform-origin: top left; }
+  }
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .app { display: block; }
+    aside, #avisos, .dica { display: none !important; }
+    main { padding: 0; overflow: visible; }
+    .folha { box-shadow: none; margin: 0; min-height: 0; }
+    .folha [contenteditable] { outline: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Requerimento do Servidor</h1>
+    <p class="sub">Cedidos SAD · SEGEP — preenchimento automático</p>
+
+    <h2>1. Planilhas</h2>
+    <label id="zona">
+      <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
+      Arraste as duas planilhas aqui ou <span>clique para escolher</span>
+    </label>
+    <div id="status-indice" class="arquivo"></div>
+    <div id="status-ficha" class="arquivo"></div>
+    <div id="erro" hidden></div>
+
+    <h2>2. Servidor</h2>
+    <div class="busca-wrap">
+      <input id="busca" type="search" autocomplete="off" placeholder="Carregue as planilhas primeiro" disabled>
+      <ul id="resultados" role="listbox" hidden></ul>
+    </div>
+
+    <h2>3. Dados do requerimento</h2>
+    <label class="campo" for="cfg-protocolo">Protocolo</label>
+    <input id="cfg-protocolo" type="text" placeholder="26.7.000000000-0">
+    <div class="dupla">
+      <div>
+        <label class="campo" for="cfg-data">Data (cabeçalho)</label>
+        <input id="cfg-data" type="date">
+      </div>
+      <div>
+        <label class="campo" for="cfg-emissao">Data de emissão</label>
+        <input id="cfg-emissao" type="date" title="Também é a data final do cálculo do tempo de serviço">
+      </div>
+    </div>
+    <label class="campo" for="cfg-assunto">Assunto</label>
+    <input id="cfg-assunto" type="text">
+
+    <details>
+      <summary>Remetente, destinatário e assinaturas</summary>
+      <label class="campo" for="cfg-de">DE (1ª linha em negrito)</label>
+      <textarea id="cfg-de" rows="3"></textarea>
+      <label class="campo" for="cfg-para">PARA (1ª linha em negrito)</label>
+      <textarea id="cfg-para" rows="3"></textarea>
+      <label class="campo" for="cfg-assinaturaEsq">Assinatura à esquerda</label>
+      <textarea id="cfg-assinaturaEsq" rows="2"></textarea>
+      <label class="campo" for="cfg-assinaturaDir">Assinatura à direita</label>
+      <textarea id="cfg-assinaturaDir" rows="2"></textarea>
+      <label class="campo" for="cfg-cidade">Cidade</label>
+      <input id="cfg-cidade" type="text">
+    </details>
+    <details>
+      <summary>Afastamento e informações complementares</summary>
+      <label class="campo" for="cfg-afastamento">Tipo de afastamento (vazio = x-x-x)</label>
+      <input id="cfg-afastamento" type="text">
+      <label class="campo" for="cfg-complementares">Informações complementares (uma por linha; {ano} = ano da emissão)</label>
+      <textarea id="cfg-complementares" rows="7"></textarea>
+    </details>
+    <details>
+      <summary>Regra do órgão de origem</summary>
+      <label class="campo" for="cfg-orgaosCessao">Órgãos onde o servidor fica lotado após a cessão (um por linha, comparação pelo início do nome, sem acentos). O órgão de origem é o último órgão do histórico que não está nesta lista.</label>
+      <textarea id="cfg-orgaosCessao" rows="3"></textarea>
+    </details>
+
+    <div class="botoes">
+      <button id="imprimir" class="prim" disabled>Imprimir / Salvar PDF</button>
+      <button id="restaurar" title="Volta os textos do formulário ao padrão">Restaurar padrão</button>
+    </div>
+    <p class="nota">As planilhas são lidas apenas neste navegador: nenhum dado é enviado para a internet. Os textos do formulário ficam salvos neste computador; os dados dos servidores, não.</p>
+  </aside>
+
+  <main>
+    <div id="avisos" hidden></div>
+    <article id="folha" class="folha"></article>
+    <p class="dica">Os campos da folha podem ser ajustados clicando sobre eles antes de imprimir.</p>
+  </main>
+</div>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

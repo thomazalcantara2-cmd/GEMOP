@@ -1,0 +1,321 @@
+/* Interface: carrega as planilhas, busca o servidor e preenche o requerimento. */
+(function () {
+  'use strict';
+
+  var D = window.Dados;
+  var CHAVE_CONFIG = 'gemop-requerimento-config-v1';
+
+  var PADRAO = {
+    protocolo: '',
+    de: 'SANDRA MOTTA\nUnidade de Gestão de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
+    para: 'LUIZ CARLOS AGUIAR BAYMA FILHO\nAssessoria de Movimentação de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
+    assunto: 'Renovação de cessão de servidor',
+    afastamento: '',
+    complementares: [
+      'FICHA financeira: {ano}.',
+      'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',
+      'NÃO CONSTA cumprimento de estágio probatório.',
+      'NÃO CONSTA gozo de férias, licença para estudos ou licença-prêmio.',
+      'NÃO CONSTA processo administrativo disciplinar, na modalidade inquérito administrativo, em andamento.',
+      'NÃO CONSTA contrato de prazo determinado para atendimento de excepcional interesse público.'
+    ].join('\n'),
+    assinaturaEsq: '',
+    assinaturaDir: 'Sandra Motta\nASSESS. Unidade Gestão de Pessoas-UGEP',
+    cidade: 'Jaboatão dos Guararapes',
+    orgaosCessao: D.ORGAOS_CESSAO.join('\n')
+  };
+
+  var estado = {
+    indice: null,      // { nome, linhas, anoMes }
+    ficha: null,       // { nome, servidores, lotacoes }
+    base: [],
+    selecionado: null
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function linhasHTML(texto) {
+    return esc(texto).split('\n').join('<br>');
+  }
+
+  function hojeISO() {
+    var h = new Date();
+    return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
+  }
+
+  // ---------- configurações (somente textos do formulário; nunca dados de servidores) ----------
+  function lerConfig() {
+    var cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem(CHAVE_CONFIG) || '{}') || {}; } catch (e) { cfg = {}; }
+    Object.keys(PADRAO).forEach(function (k) {
+      var el = $('cfg-' + k);
+      if (el) el.value = cfg[k] != null ? cfg[k] : PADRAO[k];
+    });
+  }
+
+  function salvarConfig() {
+    var cfg = {};
+    Object.keys(PADRAO).forEach(function (k) {
+      var el = $('cfg-' + k);
+      if (el) cfg[k] = el.value;
+    });
+    try { localStorage.setItem(CHAVE_CONFIG, JSON.stringify(cfg)); } catch (e) { /* armazenamento indisponível */ }
+  }
+
+  function cfg(k) {
+    var el = $('cfg-' + k);
+    return el ? el.value : PADRAO[k];
+  }
+
+  // ---------- leitura das planilhas ----------
+  function lerArquivo(arquivo) {
+    return new Promise(function (resolve, reject) {
+      var leitor = new FileReader();
+      leitor.onload = function () {
+        try {
+          resolve(XLSX.read(new Uint8Array(leitor.result), { type: 'array' }));
+        } catch (e) { reject(e); }
+      };
+      leitor.onerror = function () { reject(leitor.error); };
+      leitor.readAsArrayBuffer(arquivo);
+    });
+  }
+
+  function linhasDaAba(wb, nome) {
+    var alvo = D.normalizar(nome);
+    var aba = wb.SheetNames.filter(function (n) { return D.normalizar(n) === alvo; })[0];
+    return aba ? XLSX.utils.sheet_to_json(wb.Sheets[aba], { raw: true, defval: null }) : null;
+  }
+
+  function identificar(wb, nomeArquivo) {
+    var lotacoes = linhasDaAba(wb, 'Lotacoes');
+    if (lotacoes) {
+      return { tipo: 'ficha', nome: nomeArquivo, servidores: linhasDaAba(wb, 'Servidores') || [], lotacoes: lotacoes };
+    }
+    for (var i = 0; i < wb.SheetNames.length; i++) {
+      var linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { raw: true, defval: null });
+      if (linhas.length && 'nu_matricula' in linhas[0] && 'nm_Funcionario' in linhas[0]) {
+        return { tipo: 'indice', nome: nomeArquivo, linhas: linhas, anoMes: linhas[0].dt_anoMes };
+      }
+    }
+    return null;
+  }
+
+  function carregarArquivos(lista) {
+    var arquivos = Array.prototype.slice.call(lista || []);
+    if (!arquivos.length) return;
+    mostrarErro('');
+    Promise.all(arquivos.map(function (f) {
+      return lerArquivo(f).then(function (wb) { return identificar(wb, f.name); });
+    })).then(function (res) {
+      var naoReconhecidos = [];
+      res.forEach(function (r, i) {
+        if (!r) naoReconhecidos.push(arquivos[i].name);
+        else if (r.tipo === 'indice') estado.indice = r;
+        else estado.ficha = r;
+      });
+      if (naoReconhecidos.length) {
+        mostrarErro('Arquivo não reconhecido: ' + naoReconhecidos.join(', ') +
+          '. Envie o "INDICE CEDIDOS SAD" (aba SERVIDORES) e o "relFichaCadastralCompleta" (aba Lotacoes).');
+      }
+      reconstruirBase();
+    }).catch(function (e) {
+      mostrarErro('Não foi possível ler a planilha: ' + e.message);
+    });
+  }
+
+  function reconstruirBase() {
+    atualizarStatus();
+    if (!estado.indice) { estado.base = []; return; }
+    var prefixos = cfg('orgaosCessao').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    estado.base = D.montarBase(estado.indice.linhas, estado.ficha || { servidores: [], lotacoes: [] },
+      prefixos.length ? prefixos : null);
+    $('busca').disabled = false;
+    $('busca').placeholder = 'Digite o nome, matrícula ou CPF (' + estado.base.length + ' servidores)';
+    if (estado.selecionado) {
+      var mat = estado.selecionado.matricula;
+      estado.selecionado = estado.base.filter(function (s) { return s.matricula === mat; })[0] || null;
+    }
+    atualizarBusca();
+    renderizar();
+  }
+
+  function atualizarStatus() {
+    var i = estado.indice, f = estado.ficha;
+    var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
+    $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
+    $('status-indice').innerHTML = i
+      ? '<b>INDICE CEDIDOS SAD</b> — ' + esc(i.nome) + '<br><small>' + i.linhas.length + ' servidores' +
+        (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') + '</small>'
+      : '<b>INDICE CEDIDOS SAD</b> — aguardando arquivo';
+    $('status-ficha').className = 'arquivo ' + (f ? 'ok' : '');
+    $('status-ficha').innerHTML = f
+      ? '<b>Ficha Cadastral Completa</b> — ' + esc(f.nome) + '<br><small>' + f.lotacoes.length + ' registros de lotação</small>'
+      : '<b>Ficha Cadastral Completa</b> — aguardando arquivo';
+  }
+
+  function mostrarErro(msg) {
+    $('erro').textContent = msg;
+    $('erro').hidden = !msg;
+  }
+
+  // ---------- busca ----------
+  function atualizarBusca() {
+    var termo = $('busca').value;
+    var lista = $('resultados');
+    var achados = termo.trim() ? D.buscar(estado.base, termo) : [];
+    lista.innerHTML = achados.slice(0, 30).map(function (s, i) {
+      var sel = estado.selecionado && estado.selecionado.matricula === s.matricula;
+      return '<li role="option" data-i="' + i + '" class="' + (sel ? 'sel' : '') + '"><b>' + esc(s.nome) +
+        '</b><small>Mat. ' + esc(s.matriculaFormatada) + ' · ' + esc(s.lotacao) + '</small></li>';
+    }).join('') + (termo.trim() && !achados.length ? '<li class="vazio">Nenhum servidor encontrado.</li>' : '');
+    lista.hidden = !termo.trim();
+    lista._achados = achados;
+  }
+
+  function selecionar(s) {
+    estado.selecionado = s;
+    $('busca').value = s.nome;
+    $('resultados').hidden = true;
+    renderizar();
+  }
+
+  // ---------- formulário ----------
+  function dataInput(id) {
+    var v = $(id).value;
+    return v ? D.paraData(v) : null;
+  }
+
+  function renderizar() {
+    var s = estado.selecionado;
+    var dataReq = dataInput('cfg-data');
+    var dataEmissao = dataInput('cfg-emissao') || dataReq;
+    var avisos = [];
+
+    var tempo = '', financeiro = '';
+    if (s) {
+      var t = D.tempoEntre(s.admissao, dataEmissao);
+      tempo = D.formatarTempo(t);
+      if (s.salario != null) financeiro = D.formatarMoeda(s.salario) + ' (' + D.valorExtenso(s.salario) + ')';
+      if (!estado.ficha) avisos.push('Carregue a Ficha Cadastral Completa para preencher Lotação e Órgão de origem pelo histórico.');
+      else if (s.semFicha) avisos.push('Servidor sem histórico de lotação na Ficha Cadastral — Lotação vinda do INDICE e Órgão de origem em branco.');
+      else if (!s.origemEncontrada) avisos.push('Não há órgão anterior à Secretaria de Administração no histórico deste servidor. Foi usado o órgão atual — confira o Órgão de origem.');
+      if (s.origemPeriodo) {
+        avisos.push('Órgão de origem obtido da lotação de ' + D.dataBR(s.origemPeriodo.inicio) + ' a ' +
+          (s.origemPeriodo.fim ? D.dataBR(s.origemPeriodo.fim) : 'atual') + ' (' + s.origemPeriodo.local + ').');
+      }
+    }
+    $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
+    $('avisos').hidden = !avisos.length;
+
+    var ano = (dataEmissao || dataReq || D.paraData(hojeISO())).a;
+    var complementares = cfg('complementares').split('\n').map(function (l) { return l.trim(); })
+      .filter(Boolean).map(function (l) { return l.replace(/\{ano\}/g, ano); });
+
+    var de = cfg('de').split('\n');
+    var para = cfg('para').split('\n');
+    var afast = cfg('afastamento').trim();
+
+    var v = function (x) { return s ? esc(x) : ''; };
+
+    $('folha').innerHTML =
+      '<header class="cab">' +
+        '<img src="assets/logo.png" alt="Prefeitura do Jaboatão dos Guararapes">' +
+        '<p>SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO<br>SECRETARIA EXECUTIVA DE GESTÃO DE PESSOAS</p>' +
+      '</header>' +
+      '<table class="grade topo">' +
+        '<colgroup><col style="width:50%"><col style="width:30%"><col style="width:20%"></colgroup>' +
+        '<tr><td class="titulo">REQUERIMENTO DO SERVIDOR</td>' +
+          '<td class="centro"><b>PROTOCOLO:</b><br><span class="peq" contenteditable>' + esc(cfg('protocolo')) + '</span></td>' +
+          '<td class="centro"><b>DATA:</b><br><span class="peq" contenteditable>' + esc(D.dataBR(dataReq)) + '</span></td></tr>' +
+        '<tr><td><b>DE:</b><div contenteditable><b>' + esc(de[0] || '') + '</b>' +
+            (de.length > 1 ? '<br>' + linhasHTML(de.slice(1).join('\n')) : '') + '</div></td>' +
+          '<td colspan="2"><b>PARA:</b><div contenteditable><b>' + esc(para[0] || '') + '</b>' +
+            (para.length > 1 ? '<br>' + linhasHTML(para.slice(1).join('\n')) : '') + '</div></td></tr>' +
+        '<tr><td colspan="3"><b>ASSUNTO:</b> <b contenteditable>' + esc(cfg('assunto')) + '</b></td></tr>' +
+      '</table>' +
+      '<table class="grade dados">' +
+        '<colgroup><col style="width:50%"><col style="width:50%"></colgroup>' +
+        '<tr><td colspan="2"><b>NOME:</b> <b contenteditable>' + v(s && s.nome) + '</b></td></tr>' +
+        '<tr><td><b>MATRÍCULA:</b> <b contenteditable>' + v(s && s.matriculaFormatada) + '</b></td>' +
+          '<td><b>DATA DE ADMISSÃO:</b> <b contenteditable>' + v(s && D.dataBR(s.admissao)) + '</b></td></tr>' +
+        '<tr><td><b>CPF:</b> <b contenteditable>' + v(s && s.cpf) + '</b></td>' +
+          '<td><b>DATA DE NASCIMENTO:</b> <b contenteditable>' + v(s && D.dataBR(s.nascimento)) + '</b></td></tr>' +
+        '<tr><td colspan="2"><b>CARGO:</b> <b contenteditable>' + v(s && s.cargo) + '</b></td></tr>' +
+        '<tr><td colspan="2"><b>ÓRGÃO DE ORIGEM:</b><div class="valor" contenteditable>' + v(s && s.orgaoOrigem) + '</div></td></tr>' +
+        '<tr><td colspan="2"><b>LOTAÇÃO:</b><div class="valor" contenteditable>' + v(s && s.lotacao) + '</div></td></tr>' +
+        '<tr><td colspan="2"><b>TIPO DE AFASTAMENTO:</b><div class="valor" contenteditable>' +
+          (afast ? esc(afast) : '<span class="xis">' + new Array(35).join('x - ') + 'x</span>') + '</div></td></tr>' +
+        '<tr><td colspan="2"><b>TIPO DE VÍNCULO:</b><div class="valor" contenteditable>' + v(s && s.vinculo) + '</div></td></tr>' +
+        '<tr><td colspan="2"><b>TEMPO DE SERVIÇO:</b> <b contenteditable>' + v(tempo) + '</b></td></tr>' +
+        '<tr><td colspan="2"><b>INFORMAÇÕES FINANCEIRAS:</b><div class="valor esq" contenteditable>' + v(financeiro) + '</div></td></tr>' +
+      '</table>' +
+      '<table class="grade compl"><tr><td><b>INFORMAÇÕES COMPLEMENTARES:</b>' +
+        '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ol>' +
+      '</td></tr></table>' +
+      '<p class="local" contenteditable>' + esc(cfg('cidade')) + ', ' + esc(D.dataExtenso(dataEmissao)) + '.</p>' +
+      '<div class="assinaturas">' +
+        '<div><span class="linha"></span><div contenteditable>' + linhasHTML(cfg('assinaturaEsq')) + '</div></div>' +
+        '<div><span class="linha"></span><div contenteditable>' + linhasHTML(cfg('assinaturaDir')) + '</div></div>' +
+      '</div>';
+
+    $('imprimir').disabled = !s;
+    document.title = s ? 'Requerimento - ' + s.nome : 'Requerimento do Servidor';
+  }
+
+  // ---------- eventos ----------
+  function iniciar() {
+    lerConfig();
+    $('cfg-data').value = hojeISO();
+    $('cfg-emissao').value = hojeISO();
+
+    $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
+
+    var zona = $('zona');
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('arrastando'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.remove('arrastando'); });
+    });
+    zona.addEventListener('drop', function (e) { carregarArquivos(e.dataTransfer.files); });
+
+    $('busca').addEventListener('input', atualizarBusca);
+    $('busca').addEventListener('focus', atualizarBusca);
+    $('busca').addEventListener('keydown', function (e) {
+      var achados = $('resultados')._achados || [];
+      if (e.key === 'Enter' && achados.length) { e.preventDefault(); selecionar(achados[0]); }
+      if (e.key === 'Escape') $('resultados').hidden = true;
+    });
+    $('resultados').addEventListener('mousedown', function (e) {
+      var li = e.target.closest('li[data-i]');
+      if (li) { e.preventDefault(); selecionar($('resultados')._achados[+li.dataset.i]); }
+    });
+    $('busca').addEventListener('blur', function () { setTimeout(function () { $('resultados').hidden = true; }, 150); });
+
+    document.querySelectorAll('[id^="cfg-"]').forEach(function (el) {
+      el.addEventListener('input', function () {
+        salvarConfig();
+        if (el.id === 'cfg-orgaosCessao') reconstruirBase(); else renderizar();
+      });
+    });
+    $('restaurar').addEventListener('click', function () {
+      try { localStorage.removeItem(CHAVE_CONFIG); } catch (e) { /* ignora */ }
+      lerConfig();
+      reconstruirBase();
+      renderizar();
+    });
+    $('imprimir').addEventListener('click', function () { window.print(); });
+
+    atualizarStatus();
+    renderizar();
+  }
+
+  document.addEventListener('DOMContentLoaded', iniciar);
+})();
