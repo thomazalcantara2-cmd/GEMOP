@@ -80,3 +80,14 @@ test('afastamentos agrupados por tipo, com períodos emendados unidos', () => {
     ced + ': 04/07/2022 a 31/01/2023; 07/03/2023 a 31/12/2023; 01/01/2025 a 31/12/2026.'
   ]);
 });
+
+test('item da licença-prêmio muda quando consta LICENCA PREMIO', () => {
+  const linhas = ['FICHA financeira: 2026.', 'NÃO CONSTA cumprimento de estágio probatório.',
+    'NÃO CONSTA gozo de férias, licença para estudos ou licença-prêmio.', 'NÃO CONSTA contrato.'];
+  const premio = [{ descricao: 'LICENCA PREMIO', periodos: [] }];
+  const outro = [{ descricao: 'LICENCA MÉDICA - EFETIVOS', periodos: [] }];
+  assert.deepStrictEqual(D.ajustarComplementares(linhas, outro, 'CONSTA gozo de licença-prêmio.'), linhas);
+  assert.deepStrictEqual(D.ajustarComplementares(linhas, premio, 'CONSTA gozo de licença-prêmio.')[2],
+    'CONSTA gozo de licença-prêmio.');
+  assert.strictEqual(D.ajustarComplementares(linhas, premio, 'X')[3], 'NÃO CONSTA contrato.');
+});

@@ -34,6 +34,8 @@ complementares) ficam salvos no computador.
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
   Sem afastamentos, o campo fica com `x - x - x`.
+- **Informações complementares**: se constar `LICENCA PREMIO` nos afastamentos, o item da licença-prêmio
+  (item 4) passa a ser `CONSTA gozo de licença-prêmio.` (texto ajustável na tela).
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.

@@ -18,6 +18,7 @@
       'NÃO CONSTA processo administrativo disciplinar, na modalidade inquérito administrativo, em andamento.',
       'NÃO CONSTA contrato de prazo determinado para atendimento de excepcional interesse público.'
     ].join('\n'),
+    complementarPremio: 'CONSTA gozo de licença-prêmio.',
     assinaturaEsq: '',
     assinaturaDir: 'Sandra Motta\nASSESS. Unidade Gestão de Pessoas-UGEP',
     cidade: 'Jaboatão dos Guararapes',
@@ -217,6 +218,7 @@
     var ano = (dataEmissao || dataReq || D.paraData(hojeISO())).a;
     var complementares = cfg('complementares').split('\n').map(function (l) { return l.trim(); })
       .filter(Boolean).map(function (l) { return l.replace(/\{ano\}/g, ano); });
+    if (s) complementares = D.ajustarComplementares(complementares, s.afastamentos, cfg('complementarPremio').trim());
 
     var de = cfg('de').split('\n');
     var para = cfg('para').split('\n');

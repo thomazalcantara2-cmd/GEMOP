@@ -234,6 +234,24 @@
     });
   }
 
+  function temLicencaPremio(grupos) {
+    return (grupos || []).some(function (g) { return normalizar(g.descricao).indexOf('LICENCA PREMIO') >= 0; });
+  }
+
+  /*
+   * Quando consta LICENCA PREMIO nos afastamentos, troca o item das informações
+   * complementares que fala de licença-prêmio (o item 4 do modelo) pelo texto informado.
+   */
+  function ajustarComplementares(linhas, grupos, textoPremio) {
+    if (!temLicencaPremio(grupos)) return linhas;
+    var alvo = -1;
+    linhas.forEach(function (l, i) {
+      if (alvo < 0 && /LICENCA.PREMIO/.test(normalizar(l))) alvo = i;
+    });
+    if (alvo < 0) return linhas.concat([textoPremio]);
+    return linhas.map(function (l, i) { return i === alvo ? textoPremio : l; });
+  }
+
   function coluna(linha, nomes) {
     var chaves = Object.keys(linha);
     for (var i = 0; i < nomes.length; i++) {
@@ -341,6 +359,8 @@
     orgaoDeOrigem: orgaoDeOrigem,
     agruparAfastamentos: agruparAfastamentos,
     formatarAfastamentos: formatarAfastamentos,
+    temLicencaPremio: temLicencaPremio,
+    ajustarComplementares: ajustarComplementares,
     montarBase: montarBase,
     buscar: buscar
   };
