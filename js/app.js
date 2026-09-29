@@ -183,15 +183,52 @@
       });
     }
     return proximo().then(function (todos) {
-      // lê primeiro só as planilhas com o nome esperado; se faltar alguma, lê as demais para identificar pelo conteúdo
-      var nome = function (f) { return D.normalizar(f.name).replace(/[^A-Z]/g, ''); };
-      var pelosNomes = todos.filter(function (f) {
-        var n = nome(f);
-        return n.indexOf('INDICE') >= 0 || n.indexOf('CEDIDOS') >= 0 || n.indexOf('FICHACADASTRAL') >= 0;
+      return escolherPlanilhas(todos, function (f) { return f.name; });
+    });
+  }
+
+  // Lê primeiro só as planilhas com o nome esperado; se faltar alguma, lê todas para identificar pelo conteúdo.
+  function escolherPlanilhas(itens, nomeDe) {
+    var nome = function (x) { return D.normalizar(nomeDe(x)).replace(/[^A-Z]/g, ''); };
+    var pelosNomes = itens.filter(function (x) {
+      var n = nome(x);
+      return n.indexOf('INDICE') >= 0 || n.indexOf('CEDIDOS') >= 0 || n.indexOf('FICHACADASTRAL') >= 0;
+    });
+    var temIndice = pelosNomes.some(function (x) { return /INDICE|CEDIDOS/.test(nome(x)); });
+    var temFicha = pelosNomes.some(function (x) { return nome(x).indexOf('FICHACADASTRAL') >= 0; });
+    return temIndice && temFicha ? pelosNomes : itens;
+  }
+
+  // ---------- modo aplicativo local (Requerimento.bat + servidor.ps1) ----------
+  // O servidor local (só neste computador) entrega a lista e o conteúdo das planilhas da pasta configurada.
+  function carregarDoServidorLocal() {
+    return fetch('api/planilhas', { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (info) {
+      $('bloco-pasta').hidden = false;
+      $('escolher-pasta').hidden = true;
+      $('recarregar').hidden = false;
+      $('recarregar').textContent = 'Recarregar planilhas';
+      $('pasta-nome').textContent = 'Pasta: ' + info.pasta;
+      var lista = escolherPlanilhas(info.arquivos || [], function (a) { return a.nome; });
+      if (!lista.length) {
+        mostrarErro('Nenhuma planilha .xlsx encontrada na pasta ' + info.pasta + '. Salve lá o INDICE CEDIDOS SAD e o relFichaCadastralCompleta.');
+        return;
+      }
+      return Promise.all(lista.map(function (a) {
+        return fetch('api/arquivo?nome=' + encodeURIComponent(a.nome), { cache: 'no-store' }).then(function (r) {
+          if (!r.ok) throw new Error('não foi possível ler ' + a.nome);
+          return r.blob();
+        }).then(function (b) { return new File([b], a.nome, { lastModified: a.modificado }); });
+      })).then(function (arquivos) {
+        return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
+          if (!estado.indice || !estado.ficha) {
+            mostrarErro('Na pasta ' + info.pasta + ' não foi encontrado: ' +
+              [!estado.indice && 'INDICE CEDIDOS SAD', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
+          }
+        });
       });
-      var temIndice = pelosNomes.some(function (f) { return /INDICE|CEDIDOS/.test(nome(f)); });
-      var temFicha = pelosNomes.some(function (f) { return nome(f).indexOf('FICHACADASTRAL') >= 0; });
-      return temIndice && temFicha ? pelosNomes : todos;
     });
   }
 
@@ -227,9 +264,22 @@
   }
 
   function iniciarPasta() {
+    $('recarregar').addEventListener('click', function () {
+      if (estado.modoLocal) {
+        carregarDoServidorLocal().catch(function (e) { mostrarErro('Não foi possível ler as planilhas: ' + e.message); });
+      } else if (estado.pasta) carregarDaPasta(estado.pasta, true);
+    });
+    if (/^https?:$/.test(location.protocol)) {
+      estado.modoLocal = true;
+      carregarDoServidorLocal().catch(function () { estado.modoLocal = false; iniciarSeletorPasta(); });
+      return;
+    }
+    iniciarSeletorPasta();
+  }
+
+  function iniciarSeletorPasta() {
     if (!('showDirectoryPicker' in window)) { $('bloco-pasta').hidden = true; return; }
     $('escolher-pasta').addEventListener('click', escolherPasta);
-    $('recarregar').addEventListener('click', function () { if (estado.pasta) carregarDaPasta(estado.pasta, true); });
     bancoPasta('ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); });
   }
 

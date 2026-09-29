@@ -8,7 +8,20 @@ exportadas do sistema de RH:
 | `INDICE CEDIDOS SAD` | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
 | `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos`, `Ferias`, `Faltas` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Informações complementares, Status funcional |
 
-## Como usar
+## Aplicativo local (recomendado no Windows)
+
+1. Salve os relatórios na pasta `planilhas` (ou escreva em `pasta.txt` o caminho da pasta onde você já os salva,
+   por exemplo `C:\Users\seu.usuario\Downloads`).
+2. Dê dois cliques em **`Requerimento.bat`**. Abre uma janela preta (o aplicativo) e o navegador já com as
+   planilhas carregadas — sempre o arquivo mais recente de cada tipo. Deixe a janela aberta enquanto usar;
+   feche-a para encerrar. O botão **Recarregar planilhas** relê a pasta sem reiniciar.
+3. Para ter um ícone na Área de Trabalho: botão direito em `Requerimento.bat` → *Enviar para* → *Área de trabalho (criar atalho)*.
+
+Não precisa instalar nada: usa o Windows PowerShell que já vem no Windows. O `servidor.ps1` só atende
+este computador (`127.0.0.1`), só entrega as planilhas `.xlsx` da pasta configurada e os arquivos da página,
+e nenhum dado sai do computador.
+
+## Como usar sem o aplicativo
 
 1. Abra o arquivo `index.html` no Chrome ou no Edge (duplo clique; não precisa de internet nem instalação).
 2. Clique em **Escolher pasta das planilhas** e selecione a pasta onde ficam os relatórios (só na primeira vez).
@@ -56,6 +69,8 @@ complementares) ficam salvos no computador.
 
 ## Estrutura
 
+- `Requerimento.bat` / `servidor.ps1` — aplicativo local (servidor só para este computador, PowerShell 5.1+)
+- `pasta.txt` — caminho opcional da pasta das planilhas; `planilhas/` — pasta padrão
 - `index.html` — interface e layout da folha A4
 - `js/dados.js` — regras de extração (funções puras, testadas)
 - `js/app.js` — leitura das planilhas, busca e montagem da folha
