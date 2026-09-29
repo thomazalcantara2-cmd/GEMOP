@@ -113,11 +113,11 @@ test('férias (último registro) e licenças', () => {
   });
   const s = base[0];
   assert.strictEqual(D.textoFeriasLicencas(s.ferias, s.afastamentos),
-    '**CONSTA** gozo de férias (exercício 2026) de 03/08/2026 a 01/09/2026 (30 dias).\n' +
-    '**CONSTA** gozo de licença-prêmio de 01/04/2026 a 30/04/2026 (30 dias).\n' +
-    '**NÃO CONSTA** gozo de licença para estudos.');
+    'CONSTA gozo de férias (exercício 2026) de 03/08/2026 a 01/09/2026 (30 dias).\n' +
+    'CONSTA gozo de licença-prêmio de 01/04/2026 a 30/04/2026 (30 dias).\n' +
+    'NÃO CONSTA gozo de licença para estudos.');
   assert.strictEqual(D.textoFeriasLicencas(null, []),
-    '**NÃO CONSTA** gozo de férias, licença para estudos ou licença-prêmio.');
+    'NÃO CONSTA gozo de férias, licença para estudos ou licença-prêmio.');
   const linhas = D.informacoesComplementares('FICHA financeira: {ano}.\n{faltas}\n\n{estagio}', s, dt(29, 9, 2026));
   assert.deepStrictEqual(linhas, ['FICHA financeira: 2026.',
     'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',

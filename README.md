@@ -11,7 +11,11 @@ exportadas do sistema de RH:
 ## Como usar
 
 1. Abra o arquivo `index.html` no Chrome ou no Edge (duplo clique; não precisa de internet nem instalação).
-2. Arraste as duas planilhas `.xlsx` para a área indicada (ou clique e selecione as duas).
+2. Clique em **Escolher pasta das planilhas** e selecione a pasta onde ficam os relatórios (só na primeira vez).
+   Nas próximas vezes a página lê a pasta sozinha ao abrir — se o navegador pedir, clique em
+   **Carregar da pasta** e em **Permitir** (no Chrome, escolha "Permitir em todas as visitas").
+   Na pasta, usa o arquivo mais recente cujo nome contém `INDICE`/`CEDIDOS` e o mais recente com
+   `FichaCadastral`. Também é possível arrastar as duas planilhas `.xlsx` para a área indicada.
 3. Digite o nome do servidor (também aceita matrícula ou CPF) e escolha na lista.
 4. Preencha o protocolo e confira as datas.
 5. Clique em **Imprimir / Salvar PDF**. Qualquer campo da folha pode ser corrigido clicando sobre ele antes de imprimir.
@@ -43,7 +47,9 @@ complementares) ficam salvos no computador.
   - `{ferias_licencas}` — férias: último registro da aba `Ferias` (maior *Início Gozo*), com Início/Fim Gozo e
     quantidade de dias; licença-prêmio e licença para estudos: último período na aba `Afastamentos`.
     Cada item que consta fica numa linha (`**CONSTA** gozo de ...`); os que não constam ficam juntos numa
-    linha só (`**NÃO CONSTA** gozo de ...`). No texto configurável, `**trecho**` sai em negrito.
+    linha só (`NÃO CONSTA gozo de ...`).
+  - `CONSTA`, `CONSTAM`, `NÃO CONSTA` e `NÃO CONSTAM` (em maiúsculas) saem sempre em negrito;
+    no texto configurável, `**trecho**` também sai em negrito.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.

@@ -307,16 +307,16 @@
     // Cada item que consta vai numa linha própria; os que não constam ficam juntos numa linha só.
     var linhas = [], naoConsta = [];
     if (ferias && ferias.inicio) {
-      linhas.push('**CONSTA** gozo de férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') +
+      linhas.push('CONSTA gozo de férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') +
         ' ' + descreverPeriodo(ferias) + '.');
     } else naoConsta.push('férias');
     var estudos = ultimoPeriodo(grupos, 'ESTUDO');
-    if (estudos) linhas.push('**CONSTA** gozo de licença para estudos ' + descreverPeriodo(estudos) + '.');
+    if (estudos) linhas.push('CONSTA gozo de licença para estudos ' + descreverPeriodo(estudos) + '.');
     else naoConsta.push('licença para estudos');
     var premio = ultimoPeriodo(grupos, 'PREMIO');
-    if (premio) linhas.push('**CONSTA** gozo de licença-prêmio ' + descreverPeriodo(premio) + '.');
+    if (premio) linhas.push('CONSTA gozo de licença-prêmio ' + descreverPeriodo(premio) + '.');
     else naoConsta.push('licença-prêmio');
-    if (naoConsta.length) linhas.push('**NÃO CONSTA** gozo de ' + listaComE(naoConsta, 'ou') + '.');
+    if (naoConsta.length) linhas.push('NÃO CONSTA gozo de ' + listaComE(naoConsta, 'ou') + '.');
     return linhas.join('\n');
   }
 
@@ -346,7 +346,8 @@
   /*
    * Informações complementares a partir do modelo (uma linha por item) com os marcadores:
    * {ano}, {faltas}, {estagio}, {ferias_licencas}.
-   * Um item pode ter várias linhas (separadas por \n) e usar **texto** para negrito.
+   * Um item pode ter várias linhas (separadas por \n) e usar **texto** para negrito
+   * (CONSTA / NÃO CONSTA são postos em negrito na montagem da folha).
    */
   function informacoesComplementares(modelo, servidor, referencia) {
     var textos = {

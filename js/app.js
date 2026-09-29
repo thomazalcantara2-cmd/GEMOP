@@ -44,8 +44,10 @@
   }
 
   // Escapa o texto, transforma **trecho** em negrito e \n em quebra de linha.
+  // CONSTA / CONSTAM / NÃO CONSTA / NÃO CONSTAM (em maiúsculas) saem sempre em negrito.
   function textoFormatado(texto) {
-    return linhasHTML(texto).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    return linhasHTML(texto).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/(NÃO CONSTAM?|CONSTAM?)(?![A-ZÀ-Ú])/g, '<b>$1</b>');
   }
 
   function hojeISO() {
@@ -113,12 +115,21 @@
     return null;
   }
 
-  function carregarArquivos(lista) {
-    var arquivos = Array.prototype.slice.call(lista || []);
-    if (!arquivos.length) return;
+  // opcoes.ignorarDesconhecidos: na leitura da pasta, arquivos que não são as planilhas esperadas são ignorados.
+  function carregarArquivos(lista, opcoes) {
+    opcoes = opcoes || {};
+    // do mais antigo para o mais novo: se houver duas versões da mesma planilha, vale a mais recente
+    var arquivos = Array.prototype.slice.call(lista || []).sort(function (a, b) {
+      return (a.lastModified || 0) - (b.lastModified || 0);
+    });
+    if (!arquivos.length) return Promise.resolve();
     mostrarErro('');
-    Promise.all(arquivos.map(function (f) {
-      return lerArquivo(f).then(function (wb) { return identificar(wb, f.name); });
+    return Promise.all(arquivos.map(function (f) {
+      return lerArquivo(f).then(function (wb) {
+        var r = identificar(wb, f.name);
+        if (r) r.modificado = f.lastModified ? new Date(f.lastModified) : null;
+        return r;
+      });
     })).then(function (res) {
       var naoReconhecidos = [];
       res.forEach(function (r, i) {
@@ -126,7 +137,7 @@
         else if (r.tipo === 'indice') estado.indice = r;
         else estado.ficha = r;
       });
-      if (naoReconhecidos.length) {
+      if (naoReconhecidos.length && !opcoes.ignorarDesconhecidos) {
         mostrarErro('Arquivo não reconhecido: ' + naoReconhecidos.join(', ') +
           '. Envie o "INDICE CEDIDOS SAD" (aba SERVIDORES) e o "relFichaCadastralCompleta" (aba Lotacoes).');
       }
@@ -134,6 +145,92 @@
     }).catch(function (e) {
       mostrarErro('Não foi possível ler a planilha: ' + e.message);
     });
+  }
+
+  // ---------- pasta das planilhas (Chrome/Edge: File System Access API) ----------
+  // O navegador não deixa uma página abrir pastas do computador sozinha: a pasta é escolhida
+  // uma vez e o acesso fica guardado neste navegador (IndexedDB) para as próximas vezes.
+  var BANCO = 'gemop-requerimento', LOJA = 'pasta';
+
+  function bancoPasta(modo, valor) {
+    return new Promise(function (resolve) {
+      try {
+        var req = indexedDB.open(BANCO, 1);
+        req.onupgradeneeded = function () { req.result.createObjectStore(LOJA); };
+        req.onerror = function () { resolve(null); };
+        req.onsuccess = function () {
+          try {
+            var tx = req.result.transaction(LOJA, modo === 'gravar' ? 'readwrite' : 'readonly');
+            var loja = tx.objectStore(LOJA);
+            var op = modo === 'gravar' ? loja.put(valor, 'pasta') : loja.get('pasta');
+            op.onsuccess = function () { resolve(op.result || null); };
+            op.onerror = function () { resolve(null); };
+          } catch (e) { resolve(null); }
+        };
+      } catch (e) { resolve(null); }
+    });
+  }
+
+  function planilhasDaPasta(pasta) {
+    var arquivos = [];
+    var iterador = pasta.values();
+    function proximo() {
+      return iterador.next().then(function (item) {
+        if (item.done) return arquivos;
+        var h = item.value;
+        if (h.kind !== 'file' || !/\.xlsx?$/i.test(h.name) || /^~\$/.test(h.name)) return proximo();
+        return h.getFile().then(function (f) { arquivos.push(f); return proximo(); });
+      });
+    }
+    return proximo().then(function (todos) {
+      // lê primeiro só as planilhas com o nome esperado; se faltar alguma, lê as demais para identificar pelo conteúdo
+      var nome = function (f) { return D.normalizar(f.name).replace(/[^A-Z]/g, ''); };
+      var pelosNomes = todos.filter(function (f) {
+        var n = nome(f);
+        return n.indexOf('INDICE') >= 0 || n.indexOf('CEDIDOS') >= 0 || n.indexOf('FICHACADASTRAL') >= 0;
+      });
+      var temIndice = pelosNomes.some(function (f) { return /INDICE|CEDIDOS/.test(nome(f)); });
+      var temFicha = pelosNomes.some(function (f) { return nome(f).indexOf('FICHACADASTRAL') >= 0; });
+      return temIndice && temFicha ? pelosNomes : todos;
+    });
+  }
+
+  function carregarDaPasta(pasta, pedirPermissao) {
+    var permissao = pedirPermissao ? pasta.requestPermission({ mode: 'read' }) : pasta.queryPermission({ mode: 'read' });
+    return permissao.then(function (estadoPermissao) {
+      if (estadoPermissao !== 'granted') { mostrarPasta(pasta, false); return; }
+      mostrarPasta(pasta, true);
+      return planilhasDaPasta(pasta).then(function (arquivos) {
+        if (!arquivos.length) { mostrarErro('Nenhuma planilha .xlsx encontrada na pasta "' + pasta.name + '".'); return; }
+        return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
+          if (!estado.indice || !estado.ficha) {
+            mostrarErro('Na pasta "' + pasta.name + '" não foi encontrado: ' +
+              [!estado.indice && 'INDICE CEDIDOS SAD', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
+          }
+        });
+      });
+    }).catch(function (e) { mostrarErro('Não foi possível ler a pasta: ' + e.message); });
+  }
+
+  function mostrarPasta(pasta, liberada) {
+    estado.pasta = pasta;
+    $('pasta-nome').textContent = pasta ? 'Pasta: ' + pasta.name : '';
+    $('recarregar').hidden = !pasta;
+    $('recarregar').textContent = liberada ? 'Recarregar da pasta' : 'Carregar da pasta "' + pasta.name + '"';
+  }
+
+  function escolherPasta() {
+    window.showDirectoryPicker({ id: 'planilhas-cedidos', mode: 'read' }).then(function (pasta) {
+      bancoPasta('gravar', pasta);
+      return carregarDaPasta(pasta, false);
+    }).catch(function (e) { if (e.name !== 'AbortError') mostrarErro('Não foi possível abrir a pasta: ' + e.message); });
+  }
+
+  function iniciarPasta() {
+    if (!('showDirectoryPicker' in window)) { $('bloco-pasta').hidden = true; return; }
+    $('escolher-pasta').addEventListener('click', escolherPasta);
+    $('recarregar').addEventListener('click', function () { if (estado.pasta) carregarDaPasta(estado.pasta, true); });
+    bancoPasta('ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); });
   }
 
   function reconstruirBase() {
@@ -152,17 +249,21 @@
     renderizar();
   }
 
+  function modificadoEm(r) {
+    return r.modificado ? ' · arquivo de ' + r.modificado.toLocaleDateString('pt-BR') : '';
+  }
+
   function atualizarStatus() {
     var i = estado.indice, f = estado.ficha;
     var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
     $('status-indice').innerHTML = i
       ? '<b>INDICE CEDIDOS SAD</b> — ' + esc(i.nome) + '<br><small>' + i.linhas.length + ' servidores' +
-        (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') + '</small>'
+        (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') + modificadoEm(i) + '</small>'
       : '<b>INDICE CEDIDOS SAD</b> — aguardando arquivo';
     $('status-ficha').className = 'arquivo ' + (f ? 'ok' : '');
     $('status-ficha').innerHTML = f
-      ? '<b>Ficha Cadastral Completa</b> — ' + esc(f.nome) + '<br><small>' + f.lotacoes.length + ' registros de lotação</small>'
+      ? '<b>Ficha Cadastral Completa</b> — ' + esc(f.nome) + '<br><small>' + f.lotacoes.length + ' registros de lotação' + modificadoEm(f) + '</small>'
       : '<b>Ficha Cadastral Completa</b> — aguardando arquivo';
   }
 
@@ -279,6 +380,7 @@
     $('cfg-data').value = hojeISO();
     $('cfg-emissao').value = hojeISO();
 
+    iniciarPasta();
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
 
     var zona = $('zona');

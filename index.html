@@ -28,6 +28,9 @@
   #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
   #zona input { display: none; }
   #zona span { color: var(--destaque); font-weight: 600; }
+  .pasta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .pasta button { padding: 8px 12px; font-size: 13px; }
+  .pasta small { color: var(--suave); width: 100%; }
   .arquivo { font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--borda); color: var(--suave); }
   .arquivo.ok { color: var(--texto); border-color: var(--ok); }
   .arquivo.ok b::before { content: "✓ "; color: var(--ok); }
@@ -110,9 +113,14 @@
     <p class="sub">Cedidos SAD · SEGEP — preenchimento automático</p>
 
     <h2>1. Planilhas</h2>
+    <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
+      <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
+      <button id="recarregar" type="button" class="prim" hidden>Recarregar da pasta</button>
+      <small id="pasta-nome"></small>
+    </div>
     <label id="zona">
       <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
-      Arraste as duas planilhas aqui ou <span>clique para escolher</span>
+      ou arraste as duas planilhas aqui / <span>clique para escolher</span>
     </label>
     <div id="status-indice" class="arquivo"></div>
     <div id="status-ficha" class="arquivo"></div>
