@@ -43,6 +43,11 @@
     return esc(texto).split('\n').join('<br>');
   }
 
+  // Escapa o texto, transforma **trecho** em negrito e \n em quebra de linha.
+  function textoFormatado(texto) {
+    return linhasHTML(texto).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  }
+
   function hojeISO() {
     var h = new Date();
     return h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0') + '-' + String(h.getDate()).padStart(2, '0');
@@ -256,7 +261,7 @@
         '<tr><td colspan="2"><b>INFORMAÇÕES FINANCEIRAS:</b><div class="valor esq" contenteditable>' + v(financeiro) + '</div></td></tr>' +
       '</table>' +
       '<table class="grade compl"><tr><td><b>INFORMAÇÕES COMPLEMENTARES:</b>' +
-        '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ol>' +
+        '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +
       '</td></tr></table>' +
       '<p class="local" contenteditable>' + esc(cfg('cidade')) + ', ' + esc(D.dataExtenso(dataEmissao)) + '.</p>' +
       '<div class="assinaturas">' +

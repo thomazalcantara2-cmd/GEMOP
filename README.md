@@ -38,11 +38,12 @@ complementares) ficam salvos no computador.
   são preenchidos automaticamente):
   - `{faltas}` — aba `Faltas`: sem registros → `NÃO CONSTAM faltas...`; com registros → `CONSTAM faltas...` e as datas.
   - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data de emissão:
-    já terminou → `CONSTA cumprimento de estágio probatório, concluído em dd/mm/aaaa.`;
+    já terminou → `O servidor **CONCLUIU** o estágio probatório em dd/mm/aaaa.`;
     ainda em curso → `Servidor em estágio probatório, com término previsto em dd/mm/aaaa (faltam ...)`.
   - `{ferias_licencas}` — férias: último registro da aba `Ferias` (maior *Início Gozo*), com Início/Fim Gozo e
     quantidade de dias; licença-prêmio e licença para estudos: último período na aba `Afastamentos`.
-    O que não constar fica em `NÃO CONSTA gozo de ...`.
+    Cada item que consta fica numa linha (`**CONSTA** gozo de ...`); os que não constam ficam juntos numa
+    linha só (`**NÃO CONSTA** gozo de ...`). No texto configurável, `**trecho**` sai em negrito.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.

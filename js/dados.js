@@ -270,7 +270,7 @@
     var e = estagioProbatorio(admissao);
     if (!e || !referencia) return 'NÃO CONSTA cumprimento de estágio probatório.';
     if (valorData(e.fim) <= valorData(referencia)) {
-      return 'CONSTA cumprimento de estágio probatório, concluído em ' + dataBR(e.fim) + '.';
+      return 'O servidor **CONCLUIU** o estágio probatório em ' + dataBR(e.fim) + '.';
     }
     return 'Servidor em estágio probatório, com término previsto em ' + dataBR(e.fim) +
       ' (faltam ' + tempoPorExtenso(tempoEntre(referencia, e.fim)) + ').';
@@ -304,21 +304,20 @@
    * Licenças: último período da aba Afastamentos.
    */
   function textoFeriasLicencas(ferias, grupos) {
-    var consta = [], naoConsta = [];
+    // Cada item que consta vai numa linha própria; os que não constam ficam juntos numa linha só.
+    var linhas = [], naoConsta = [];
     if (ferias && ferias.inicio) {
-      consta.push('férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') + ' ' + descreverPeriodo(ferias));
+      linhas.push('**CONSTA** gozo de férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') +
+        ' ' + descreverPeriodo(ferias) + '.');
     } else naoConsta.push('férias');
     var estudos = ultimoPeriodo(grupos, 'ESTUDO');
-    if (estudos) consta.push('licença para estudos ' + descreverPeriodo(estudos));
+    if (estudos) linhas.push('**CONSTA** gozo de licença para estudos ' + descreverPeriodo(estudos) + '.');
     else naoConsta.push('licença para estudos');
     var premio = ultimoPeriodo(grupos, 'PREMIO');
-    if (premio) consta.push('licença-prêmio ' + descreverPeriodo(premio));
+    if (premio) linhas.push('**CONSTA** gozo de licença-prêmio ' + descreverPeriodo(premio) + '.');
     else naoConsta.push('licença-prêmio');
-
-    var frases = [];
-    if (consta.length) frases.push('CONSTA gozo de ' + listaComE(consta, 'e de') + '.');
-    if (naoConsta.length) frases.push('NÃO CONSTA gozo de ' + listaComE(naoConsta, 'ou') + '.');
-    return frases.join(' ');
+    if (naoConsta.length) linhas.push('**NÃO CONSTA** gozo de ' + listaComE(naoConsta, 'ou') + '.');
+    return linhas.join('\n');
   }
 
   // Datas de uma linha da aba Faltas (a aba vem vazia quando não há registros).
@@ -347,6 +346,7 @@
   /*
    * Informações complementares a partir do modelo (uma linha por item) com os marcadores:
    * {ano}, {faltas}, {estagio}, {ferias_licencas}.
+   * Um item pode ter várias linhas (separadas por \n) e usar **texto** para negrito.
    */
   function informacoesComplementares(modelo, servidor, referencia) {
     var textos = {

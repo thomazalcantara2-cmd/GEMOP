@@ -85,7 +85,7 @@ test('estágio probatório: 2 anos até 07/03/1996, 3 anos depois', () => {
   assert.deepStrictEqual(D.estagioProbatorio(dt(7, 3, 1996)).fim, dt(7, 3, 1998));
   assert.deepStrictEqual(D.estagioProbatorio(dt(8, 3, 1996)).fim, dt(8, 3, 1999));
   assert.strictEqual(D.textoEstagio(dt(1, 11, 2016), dt(29, 9, 2026)),
-    'CONSTA cumprimento de estágio probatório, concluído em 01/11/2019.');
+    'O servidor **CONCLUIU** o estágio probatório em 01/11/2019.');
   assert.strictEqual(D.textoEstagio(dt(5, 5, 2026), dt(29, 9, 2026)),
     'Servidor em estágio probatório, com término previsto em 05/05/2029 (faltam 2 anos, 7 meses e 6 dias).');
 });
@@ -113,10 +113,11 @@ test('férias (último registro) e licenças', () => {
   });
   const s = base[0];
   assert.strictEqual(D.textoFeriasLicencas(s.ferias, s.afastamentos),
-    'CONSTA gozo de férias (exercício 2026) de 03/08/2026 a 01/09/2026 (30 dias) e de licença-prêmio ' +
-    'de 01/04/2026 a 30/04/2026 (30 dias). NÃO CONSTA gozo de licença para estudos.');
+    '**CONSTA** gozo de férias (exercício 2026) de 03/08/2026 a 01/09/2026 (30 dias).\n' +
+    '**CONSTA** gozo de licença-prêmio de 01/04/2026 a 30/04/2026 (30 dias).\n' +
+    '**NÃO CONSTA** gozo de licença para estudos.');
   assert.strictEqual(D.textoFeriasLicencas(null, []),
-    'NÃO CONSTA gozo de férias, licença para estudos ou licença-prêmio.');
+    '**NÃO CONSTA** gozo de férias, licença para estudos ou licença-prêmio.');
   const linhas = D.informacoesComplementares('FICHA financeira: {ano}.\n{faltas}\n\n{estagio}', s, dt(29, 9, 2026));
   assert.deepStrictEqual(linhas, ['FICHA financeira: 2026.',
     'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',
