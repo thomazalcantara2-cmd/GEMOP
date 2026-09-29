@@ -234,22 +234,130 @@
     });
   }
 
-  function temLicencaPremio(grupos) {
-    return (grupos || []).some(function (g) { return normalizar(g.descricao).indexOf('LICENCA PREMIO') >= 0; });
+  function diasEntre(inicio, fim) {
+    return Math.round((Date.UTC(fim.a, fim.m - 1, fim.d) - Date.UTC(inicio.a, inicio.m - 1, inicio.d)) / 86400000) + 1;
+  }
+
+  function somarAnos(dt, anos) {
+    var a = dt.a + anos;
+    return { a: a, m: dt.m, d: Math.min(dt.d, diasNoMes(a, dt.m)) };
+  }
+
+  // "2 anos, 7 meses e 6 dias" (omite as partes zeradas)
+  function tempoPorExtenso(t) {
+    var partes = [];
+    if (t.anos) partes.push(t.anos + (t.anos === 1 ? ' ano' : ' anos'));
+    if (t.meses) partes.push(t.meses + (t.meses === 1 ? ' mês' : ' meses'));
+    if (t.dias || !partes.length) partes.push(t.dias + (t.dias === 1 ? ' dia' : ' dias'));
+    return partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes[0];
+  }
+
+  function listaComE(itens, conector) {
+    if (itens.length < 2) return itens.join('');
+    return itens.slice(0, -1).join(', ') + ' ' + conector + ' ' + itens[itens.length - 1];
+  }
+
+  // Admitidos até 07/03/1996: 2 anos de estágio probatório; depois disso, 3 anos.
+  var LIMITE_ESTAGIO_2_ANOS = { a: 1996, m: 3, d: 7 };
+
+  function estagioProbatorio(admissao) {
+    if (!admissao) return null;
+    var anos = valorData(admissao) <= valorData(LIMITE_ESTAGIO_2_ANOS) ? 2 : 3;
+    return { anos: anos, fim: somarAnos(admissao, anos) };
+  }
+
+  function textoEstagio(admissao, referencia) {
+    var e = estagioProbatorio(admissao);
+    if (!e || !referencia) return 'NÃO CONSTA cumprimento de estágio probatório.';
+    if (valorData(e.fim) <= valorData(referencia)) {
+      return 'CONSTA cumprimento de estágio probatório, concluído em ' + dataBR(e.fim) + '.';
+    }
+    return 'Servidor em estágio probatório, com término previsto em ' + dataBR(e.fim) +
+      ' (faltam ' + tempoPorExtenso(tempoEntre(referencia, e.fim)) + ').';
+  }
+
+  function textoFaltas(faltas) {
+    if (!faltas || !faltas.length) return 'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.';
+    return 'CONSTAM faltas no Sistema de Administração de Recursos Humanos: ' + faltas.join('; ') + '.';
+  }
+
+  function ultimoPeriodo(grupos, trecho) {
+    var ultimo = null;
+    (grupos || []).forEach(function (g) {
+      if (normalizar(g.descricao).indexOf(trecho) < 0) return;
+      g.periodos.forEach(function (p) {
+        if (!ultimo || valorData(p.inicio) > valorData(ultimo.inicio)) ultimo = p;
+      });
+    });
+    return ultimo;
+  }
+
+  function descreverPeriodo(p) {
+    if (!p.fim) return 'a partir de ' + dataBR(p.inicio);
+    var dias = diasEntre(p.inicio, p.fim);
+    return 'de ' + dataBR(p.inicio) + ' a ' + dataBR(p.fim) + ' (' + dias + (dias === 1 ? ' dia)' : ' dias)');
   }
 
   /*
-   * Quando consta LICENCA PREMIO nos afastamentos, troca o item das informações
-   * complementares que fala de licença-prêmio (o item 4 do modelo) pelo texto informado.
+   * Item de férias / licença para estudos / licença-prêmio.
+   * Férias: último registro da aba Ferias (maior Início Gozo).
+   * Licenças: último período da aba Afastamentos.
    */
-  function ajustarComplementares(linhas, grupos, textoPremio) {
-    if (!temLicencaPremio(grupos)) return linhas;
-    var alvo = -1;
-    linhas.forEach(function (l, i) {
-      if (alvo < 0 && /LICENCA.PREMIO/.test(normalizar(l))) alvo = i;
+  function textoFeriasLicencas(ferias, grupos) {
+    var consta = [], naoConsta = [];
+    if (ferias && ferias.inicio) {
+      consta.push('férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') + ' ' + descreverPeriodo(ferias));
+    } else naoConsta.push('férias');
+    var estudos = ultimoPeriodo(grupos, 'ESTUDO');
+    if (estudos) consta.push('licença para estudos ' + descreverPeriodo(estudos));
+    else naoConsta.push('licença para estudos');
+    var premio = ultimoPeriodo(grupos, 'PREMIO');
+    if (premio) consta.push('licença-prêmio ' + descreverPeriodo(premio));
+    else naoConsta.push('licença-prêmio');
+
+    var frases = [];
+    if (consta.length) frases.push('CONSTA gozo de ' + listaComE(consta, 'e de') + '.');
+    if (naoConsta.length) frases.push('NÃO CONSTA gozo de ' + listaComE(naoConsta, 'ou') + '.');
+    return frases.join(' ');
+  }
+
+  // Datas de uma linha da aba Faltas (a aba vem vazia quando não há registros).
+  function datasDaFalta(linha) {
+    var chaves = Object.keys(linha).filter(function (k) {
+      var n = normalizar(k);
+      return n !== 'MATRICULA' && n !== 'NOME';
     });
-    if (alvo < 0) return linhas.concat([textoPremio]);
-    return linhas.map(function (l, i) { return i === alvo ? textoPremio : l; });
+    var ini = chaves.filter(function (k) { return normalizar(k).indexOf('INICIO') >= 0; })[0];
+    var fim = chaves.filter(function (k) { return normalizar(k).indexOf('FIM') >= 0; })[0];
+    if (ini && paraData(linha[ini])) {
+      var a = paraData(linha[ini]), b = fim ? paraData(linha[fim]) : null;
+      return [b && valorData(b) !== valorData(a) ? dataBR(a) + ' a ' + dataBR(b) : dataBR(a)];
+    }
+    var comData = chaves.filter(function (k) { return normalizar(k).indexOf('DATA') >= 0; });
+    var candidatas = comData.length ? comData : chaves;
+    return candidatas.map(function (k) {
+      var v = linha[k];
+      // números só contam como data se estiverem numa faixa plausível de datas do Excel (1954–2064)
+      if (typeof v === 'number' && (v < 20000 || v > 60000)) return null;
+      var dt = paraData(v);
+      return dt ? dataBR(dt) : null;
+    }).filter(Boolean);
+  }
+
+  /*
+   * Informações complementares a partir do modelo (uma linha por item) com os marcadores:
+   * {ano}, {faltas}, {estagio}, {ferias_licencas}.
+   */
+  function informacoesComplementares(modelo, servidor, referencia) {
+    var textos = {
+      ano: referencia ? String(referencia.a) : '',
+      faltas: textoFaltas(servidor && servidor.faltas),
+      estagio: textoEstagio(servidor && servidor.admissao, referencia),
+      ferias_licencas: textoFeriasLicencas(servidor && servidor.ferias, servidor && servidor.afastamentos)
+    };
+    return modelo.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
+      return l.replace(/\{(ano|faltas|estagio|ferias_licencas)\}/g, function (_, k) { return textos[k]; });
+    });
   }
 
   function coluna(linha, nomes) {
@@ -266,7 +374,7 @@
   /*
    * Monta a base a partir das planilhas.
    * indiceLinhas: linhas da aba SERVIDORES do "INDICE CEDIDOS SAD".
-   * ficha: { servidores: [...], lotacoes: [...], afastamentos: [...] } do "relFichaCadastralCompleta".
+   * ficha: { servidores, lotacoes, afastamentos, ferias, faltas } (linhas das abas) do "relFichaCadastralCompleta".
    * orgaosCessao (opcional): prefixos de órgão que indicam cessão (padrão ORGAOS_CESSAO).
    */
   function montarBase(indiceLinhas, ficha, orgaosCessao) {
@@ -299,6 +407,25 @@
       });
     });
 
+    var ferias = {};
+    (ficha.ferias || []).forEach(function (l) {
+      var k = chaveMatricula(coluna(l, ['Matrícula']));
+      var registro = {
+        exercicio: coluna(l, ['Exercício']),
+        inicio: paraData(coluna(l, ['Início Gozo'])),
+        fim: paraData(coluna(l, ['Fim Gozo']))
+      };
+      if (!k || !registro.inicio) return;
+      if (!ferias[k] || valorData(registro.inicio) > valorData(ferias[k].inicio)) ferias[k] = registro;
+    });
+
+    var faltas = {};
+    (ficha.faltas || []).forEach(function (l) {
+      var k = chaveMatricula(coluna(l, ['Matrícula']));
+      if (!k) return;
+      faltas[k] = (faltas[k] || []).concat(datasDaFalta(l));
+    });
+
     return indiceLinhas.map(function (l) {
       var matricula = chaveMatricula(coluna(l, ['nu_matricula']));
       var hist = ordenarLotacoes(lotacoes[matricula] || []);
@@ -327,6 +454,8 @@
         origemPeriodo: origem,
         historico: hist,
         afastamentos: agruparAfastamentos(afastamentos[matricula] || []),
+        ferias: ferias[matricula] || null,
+        faltas: faltas[matricula] || [],
         semFicha: !hist.length
       };
     }).filter(function (s) { return s.nome; })
@@ -359,8 +488,11 @@
     orgaoDeOrigem: orgaoDeOrigem,
     agruparAfastamentos: agruparAfastamentos,
     formatarAfastamentos: formatarAfastamentos,
-    temLicencaPremio: temLicencaPremio,
-    ajustarComplementares: ajustarComplementares,
+    estagioProbatorio: estagioProbatorio,
+    textoEstagio: textoEstagio,
+    textoFaltas: textoFaltas,
+    textoFeriasLicencas: textoFeriasLicencas,
+    informacoesComplementares: informacoesComplementares,
     montarBase: montarBase,
     buscar: buscar
   };

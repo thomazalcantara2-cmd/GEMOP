@@ -6,7 +6,7 @@ exportadas do sistema de RH:
 | Planilha | Aba usada | Campos |
 |---|---|---|
 | `INDICE CEDIDOS SAD` | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
-| `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Status funcional |
+| `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos`, `Ferias`, `Faltas` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Informações complementares, Status funcional |
 
 ## Como usar
 
@@ -34,8 +34,15 @@ complementares) ficam salvos no computador.
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
   Sem afastamentos, o campo fica com `x - x - x`.
-- **Informações complementares**: se constar `LICENCA PREMIO` nos afastamentos, o item da licença-prêmio
-  (item 4) passa a ser `CONSTA gozo de licença-prêmio.` (texto ajustável na tela).
+- **Informações complementares** (o texto de cada item pode ser ajustado na tela; os marcadores entre chaves
+  são preenchidos automaticamente):
+  - `{faltas}` — aba `Faltas`: sem registros → `NÃO CONSTAM faltas...`; com registros → `CONSTAM faltas...` e as datas.
+  - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data de emissão:
+    já terminou → `CONSTA cumprimento de estágio probatório, concluído em dd/mm/aaaa.`;
+    ainda em curso → `Servidor em estágio probatório, com término previsto em dd/mm/aaaa (faltam ...)`.
+  - `{ferias_licencas}` — férias: último registro da aba `Ferias` (maior *Início Gozo*), com Início/Fim Gozo e
+    quantidade de dias; licença-prêmio e licença para estudos: último período na aba `Afastamentos`.
+    O que não constar fica em `NÃO CONSTA gozo de ...`.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.

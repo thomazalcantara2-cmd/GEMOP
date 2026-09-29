@@ -3,7 +3,7 @@
   'use strict';
 
   var D = window.Dados;
-  var CHAVE_CONFIG = 'gemop-requerimento-config-v1';
+  var CHAVE_CONFIG = 'gemop-requerimento-config-v2';
 
   var PADRAO = {
     protocolo: '',
@@ -12,13 +12,12 @@
     assunto: 'Renovação de cessão de servidor',
     complementares: [
       'FICHA financeira: {ano}.',
-      'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',
-      'NÃO CONSTA cumprimento de estágio probatório.',
-      'NÃO CONSTA gozo de férias, licença para estudos ou licença-prêmio.',
+      '{faltas}',
+      '{estagio}',
+      '{ferias_licencas}',
       'NÃO CONSTA processo administrativo disciplinar, na modalidade inquérito administrativo, em andamento.',
       'NÃO CONSTA contrato de prazo determinado para atendimento de excepcional interesse público.'
     ].join('\n'),
-    complementarPremio: 'CONSTA gozo de licença-prêmio.',
     assinaturaEsq: '',
     assinaturaDir: 'Sandra Motta\nASSESS. Unidade Gestão de Pessoas-UGEP',
     cidade: 'Jaboatão dos Guararapes',
@@ -97,7 +96,8 @@
     var lotacoes = linhasDaAba(wb, 'Lotacoes');
     if (lotacoes) {
       return { tipo: 'ficha', nome: nomeArquivo, servidores: linhasDaAba(wb, 'Servidores') || [],
-        lotacoes: lotacoes, afastamentos: linhasDaAba(wb, 'Afastamentos') || [] };
+        lotacoes: lotacoes, afastamentos: linhasDaAba(wb, 'Afastamentos') || [],
+        ferias: linhasDaAba(wb, 'Ferias') || [], faltas: linhasDaAba(wb, 'Faltas') || [] };
     }
     for (var i = 0; i < wb.SheetNames.length; i++) {
       var linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { raw: true, defval: null });
@@ -215,10 +215,7 @@
     $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
     $('avisos').hidden = !avisos.length;
 
-    var ano = (dataEmissao || dataReq || D.paraData(hojeISO())).a;
-    var complementares = cfg('complementares').split('\n').map(function (l) { return l.trim(); })
-      .filter(Boolean).map(function (l) { return l.replace(/\{ano\}/g, ano); });
-    if (s) complementares = D.ajustarComplementares(complementares, s.afastamentos, cfg('complementarPremio').trim());
+    var complementares = D.informacoesComplementares(cfg('complementares'), s, dataEmissao || D.paraData(hojeISO()));
 
     var de = cfg('de').split('\n');
     var para = cfg('para').split('\n');
