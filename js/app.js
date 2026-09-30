@@ -361,7 +361,7 @@
       tempo = D.formatarTempo(t);
       if (s.salario != null) financeiro = D.formatarMoeda(s.salario) + ' (' + D.valorExtenso(s.salario) + ')';
       if (!estado.ficha) avisos.push('Carregue a Ficha Cadastral Completa para preencher Lotação e Órgão de origem pelo histórico.');
-      else if (s.semFicha) avisos.push('Servidor sem histórico de lotação na Ficha Cadastral — Lotação vinda do INDICE e Órgão de origem em branco.');
+      else if (s.semFicha) avisos.push('ATENÇÃO: servidor não encontrado na Ficha Cadastral Completa. Lotação veio do INDICE, Órgão de origem ficou em branco e afastamentos, férias e faltas NÃO puderam ser verificados — os itens "NÃO CONSTA" podem estar incorretos. Gere a Ficha Cadastral incluindo este servidor.');
       else if (!s.origemEncontrada) avisos.push('Não há órgão anterior à Secretaria de Administração no histórico deste servidor. Foi usado o órgão atual — confira o Órgão de origem.');
       if (s.origemPeriodo) {
         avisos.push('Órgão de origem obtido da lotação de ' + D.dataBR(s.origemPeriodo.inicio) + ' a ' +
