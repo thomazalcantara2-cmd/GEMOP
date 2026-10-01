@@ -105,15 +105,14 @@
   .folha .nome { display: flex; flex-direction: column; gap: .5mm; padding: 3.5mm 4.5mm; background: var(--azul); color: #fff; }
   .folha .nome .rot { color: #fff; opacity: .85; letter-spacing: .08em; font-weight: 600; }
   .folha .nome b { font-size: 13pt; font-weight: 800; }
-  .folha .linha3 { display: grid; grid-template-columns: 34mm minmax(0,1.35fr) 26mm minmax(0,.8fr); border-bottom: 1px solid #e8ecf2; min-height: 9mm; }
+  .folha .linha3 { display: grid; grid-template-columns: 34mm minmax(0,1.25fr) minmax(0,1fr); border-bottom: 1px solid #e8ecf2; min-height: 9mm; }
   .folha .linha3 > .rot { padding: 2mm 2mm 2mm 4.5mm; }
   .folha .linha3 > .val { padding: 1.8mm 3mm 1.8mm 0; font-weight: 600; }
-  .folha .linha3 > .fonte { border-left: 1px dashed #c3cbd9; padding: 2mm 2mm; font-size: 7pt; font-weight: 600; line-height: 1.3; color: var(--azul); }
+  .folha .linha3 > .rot .fonte { display: block; margin-top: .8mm; font-size: 6pt; font-weight: 500; letter-spacing: 0; text-transform: none; color: #7a8599; line-height: 1.25; }
   .folha .linha3 > .obs { border-left: 1px dashed #c3cbd9; padding: 1.8mm 3mm; font-size: 7.5pt; line-height: 1.35; color: var(--cinza); }
   .folha .linha3.titulos { background: #eef2f9; border-bottom: 1px solid var(--linha); min-height: 0; }
   .folha .linha3.titulos > span { color: var(--azul); padding-top: 1.8mm; padding-bottom: 1.8mm; }
   .folha .linha3.titulos > span + span { padding-left: 0; }
-  .folha .linha3.titulos > span:nth-child(3) { border-left: 1px dashed #c3cbd9; padding-left: 2mm; }
   .folha .linha3.titulos > span:last-child { border-left: 1px dashed #c3cbd9; padding-left: 3mm; }
   .folha .linha3.fin { background: #fff8e1; border-bottom: 0; }
   .folha .afast { display: flex; flex-direction: column; gap: 1mm; font-weight: 500; font-size: 9pt; }

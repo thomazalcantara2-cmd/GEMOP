@@ -355,14 +355,15 @@
     return v ? D.paraData(v) : null;
   }
 
-  // Nomes das planilhas de onde cada informação foi tirada (coluna "Fonte")
+  // Nomes das planilhas de onde cada informação foi tirada (exibidos abaixo do nome do campo)
   var FONTE_CONTABILIS = 'Contabilis';
   var FONTE_FICHA = 'Ficha Cadastral Completa';
 
   function linhaDado(rotulo, valorHTML, classe, observacao, fonte) {
-    return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) + '</span>' +
+    // a fonte (planilha de onde veio a informação) sai pequena, abaixo do nome do campo
+    return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) +
+      (fonte ? '<span class="fonte" contenteditable>' + esc(fonte) + '</span>' : '') + '</span>' +
       '<div class="val" contenteditable>' + valorHTML + '</div>' +
-      '<div class="fonte" contenteditable>' + esc(fonte || '') + '</div>' +
       '<div class="obs" contenteditable>' + esc(observacao || '') + '</div></div>';
   }
 
@@ -420,17 +421,17 @@
           '<div class="data"><span class="rot">Data</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
         '<div class="cartao">' +
           '<div class="nome"><span class="rot">Nome</span><b contenteditable>' + v(s && s.nome) + '</b></div>' +
-          '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Fonte</span><span class="rot">Observações</span></div>' +
+          '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Observações</span></div>' +
           linhaDado('Matrícula', v(s && s.matriculaFormatada), '', '', fonte(FONTE_CONTABILIS)) +
           linhaDado('CPF', v(s && s.cpf), '', '', fonte(FONTE_CONTABILIS)) +
           linhaDado('Nascimento', v(s && D.dataBR(s.nascimento)), '', '', fonte(FONTE_CONTABILIS)) +
           linhaDado('Admissão', v(s && D.dataBR(s.admissao)), '', '', fonte(FONTE_CONTABILIS)) +
           linhaDado('Cargo', v(s && s.cargo), '', '', fonte(FONTE_CONTABILIS)) +
-          linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem, fonte(temFicha ? FONTE_FICHA : '—')) +
+          linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem, fonte(temFicha ? FONTE_FICHA : '')) +
           linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao, fonte(temFicha ? FONTE_FICHA : FONTE_CONTABILIS)) +
           linhaDado('Vínculo', v(s && s.vinculo), '', '', fonte(temFicha ? FONTE_FICHA + ' + ' + FONTE_CONTABILIS : FONTE_CONTABILIS)) +
-          linhaDado('Tempo de serviço', v(tempo), '', '', fonte(FONTE_CONTABILIS + ' (cálculo)')) +
-          linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '—')) +
+          linhaDado('Tempo de serviço', v(tempo), '', '', fonte(FONTE_CONTABILIS + ' (calculado)')) +
+          linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '')) +
           linhaDado('Inf. financeiras', financeiro, 'fin', '', fonte(FONTE_CONTABILIS)) +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
