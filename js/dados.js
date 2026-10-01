@@ -335,7 +335,8 @@
 
   /*
    * Escolhe o registro de férias a informar, em relação ao ano da data do documento:
-   * 1) férias do exercício do ano atual (a de início de gozo mais recente);
+   * 1) férias do exercício do ano atual (a de início de gozo mais recente) — se o gozo ainda não
+   *    começou na data do documento, é informada como programação;
    * 2) se não houver, a programação do exercício seguinte (marcada como programacao);
    * 3) se também não houver, o último registro anterior.
    * Sem data de referência, usa o último registro (maior Início Gozo).
@@ -349,7 +350,11 @@
     if (!referencia) return { registro: maisRecente(lista), programacao: false };
     var ano = referencia.a;
     var atuais = lista.filter(function (r) { return exercicioDe(r) === ano; });
-    if (atuais.length) return { registro: maisRecente(atuais), programacao: false };
+    if (atuais.length) {
+      // férias do exercício atual com gozo ainda por começar também são programação
+      var atual = maisRecente(atuais);
+      return { registro: atual, programacao: valorData(atual.inicio) > valorData(referencia) };
+    }
     var futuros = lista.filter(function (r) { return exercicioDe(r) > ano; });
     if (futuros.length) {
       var proximo = Math.min.apply(null, futuros.map(exercicioDe));

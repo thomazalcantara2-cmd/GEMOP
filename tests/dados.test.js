@@ -151,3 +151,13 @@ test('férias: exercício atual; sem ele, programação do exercício seguinte',
   assert.strictEqual(D.textoFeriasLicencas([passada], [], ref).split('\n')[0],
     'CONSTA gozo de férias (exercício 2025) de 01/09/2025 a 30/09/2025 (30 dias).');
 });
+
+test('férias do exercício atual com gozo ainda não iniciado saem como programação', () => {
+  const r = (ex, ini, fim) => ({ exercicio: ex, inicio: D.paraData(ini), fim: D.paraData(fim) });
+  const dezembro = r('2026', '01/12/2026', '30/12/2026');
+  assert.strictEqual(D.textoFeriasLicencas([dezembro], [], dt(1, 10, 2026)).split('\n')[0],
+    'CONSTA PROGRAMAÇÃO DE GOZO DE FÉRIAS (exercício 2026) de 01/12/2026 a 30/12/2026.');
+  // em gozo ou já gozadas: CONSTA gozo
+  assert.strictEqual(D.textoFeriasLicencas([dezembro], [], dt(15, 12, 2026)).split('\n')[0],
+    'CONSTA gozo de férias (exercício 2026) de 01/12/2026 a 30/12/2026 (30 dias).');
+});
