@@ -308,6 +308,9 @@
 
   function atualizarStatus() {
     var i = estado.indice, f = estado.ficha;
+    // o quadro "Planilhas carregadas" abre sozinho enquanto faltar alguma planilha e fecha quando as duas carregam
+    if (!i || !f) $('det-planilhas').open = true;
+    else if (!estado.quadroFechado) { $('det-planilhas').open = false; estado.quadroFechado = true; }
     var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
     $('status-indice').innerHTML = i
@@ -459,6 +462,28 @@
     }
   }
 
+  // ---------- painel lateral retrátil ----------
+  var CHAVE_PAINEL = 'gemop-requerimento-painel-recolhido';
+
+  function definirPainel(recolhido) {
+    $('app').classList.toggle('recolhida', recolhido);
+    var b = $('alternar-painel');
+    b.textContent = recolhido ? '›' : '‹';
+    b.title = recolhido ? 'Mostrar painel' : 'Recolher painel';
+    b.setAttribute('aria-label', b.title);
+    b.setAttribute('aria-expanded', String(!recolhido));
+    try { localStorage.setItem(CHAVE_PAINEL, recolhido ? '1' : ''); } catch (e) { /* ignora */ }
+  }
+
+  function iniciarPainel() {
+    var recolhido = false;
+    try { recolhido = localStorage.getItem(CHAVE_PAINEL) === '1'; } catch (e) { /* ignora */ }
+    definirPainel(recolhido);
+    $('alternar-painel').addEventListener('click', function () {
+      definirPainel(!$('app').classList.contains('recolhida'));
+    });
+  }
+
   // ---------- eventos ----------
   function iniciar() {
     lerConfig();
@@ -466,6 +491,22 @@
 
     iniciarPasta();
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
+
+    iniciarPainel();
+
+    // arrastar as planilhas para qualquer lugar da página
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      document.addEventListener(ev, function (e) { e.preventDefault(); document.body.classList.add('arrastando'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      document.addEventListener(ev, function (e) {
+        e.preventDefault();
+        if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('arrastando');
+      });
+    });
+    document.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files.length && !e.target.closest('#zona')) carregarArquivos(e.dataTransfer.files);
+    });
 
     var zona = $('zona');
     ['dragenter', 'dragover'].forEach(function (ev) {

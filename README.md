@@ -47,6 +47,11 @@ a informação veio (**Contabilis** ou **Ficha Cadastral Completa**); a coluna *
 do campo e pode ser digitada na tela.
 Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido automaticamente.
 
+O painel da esquerda pode ser recolhido pelo botão **‹** (e reaberto pelo **›**); a escolha fica lembrada.
+Os arquivos carregados, o botão de recarregar e a escolha de pasta ficam no quadro **Planilhas carregadas**,
+no fim do painel — ele abre sozinho quando falta alguma planilha. As planilhas também podem ser arrastadas
+para qualquer lugar da página.
+
 ## Regras de preenchimento
 
 - **Tempo de serviço**: da data de admissão até a *Data* do documento (padrão: hoje), em anos, meses e dias.

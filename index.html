@@ -20,6 +20,13 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
   .app { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+  .app.recolhida { grid-template-columns: 1fr; }
+  .app.recolhida aside { display: none; }
+  .alternar { position: fixed; top: 14px; left: 362px; z-index: 20; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 18px; line-height: 1; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+  .app.recolhida .alternar { left: 10px; }
+  #det-planilhas { margin-top: 10px; }
+  body.arrastando main { outline: 3px dashed var(--destaque); outline-offset: -8px; }
   aside { background: var(--painel); border-right: 1px solid var(--borda); padding: 20px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
   h1 { font-size: 18px; margin: 0 0 4px; }
   .sub { color: var(--suave); margin: 0 0 18px; font-size: 13px; }
@@ -128,6 +135,8 @@
   @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
     aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--borda); }
+    .alternar { left: auto; right: 10px; }
+    .app.recolhida .alternar { left: auto; right: 10px; }
     main { padding: 16px; }
     .folha { transform-origin: top left; }
   }
@@ -135,7 +144,7 @@
   @media print {
     body { background: #fff; }
     .app { display: block; }
-    aside, #avisos, .dica { display: none !important; }
+    aside, #avisos, .dica, .alternar { display: none !important; }
     main { padding: 0; overflow: visible; }
     .folha { box-shadow: none; margin: 0; }
     .folha [contenteditable] { outline: none !important; }
@@ -143,32 +152,21 @@
 </style>
 </head>
 <body>
-<div class="app">
-  <aside>
+<div class="app" id="app">
+  <button id="alternar-painel" class="alternar" type="button" title="Recolher painel" aria-label="Recolher painel" aria-expanded="true">‹</button>
+  <aside id="painel">
     <h1>Requerimento do Servidor</h1>
     <p class="sub">Cedidos SAD · SEGEP — preenchimento automático</p>
 
-    <h2>1. Planilhas</h2>
-    <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
-      <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
-      <button id="recarregar" type="button" class="prim" hidden>Recarregar da pasta</button>
-      <small id="pasta-nome"></small>
-    </div>
-    <label id="zona">
-      <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
-      ou arraste as duas planilhas aqui / <span>clique para escolher</span>
-    </label>
-    <div id="status-indice" class="arquivo"></div>
-    <div id="status-ficha" class="arquivo"></div>
     <div id="erro" hidden></div>
 
-    <h2>2. Servidor</h2>
+    <h2>1. Servidor</h2>
     <div class="busca-wrap">
       <input id="busca" type="search" autocomplete="off" placeholder="Carregue as planilhas primeiro" disabled>
       <ul id="resultados" role="listbox" hidden></ul>
     </div>
 
-    <h2>3. Dados do requerimento</h2>
+    <h2>2. Dados do requerimento</h2>
     <label class="campo" for="cfg-data">Data</label>
     <input id="cfg-data" type="date" title="Data do documento; também é a data final do tempo de serviço e do estágio probatório">
 
@@ -181,6 +179,21 @@
       <summary>Regra do órgão de origem</summary>
       <label class="campo" for="cfg-orgaosCessao">Órgãos onde o servidor fica lotado após a cessão (um por linha, comparação pelo início do nome, sem acentos). O órgão de origem é o último órgão do histórico que não está nesta lista.</label>
       <textarea id="cfg-orgaosCessao" rows="3"></textarea>
+    </details>
+
+    <details id="det-planilhas">
+      <summary>Planilhas carregadas</summary>
+      <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
+        <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
+        <button id="recarregar" type="button" class="prim" hidden>Recarregar da pasta</button>
+        <small id="pasta-nome"></small>
+      </div>
+      <label id="zona">
+        <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
+        ou arraste as duas planilhas aqui / <span>clique para escolher</span>
+      </label>
+      <div id="status-indice" class="arquivo"></div>
+      <div id="status-ficha" class="arquivo"></div>
     </details>
 
     <div class="botoes">
