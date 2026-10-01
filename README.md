@@ -68,8 +68,11 @@ Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido autom
   - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data do documento:
     já terminou → `O servidor **CONCLUIU** o estágio probatório em dd/mm/aaaa.`;
     ainda em curso → `Servidor em estágio probatório, com término previsto em dd/mm/aaaa (faltam ...)`.
-  - `{ferias_licencas}` — férias: último registro da aba `Ferias` (maior *Início Gozo*), com Início/Fim Gozo e
-    quantidade de dias; licença-prêmio e licença para estudos: último período na aba `Afastamentos`.
+  - `{ferias_licencas}` — férias (aba `Ferias`), comparando o *Exercício* com o ano da data do documento:
+    existe o do ano atual → `CONSTA gozo de férias (exercício 2026) de ... a ... (30 dias).`;
+    não existe o do ano atual, mas existe o do ano seguinte →
+    `CONSTA PROGRAMAÇÃO DE GOZO DE FÉRIAS (exercício 2027) de 03/05/2027 a 01/06/2027.`;
+    nenhum dos dois → o último registro anterior. Licença-prêmio e licença para estudos: último período na aba `Afastamentos`.
     Cada item que consta fica numa linha (`**CONSTA** gozo de ...`); os que não constam ficam juntos numa
     linha só (`NÃO CONSTA gozo de ...`).
   - `CONSTA`, `CONSTAM`, `NÃO CONSTA` e `NÃO CONSTAM` (em maiúsculas) saem sempre em negrito;

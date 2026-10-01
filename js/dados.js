@@ -328,17 +328,55 @@
     return 'de ' + dataBR(p.inicio) + ' a ' + dataBR(p.fim) + ' (' + dias + (dias === 1 ? ' dia)' : ' dias)');
   }
 
+  function exercicioDe(r) {
+    var n = parseInt(String(r.exercicio == null ? '' : r.exercicio).replace(/\D/g, ''), 10);
+    return isNaN(n) ? r.inicio.a : n;
+  }
+
+  /*
+   * Escolhe o registro de férias a informar, em relação ao ano da data do documento:
+   * 1) férias do exercício do ano atual (a de início de gozo mais recente);
+   * 2) se não houver, a programação do exercício seguinte (marcada como programacao);
+   * 3) se também não houver, o último registro anterior.
+   * Sem data de referência, usa o último registro (maior Início Gozo).
+   */
+  function escolherFerias(lista, referencia) {
+    lista = (lista ? [].concat(lista) : []).filter(function (r) { return r && r.inicio; });
+    if (!lista.length) return null;
+    var maisRecente = function (rs) {
+      return rs.reduce(function (a, b) { return valorData(b.inicio) > valorData(a.inicio) ? b : a; });
+    };
+    if (!referencia) return { registro: maisRecente(lista), programacao: false };
+    var ano = referencia.a;
+    var atuais = lista.filter(function (r) { return exercicioDe(r) === ano; });
+    if (atuais.length) return { registro: maisRecente(atuais), programacao: false };
+    var futuros = lista.filter(function (r) { return exercicioDe(r) > ano; });
+    if (futuros.length) {
+      var proximo = Math.min.apply(null, futuros.map(exercicioDe));
+      var doProximo = futuros.filter(function (r) { return exercicioDe(r) === proximo; });
+      return { registro: maisRecente(doProximo), programacao: true };
+    }
+    return { registro: maisRecente(lista), programacao: false };
+  }
+
   /*
    * Item de férias / licença para estudos / licença-prêmio.
-   * Férias: último registro da aba Ferias (maior Início Gozo).
+   * Férias: escolherFerias (exercício atual; senão a programação do seguinte; senão o último).
    * Licenças: último período da aba Afastamentos.
    */
-  function textoFeriasLicencas(ferias, grupos) {
+  function textoFeriasLicencas(ferias, grupos, referencia) {
     // Cada item que consta vai numa linha própria; os que não constam ficam juntos numa linha só.
     var linhas = [], naoConsta = [];
-    if (ferias && ferias.inicio) {
-      linhas.push('CONSTA gozo de férias' + (ferias.exercicio ? ' (exercício ' + ferias.exercicio + ')' : '') +
-        ' ' + descreverPeriodo(ferias) + '.');
+    var escolha = escolherFerias(ferias, referencia);
+    if (escolha) {
+      var f = escolha.registro;
+      var exercicio = f.exercicio ? ' (exercício ' + exercicioDe(f) + ')' : '';
+      if (escolha.programacao) {
+        linhas.push('CONSTA PROGRAMAÇÃO DE GOZO DE FÉRIAS' + exercicio + ' de ' + dataBR(f.inicio) +
+          (f.fim ? ' a ' + dataBR(f.fim) : '') + '.');
+      } else {
+        linhas.push('CONSTA gozo de férias' + exercicio + ' ' + descreverPeriodo(f) + '.');
+      }
     } else naoConsta.push('férias');
     var estudos = ultimoPeriodo(grupos, 'ESTUDO');
     if (estudos) linhas.push('CONSTA gozo de licença para estudos ' + descreverPeriodo(estudos) + '.');
@@ -384,7 +422,7 @@
       ano: referencia ? String(referencia.a) : '',
       faltas: textoFaltas(servidor && servidor.faltas),
       estagio: textoEstagio(servidor && servidor.admissao, referencia),
-      ferias_licencas: textoFeriasLicencas(servidor && servidor.ferias, servidor && servidor.afastamentos)
+      ferias_licencas: textoFeriasLicencas(servidor && servidor.ferias, servidor && servidor.afastamentos, referencia)
     };
     return modelo.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
       return l.replace(/\{(ano|faltas|estagio|ferias_licencas)\}/g, function (_, k) { return textos[k]; });
@@ -447,7 +485,7 @@
         fim: paraData(coluna(l, ['Fim Gozo']))
       };
       if (!k || !registro.inicio) return;
-      if (!ferias[k] || valorData(registro.inicio) > valorData(ferias[k].inicio)) ferias[k] = registro;
+      (ferias[k] = ferias[k] || []).push(registro);
     });
 
     var faltas = {};
@@ -485,7 +523,7 @@
         origemPeriodo: origem,
         historico: hist,
         afastamentos: agruparAfastamentos(afastamentos[matricula] || []),
-        ferias: ferias[matricula] || null,
+        ferias: ferias[matricula] || [],
         faltas: faltas[matricula] || [],
         semFicha: !hist.length
       };
@@ -559,6 +597,7 @@
     textoEstagio: textoEstagio,
     textoFaltas: textoFaltas,
     textoFeriasLicencas: textoFeriasLicencas,
+    escolherFerias: escolherFerias,
     informacoesComplementares: informacoesComplementares,
     montarBase: montarBase,
     buscar: buscar

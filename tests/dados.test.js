@@ -134,3 +134,20 @@ test('várias Fichas Cadastrais: soma servidores e, se repetido, vale o arquivo 
   assert.deepStrictEqual(base.map(s => s.lotacao), ['NOVO', 'B', 'GABINETE']);
   assert.deepStrictEqual(f.arquivos.map(a => a.servidores), [1, 1, 1]);
 });
+
+test('férias: exercício atual; sem ele, programação do exercício seguinte', () => {
+  const r = (ex, ini, fim) => ({ exercicio: ex, inicio: D.paraData(ini), fim: D.paraData(fim) });
+  const passada = r('2025', '01/09/2025', '30/09/2025');
+  const atual = r('2026', '03/08/2026', '01/09/2026');
+  const futura = r('2027', '03/05/2027', '01/06/2027');
+  const ref = dt(1, 10, 2026);
+  // tem a do ano atual: ignora a programação do ano seguinte
+  assert.strictEqual(D.textoFeriasLicencas([passada, atual, futura], [], ref).split('\n')[0],
+    'CONSTA gozo de férias (exercício 2026) de 03/08/2026 a 01/09/2026 (30 dias).');
+  // sem a do ano atual: informa a programação do ano seguinte
+  assert.strictEqual(D.textoFeriasLicencas([passada, futura], [], ref).split('\n')[0],
+    'CONSTA PROGRAMAÇÃO DE GOZO DE FÉRIAS (exercício 2027) de 03/05/2027 a 01/06/2027.');
+  // nem atual nem futura: último registro
+  assert.strictEqual(D.textoFeriasLicencas([passada], [], ref).split('\n')[0],
+    'CONSTA gozo de férias (exercício 2025) de 01/09/2025 a 30/09/2025 (30 dias).');
+});
