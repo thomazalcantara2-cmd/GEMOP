@@ -26,7 +26,8 @@
 
   var estado = {
     indice: null,      // { nome, linhas, anoMes }
-    ficha: null,       // { nome, servidores, lotacoes }
+    fichas: [],        // Fichas Cadastrais carregadas (pode haver mais de uma, ex.: GABINETE)
+    ficha: null,       // as fichas combinadas (D.combinarFichas)
     base: [],
     selecionado: null
   };
@@ -132,11 +133,20 @@
       });
     })).then(function (res) {
       var naoReconhecidos = [];
+      // na leitura da pasta, a lista de fichas é refeita; arrastando arquivos, as fichas se somam
+      if (opcoes.ignorarDesconhecidos) estado.fichas = [];
       res.forEach(function (r, i) {
         if (!r) naoReconhecidos.push(arquivos[i].name);
         else if (r.tipo === 'indice') estado.indice = r;
-        else estado.ficha = r;
+        else {
+          estado.fichas = estado.fichas.filter(function (f) { return f.nome !== r.nome; });
+          estado.fichas.push(r);
+        }
       });
+      estado.fichas.sort(function (a, b) {
+        return (a.modificado ? a.modificado.getTime() : 0) - (b.modificado ? b.modificado.getTime() : 0);
+      });
+      estado.ficha = estado.fichas.length ? D.combinarFichas(estado.fichas) : null;
       if (naoReconhecidos.length && !opcoes.ignorarDesconhecidos) {
         mostrarErro('Arquivo não reconhecido: ' + naoReconhecidos.join(', ') +
           '. Envie o "INDICE CEDIDOS SAD" (aba SERVIDORES) e o "relFichaCadastralCompleta" (aba Lotacoes).');
@@ -313,7 +323,10 @@
       : '<b>INDICE CEDIDOS SAD</b> — aguardando arquivo';
     $('status-ficha').className = 'arquivo ' + (f ? 'ok' : '');
     $('status-ficha').innerHTML = f
-      ? '<b>Ficha Cadastral Completa</b> — ' + esc(f.nome) + '<br><small>' + f.lotacoes.length + ' registros de lotação' + modificadoEm(f) + '</small>'
+      ? '<b>Ficha Cadastral Completa</b>' + (f.arquivos.length > 1 ? ' (' + f.arquivos.length + ' arquivos)' : '') +
+        f.arquivos.map(function (a) {
+          return '<br>' + esc(a.nome) + '<br><small>' + a.servidores + (a.servidores === 1 ? ' servidor' : ' servidores') + modificadoEm(a) + '</small>';
+        }).join('')
       : '<b>Ficha Cadastral Completa</b> — aguardando arquivo';
   }
 

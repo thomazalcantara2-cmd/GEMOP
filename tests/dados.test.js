@@ -123,3 +123,14 @@ test('férias (último registro) e licenças', () => {
     'NÃO CONSTAM faltas no Sistema de Administração de Recursos Humanos.',
     'NÃO CONSTA cumprimento de estágio probatório.']);
 });
+
+test('várias Fichas Cadastrais: soma servidores e, se repetido, vale o arquivo mais recente', () => {
+  const lot = (mat, local) => ({ 'Matrícula': mat, 'Órgão (descrição)': 'SEC X', 'Local de Trabalho (descrição)': local, 'Início': '01/01/2026', 'Fim': null });
+  const antiga = { nome: 'relFichaCadastralCompleta (antiga).xlsx', lotacoes: [lot('1', 'ANTIGO'), lot('2', 'B')] };
+  const gabinete = { nome: 'relFichaCadastralCompletaGABINETE.main.xlsx', lotacoes: [lot('3', 'GABINETE')] };
+  const nova = { nome: 'relFichaCadastralCompleta.main.xlsx', lotacoes: [lot('1', 'NOVO')] };
+  const f = D.combinarFichas([antiga, gabinete, nova]);
+  const base = D.montarBase([1, 2, 3].map(n => ({ nu_matricula: String(n), nm_Funcionario: 'S' + n })), f);
+  assert.deepStrictEqual(base.map(s => s.lotacao), ['NOVO', 'B', 'GABINETE']);
+  assert.deepStrictEqual(f.arquivos.map(a => a.servidores), [1, 1, 1]);
+});

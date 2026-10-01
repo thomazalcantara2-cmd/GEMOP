@@ -15,6 +15,10 @@ exportadas do sistema de RH:
 2. Dê dois cliques em **`Requerimento.bat`**. Abre uma janela preta (o aplicativo) e o navegador já com as
    planilhas carregadas — sempre o arquivo mais recente de cada tipo. Deixe a janela aberta enquanto usar;
    feche-a para encerrar. O botão **Recarregar planilhas** relê a pasta sem reiniciar.
+   Pode haver **mais de uma Ficha Cadastral** na pasta (ex.: `relFichaCadastralCompleta.main.xlsx` e
+   `relFichaCadastralCompletaGABINETE.main.xlsx`): todas com `FichaCadastral` no nome são lidas e somadas.
+   Se um servidor aparecer em mais de uma, vale o arquivo mais recente (assim versões antigas na pasta não
+   duplicam dados). Do INDICE, vale só o arquivo mais recente.
 3. Para ter um ícone na Área de Trabalho: botão direito em `Requerimento.bat` → *Enviar para* → *Área de trabalho (criar atalho)*.
 
 Não precisa instalar nada: usa o Windows PowerShell que já vem no Windows. O `servidor.ps1` só atende

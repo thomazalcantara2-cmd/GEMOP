@@ -473,7 +473,41 @@
     });
   }
 
+  var ABAS_FICHA = ['servidores', 'lotacoes', 'afastamentos', 'ferias', 'faltas'];
+
+  /*
+   * Junta várias Fichas Cadastrais (ex.: relFichaCadastralCompleta e relFichaCadastralCompletaGABINETE).
+   * fichas: em ordem do arquivo mais antigo para o mais novo. Cada servidor (matrícula) é lido de um
+   * arquivo só — o mais recente em que aparece —, então versões antigas da mesma ficha na pasta não
+   * duplicam afastamentos, férias ou lotações.
+   */
+  function combinarFichas(fichas) {
+    var dono = {};
+    fichas.forEach(function (f, i) {
+      ABAS_FICHA.forEach(function (aba) {
+        (f[aba] || []).forEach(function (l) {
+          var k = chaveMatricula(coluna(l, ['Matrícula']));
+          if (k) dono[k] = i;
+        });
+      });
+    });
+    var combinada = { arquivos: [] };
+    ABAS_FICHA.forEach(function (aba) { combinada[aba] = []; });
+    fichas.forEach(function (f, i) {
+      var usados = {};
+      ABAS_FICHA.forEach(function (aba) {
+        (f[aba] || []).forEach(function (l) {
+          var k = chaveMatricula(coluna(l, ['Matrícula']));
+          if (k && dono[k] === i) { combinada[aba].push(l); usados[k] = true; }
+        });
+      });
+      combinada.arquivos.push({ nome: f.nome, modificado: f.modificado, servidores: Object.keys(usados).length });
+    });
+    return combinada;
+  }
+
   var api = {
+    combinarFichas: combinarFichas,
     ORGAOS_CESSAO: ORGAOS_CESSAO,
     normalizar: normalizar,
     paraData: paraData,
