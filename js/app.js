@@ -401,13 +401,13 @@
     if (s) {
       afast = s.afastamentos.length
         ? '<div class="afast">' + s.afastamentos.map(function (g) {
-            return '<span><strong>' + esc(D.rotuloAfastamento(g.descricao)) + ':</strong> ' + esc(D.periodosTexto(g)) + '</span>';
+            var rotulo = '<strong>' + esc(D.rotuloAfastamento(g.descricao)) + ':</strong>';
+            // um período: na mesma linha; mais de um: um abaixo do outro
+            if (g.periodos.length < 2) return '<span>' + rotulo + ' ' + esc(D.periodosTexto(g)) + '</span>';
+            return '<span>' + rotulo + '<br>' + esc(D.periodosTexto(g)).split('; ').join(';<br>') + '</span>';
           }).join('') + '</div>'
         : 'x - x - x';
     }
-    var financeiro = s && s.salario != null
-      ? '<div class="valor-fin"><b>' + esc(D.formatarMoeda(s.salario)) + '</b><span>' + esc(D.valorExtenso(s.salario)) + '</span></div>'
-      : '';
     var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
     // fontes: dados pessoais e funcionais da Contabilis; histórico (lotação, origem, afastamentos) da Ficha Cadastral
     var temFicha = !!(s && estado.ficha && !s.semFicha);
@@ -435,7 +435,6 @@
           linhaDado('Vínculo', v(s && s.vinculo), '', '', fonte(temFicha ? FONTE_FICHA + ' + ' + FONTE_CONTABILIS : FONTE_CONTABILIS)) +
           linhaDado('Tempo de serviço', v(tempo), '', '', fonte(FONTE_CONTABILIS + ' (calculado)')) +
           linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '')) +
-          linhaDado('Inf. financeiras', financeiro, 'fin', '', fonte(FONTE_CONTABILIS)) +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
           '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +

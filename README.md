@@ -5,7 +5,7 @@ exportadas do sistema de RH:
 
 | Planilha | Aba usada | Campos |
 |---|---|---|
-| `FichaContabilis` (antigo `INDICE CEDIDOS SAD`) | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
+| `FichaContabilis` (antigo `INDICE CEDIDOS SAD`) | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo |
 | `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos`, `Ferias`, `Faltas` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Informações complementares, Status funcional |
 
 ## Aplicativo local (recomendado no Windows)
@@ -66,7 +66,8 @@ para qualquer lugar da página.
 - **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
-  O nome do tipo aparece por extenso (ex.: `LICENCA PREMIO` → **Licença-prêmio**). Sem afastamentos, o campo fica com `x - x - x`.
+  O nome do tipo aparece por extenso (ex.: `LICENCA PREMIO` → **Licença-prêmio**); quando o tipo tem mais de
+  um período, os períodos ficam um abaixo do outro. Sem afastamentos, o campo fica com `x - x - x`.
 - **Informações complementares** (o texto de cada item pode ser ajustado na tela; os marcadores entre chaves
   são preenchidos automaticamente):
   - `{faltas}` — aba `Faltas`: sem registros → `NÃO CONSTAM faltas...`; com registros → `CONSTAM faltas...` e as datas.
@@ -85,7 +86,6 @@ para qualquer lugar da página.
     no texto configurável, `**trecho**` também sai em negrito.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Vínculo**: `Status Funcional` da ficha + situação da FichaContabilis, ex.: `ESTATUTÁRIO ATIVO / CARGO EFETIVO`.
-- **Informações financeiras**: `vl_salario` da FichaContabilis, com valor por extenso.
 
 ## Estrutura
 
