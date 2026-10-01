@@ -53,7 +53,8 @@ Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido autom
 - **Órgão de origem**: percorre o histórico da aba `Lotacoes` do mais recente para o mais antigo e usa o
   primeiro `Órgão (descrição)` que **não** seja a Secretaria Municipal de Administração
   (`SECRETARIA MUNICIPAL DE ADMINISTRACAO` ou `SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO, GOVERNO DIGITAL E INOVAÇÃO`).
-  Se o servidor sempre esteve na Administração, usa o órgão atual e mostra um aviso.
+  Se o servidor sempre esteve na Administração, usa o órgão atual. De onde veio o órgão de origem (período
+  e local da lotação) e esses alertas aparecem na coluna **Observações** da própria linha.
   A lista de órgãos ignorados pode ser alterada na seção *Regra do órgão de origem*.
 - **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos

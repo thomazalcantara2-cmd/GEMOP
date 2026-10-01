@@ -355,23 +355,31 @@
     return v ? D.paraData(v) : null;
   }
 
-  function linhaDado(rotulo, valorHTML, classe) {
+  function linhaDado(rotulo, valorHTML, classe, observacao) {
     return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) + '</span>' +
-      '<div class="val" contenteditable>' + valorHTML + '</div><div class="obs" contenteditable></div></div>';
+      '<div class="val" contenteditable>' + valorHTML + '</div><div class="obs" contenteditable>' + esc(observacao || '') + '</div></div>';
   }
 
   function renderizar() {
     var s = estado.selecionado;
     var dataDoc = dataInput('cfg-data') || D.paraData(hojeISO());
     var avisos = [];
+    // observações que vão na coluna "Observações" da linha correspondente
+    var obs = {};
 
     if (s) {
       if (!estado.ficha) avisos.push('Carregue a Ficha Cadastral Completa para preencher Lotação e Órgão de origem pelo histórico.');
-      else if (s.semFicha) avisos.push('ATENÇÃO: servidor não encontrado na Ficha Cadastral Completa. Lotação veio do INDICE, Órgão de origem ficou em branco e afastamentos, férias e faltas NÃO puderam ser verificados — os itens "NÃO CONSTA" podem estar incorretos. Gere a Ficha Cadastral incluindo este servidor.');
-      else if (!s.origemEncontrada) avisos.push('Não há órgão anterior à Secretaria de Administração no histórico deste servidor. Foi usado o órgão atual — confira o Órgão de origem.');
+      else if (s.semFicha) {
+        avisos.push('ATENÇÃO: servidor não encontrado na Ficha Cadastral Completa — afastamentos, férias e faltas NÃO puderam ser verificados e os itens "NÃO CONSTA" podem estar incorretos. Gere a Ficha Cadastral incluindo este servidor.');
+        obs.origem = 'Servidor não encontrado na Ficha Cadastral Completa.';
+        obs.lotacao = 'Obtida do INDICE CEDIDOS SAD (servidor não está na Ficha Cadastral).';
+        obs.afast = 'Não verificados: servidor não está na Ficha Cadastral.';
+      } else if (!s.origemEncontrada) {
+        obs.origem = 'Não há órgão anterior à Secretaria de Administração no histórico; foi usado o órgão atual — conferir.';
+      }
       if (s.origemPeriodo) {
-        avisos.push('Órgão de origem obtido da lotação de ' + D.dataBR(s.origemPeriodo.inicio) + ' a ' +
-          (s.origemPeriodo.fim ? D.dataBR(s.origemPeriodo.fim) : 'atual') + ' (' + s.origemPeriodo.local + ').');
+        obs.origem = 'Órgão de origem obtido da lotação de ' + D.dataBR(s.origemPeriodo.inicio) + ' a ' +
+          (s.origemPeriodo.fim ? D.dataBR(s.origemPeriodo.fim) : 'atual') + ' (' + s.origemPeriodo.local + ').';
       }
     }
     $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
@@ -409,11 +417,11 @@
           linhaDado('Nascimento', v(s && D.dataBR(s.nascimento))) +
           linhaDado('Admissão', v(s && D.dataBR(s.admissao))) +
           linhaDado('Cargo', v(s && s.cargo)) +
-          linhaDado('Órgão de origem', v(s && s.orgaoOrigem)) +
-          linhaDado('Lotação', v(s && s.lotacao)) +
+          linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem) +
+          linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao) +
           linhaDado('Vínculo', v(s && s.vinculo)) +
           linhaDado('Tempo de serviço', v(tempo)) +
-          linhaDado('Afastamentos', afast) +
+          linhaDado('Afastamentos', afast, '', obs.afast) +
           linhaDado('Inf. financeiras', financeiro, 'fin') +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
