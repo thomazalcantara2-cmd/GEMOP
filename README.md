@@ -34,16 +34,20 @@ e nenhum dado sai do computador.
    Na pasta, usa o arquivo mais recente cujo nome contém `INDICE`/`CEDIDOS` e o mais recente com
    `FichaCadastral`. Também é possível arrastar as duas planilhas `.xlsx` para a área indicada.
 3. Digite o nome do servidor (também aceita matrícula ou CPF) e escolha na lista.
-4. Preencha o protocolo e confira as datas.
+4. Confira a data (é também a data final do tempo de serviço e do estágio probatório).
 5. Clique em **Imprimir / Salvar PDF**. Qualquer campo da folha pode ser corrigido clicando sobre ele antes de imprimir.
 
 As planilhas são lidas apenas no navegador: nenhum dado de servidor é enviado para a internet
-ou gravado. Apenas os textos fixos do formulário (DE, PARA, assinaturas, informações
-complementares) ficam salvos no computador.
+ou gravado. Apenas os textos fixos do formulário (informações complementares e a regra do órgão
+de origem) ficam salvos no computador.
+
+A folha segue o modelo **"Dados do Servidor"** (faixas nas cores da Prefeitura, tabela Campo /
+Informação / Observações — a coluna Observações fica em branco para anotações, e pode ser digitada na tela).
+Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido automaticamente.
 
 ## Regras de preenchimento
 
-- **Tempo de serviço**: da data de admissão até a *Data de emissão* (padrão: hoje), em anos, meses e dias.
+- **Tempo de serviço**: da data de admissão até a *Data* do documento (padrão: hoje), em anos, meses e dias.
   Ex.: admissão 01/11/2016, emissão 16/09/2026 → `09 ANOS, 10 MESES E 15 DIAS.`
 - **Lotação**: `Local de Trabalho (descrição)` da lotação mais recente (maior data de início) na aba `Lotacoes`.
 - **Órgão de origem**: percorre o histórico da aba `Lotacoes` do mais recente para o mais antigo e usa o
@@ -51,14 +55,14 @@ complementares) ficam salvos no computador.
   (`SECRETARIA MUNICIPAL DE ADMINISTRACAO` ou `SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO, GOVERNO DIGITAL E INOVAÇÃO`).
   Se o servidor sempre esteve na Administração, usa o órgão atual e mostra um aviso.
   A lista de órgãos ignorados pode ser alterada na seção *Regra do órgão de origem*.
-- **Tipo de afastamento**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
+- **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
-  Sem afastamentos, o campo fica com `x - x - x`.
+  O nome do tipo aparece por extenso (ex.: `LICENCA PREMIO` → **Licença-prêmio**). Sem afastamentos, o campo fica com `x - x - x`.
 - **Informações complementares** (o texto de cada item pode ser ajustado na tela; os marcadores entre chaves
   são preenchidos automaticamente):
   - `{faltas}` — aba `Faltas`: sem registros → `NÃO CONSTAM faltas...`; com registros → `CONSTAM faltas...` e as datas.
-  - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data de emissão:
+  - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data do documento:
     já terminou → `O servidor **CONCLUIU** o estágio probatório em dd/mm/aaaa.`;
     ainda em curso → `Servidor em estágio probatório, com término previsto em dd/mm/aaaa (faltam ...)`.
   - `{ferias_licencas}` — férias: último registro da aba `Ferias` (maior *Início Gozo*), com Início/Fim Gozo e
@@ -68,14 +72,14 @@ complementares) ficam salvos no computador.
   - `CONSTA`, `CONSTAM`, `NÃO CONSTA` e `NÃO CONSTAM` (em maiúsculas) saem sempre em negrito;
     no texto configurável, `**trecho**` também sai em negrito.
 - **Matrícula**: `002076671` → `20.766-7.1`.
-- **Tipo de vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTARIO ATIVO/CARGO EFETIVO`.
+- **Vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTÁRIO ATIVO / CARGO EFETIVO`.
 - **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.
 
 ## Estrutura
 
 - `Requerimento.bat` / `servidor.ps1` — aplicativo local (servidor só para este computador, PowerShell 5.1+)
 - `pasta.txt` — caminho opcional da pasta das planilhas; `planilhas/` — pasta padrão
-- `index.html` — interface e layout da folha A4
+- `index.html` — interface e layout da folha A4; `assets/` — logo e fonte Public Sans (SIL OFL)
 - `js/dados.js` — regras de extração (funções puras, testadas)
 - `js/app.js` — leitura das planilhas, busca e montagem da folha
 - `vendor/xlsx.full.min.js` — [SheetJS](https://sheetjs.com) 0.18.5 (Apache-2.0), leitura de `.xlsx`

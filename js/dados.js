@@ -226,6 +226,36 @@
     return grupos;
   }
 
+  // Nome do tipo de afastamento para exibição (ex.: "LICENCA PREMIO" -> "Licença-prêmio").
+  var ROTULOS_AFASTAMENTO = {
+    'LICENCA PREMIO': 'Licença-prêmio',
+    'LICENCA MEDICA - EFETIVOS': 'Licença médica (efetivos)',
+    'LICENCA MEDICA (ONUS)': 'Licença médica (ônus)',
+    'CEDIDO PARA OUTRO ORGAO COM ONUS PARA ORGAO DE ORIGEM': 'Cedido para outro órgão com ônus para o órgão de origem',
+    'CEDIDO PARA OUTRO ORGAO SEM ONUS PARA ORGAO DE ORIGEM': 'Cedido para outro órgão sem ônus para o órgão de origem',
+    'LICENCA ACOMPANHAMENTO SAUDE FAMILIA': 'Licença para acompanhamento de saúde da família',
+    'LICENCA SEM VENCIMENTO': 'Licença sem vencimento',
+    'LICENCA MATERNIDADE -INSS': 'Licença-maternidade (INSS)',
+    'LICENCA PARA ACOMPANHAMENTO CONJUGE - SEM REMUNERACAO': 'Licença para acompanhamento de cônjuge (sem remuneração)',
+    'LICENCA LUTO': 'Licença luto',
+    'LICENCA PARA TRATAR INTERESSE PARTICULAR': 'Licença para tratar de interesse particular',
+    'BLOQUEIO DE PAGAMENTO': 'Bloqueio de pagamento',
+    'APOSENTADORIA': 'Aposentadoria'
+  };
+
+  function rotuloAfastamento(descricao) {
+    var conhecido = ROTULOS_AFASTAMENTO[normalizar(descricao)];
+    if (conhecido) return conhecido;
+    var t = String(descricao || '').trim().toLowerCase();
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  function periodosTexto(g) {
+    return g.periodos.map(function (p) {
+      return dataBR(p.inicio) + ' a ' + (p.fim ? dataBR(p.fim) : 'atual');
+    }).join('; ') + '.';
+  }
+
   function formatarAfastamentos(grupos) {
     return grupos.map(function (g) {
       return g.descricao + ': ' + g.periodos.map(function (p) {
@@ -446,7 +476,7 @@
         admissao: paraData(coluna(l, ['dt_admissao'])),
         nascimento: paraData(coluna(l, ['dt_nascimento'])),
         cargo: String(coluna(l, ['nm_cargo']) || '').trim() + (nivel ? ' - ' + nivel : ''),
-        vinculo: normalizar(statusFuncional || 'Estatutário') + ' ' + normalizar(situacao || '') + '/CARGO EFETIVO',
+        vinculo: (String(statusFuncional || 'Estatutário') + ' ' + String(situacao || '')).trim().toUpperCase() + ' / CARGO EFETIVO',
         salario: paraNumero(coluna(l, ['vl_salario'])),
         lotacao: hist.length ? hist[0].local : String(coluna(l, ['nm_localTrabalho']) || '').trim(),
         // Sem órgão anterior no histórico (sempre esteve na Administração): usa o órgão atual e avisa.
@@ -523,6 +553,8 @@
     orgaoDeOrigem: orgaoDeOrigem,
     agruparAfastamentos: agruparAfastamentos,
     formatarAfastamentos: formatarAfastamentos,
+    rotuloAfastamento: rotuloAfastamento,
+    periodosTexto: periodosTexto,
     estagioProbatorio: estagioProbatorio,
     textoEstagio: textoEstagio,
     textoFaltas: textoFaltas,

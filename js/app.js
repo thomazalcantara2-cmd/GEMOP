@@ -6,10 +6,6 @@
   var CHAVE_CONFIG = 'gemop-requerimento-config-v2';
 
   var PADRAO = {
-    protocolo: '',
-    de: 'SANDRA MOTTA\nUnidade de Gestão de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
-    para: 'LUIZ CARLOS AGUIAR BAYMA FILHO\nAssessoria de Movimentação de Pessoas\nSecretaria Executiva de Gestão de Pessoas',
-    assunto: 'Renovação de cessão de servidor',
     complementares: [
       'FICHA financeira: {ano}.',
       '{faltas}',
@@ -18,9 +14,6 @@
       'NÃO CONSTA processo administrativo disciplinar, na modalidade inquérito administrativo, em andamento.',
       'NÃO CONSTA contrato de prazo determinado para atendimento de excepcional interesse público.'
     ].join('\n'),
-    assinaturaEsq: '',
-    assinaturaDir: 'Sandra Motta\nASSESS. Unidade Gestão de Pessoas-UGEP',
-    cidade: 'Jaboatão dos Guararapes',
     orgaosCessao: D.ORGAOS_CESSAO.join('\n')
   };
 
@@ -362,17 +355,17 @@
     return v ? D.paraData(v) : null;
   }
 
+  function linhaDado(rotulo, valorHTML, classe) {
+    return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) + '</span>' +
+      '<div class="val" contenteditable>' + valorHTML + '</div><div class="obs" contenteditable></div></div>';
+  }
+
   function renderizar() {
     var s = estado.selecionado;
-    var dataReq = dataInput('cfg-data');
-    var dataEmissao = dataInput('cfg-emissao') || dataReq;
+    var dataDoc = dataInput('cfg-data') || D.paraData(hojeISO());
     var avisos = [];
 
-    var tempo = '', financeiro = '';
     if (s) {
-      var t = D.tempoEntre(s.admissao, dataEmissao);
-      tempo = D.formatarTempo(t);
-      if (s.salario != null) financeiro = D.formatarMoeda(s.salario) + ' (' + D.valorExtenso(s.salario) + ')';
       if (!estado.ficha) avisos.push('Carregue a Ficha Cadastral Completa para preencher Lotação e Órgão de origem pelo histórico.');
       else if (s.semFicha) avisos.push('ATENÇÃO: servidor não encontrado na Ficha Cadastral Completa. Lotação veio do INDICE, Órgão de origem ficou em branco e afastamentos, férias e faltas NÃO puderam ser verificados — os itens "NÃO CONSTA" podem estar incorretos. Gere a Ficha Cadastral incluindo este servidor.');
       else if (!s.origemEncontrada) avisos.push('Não há órgão anterior à Secretaria de Administração no histórico deste servidor. Foi usado o órgão atual — confira o Órgão de origem.');
@@ -384,64 +377,74 @@
     $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
     $('avisos').hidden = !avisos.length;
 
-    var complementares = D.informacoesComplementares(cfg('complementares'), s, dataEmissao || D.paraData(hojeISO()));
-
-    var de = cfg('de').split('\n');
-    var para = cfg('para').split('\n');
-    var afast = s ? D.formatarAfastamentos(s.afastamentos) : [];
-
     var v = function (x) { return s ? esc(x) : ''; };
+    var tempo = s ? D.formatarTempo(D.tempoEntre(s.admissao, dataDoc)).replace(/\.$/, '') : '';
+    var afast = '';
+    if (s) {
+      afast = s.afastamentos.length
+        ? '<div class="afast">' + s.afastamentos.map(function (g) {
+            return '<span><strong>' + esc(D.rotuloAfastamento(g.descricao)) + ':</strong> ' + esc(D.periodosTexto(g)) + '</span>';
+          }).join('') + '</div>'
+        : 'x - x - x';
+    }
+    var financeiro = s && s.salario != null
+      ? '<div class="valor-fin"><b>' + esc(D.formatarMoeda(s.salario)) + '</b><span>' + esc(D.valorExtenso(s.salario)) + '</span></div>'
+      : '';
+    var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
 
     $('folha').innerHTML =
-      '<header class="cab">' +
-        '<img src="assets/logo.png" alt="Prefeitura do Jaboatão dos Guararapes">' +
-        '<p>SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO<br>SECRETARIA EXECUTIVA DE GESTÃO DE PESSOAS</p>' +
-      '</header>' +
-      '<table class="grade topo">' +
-        '<colgroup><col style="width:50%"><col style="width:30%"><col style="width:20%"></colgroup>' +
-        '<tr><td class="titulo">REQUERIMENTO DO SERVIDOR</td>' +
-          '<td class="centro"><b>PROTOCOLO:</b><br><span class="peq" contenteditable>' + esc(cfg('protocolo')) + '</span></td>' +
-          '<td class="centro"><b>DATA:</b><br><span class="peq" contenteditable>' + esc(D.dataBR(dataReq)) + '</span></td></tr>' +
-        '<tr><td><b>DE:</b><div contenteditable><b>' + esc(de[0] || '') + '</b>' +
-            (de.length > 1 ? '<br>' + linhasHTML(de.slice(1).join('\n')) : '') + '</div></td>' +
-          '<td colspan="2"><b>PARA:</b><div contenteditable><b>' + esc(para[0] || '') + '</b>' +
-            (para.length > 1 ? '<br>' + linhasHTML(para.slice(1).join('\n')) : '') + '</div></td></tr>' +
-        '<tr><td colspan="3"><b>ASSUNTO:</b> <b contenteditable>' + esc(cfg('assunto')) + '</b></td></tr>' +
-      '</table>' +
-      '<table class="grade dados">' +
-        '<colgroup><col style="width:50%"><col style="width:50%"></colgroup>' +
-        '<tr><td colspan="2"><b>NOME:</b> <b contenteditable>' + v(s && s.nome) + '</b></td></tr>' +
-        '<tr><td><b>MATRÍCULA:</b> <b contenteditable>' + v(s && s.matriculaFormatada) + '</b></td>' +
-          '<td><b>DATA DE ADMISSÃO:</b> <b contenteditable>' + v(s && D.dataBR(s.admissao)) + '</b></td></tr>' +
-        '<tr><td><b>CPF:</b> <b contenteditable>' + v(s && s.cpf) + '</b></td>' +
-          '<td><b>DATA DE NASCIMENTO:</b> <b contenteditable>' + v(s && D.dataBR(s.nascimento)) + '</b></td></tr>' +
-        '<tr><td colspan="2"><b>CARGO:</b> <b contenteditable>' + v(s && s.cargo) + '</b></td></tr>' +
-        '<tr><td colspan="2"><b>ÓRGÃO DE ORIGEM:</b><div class="valor" contenteditable>' + v(s && s.orgaoOrigem) + '</div></td></tr>' +
-        '<tr><td colspan="2"><b>LOTAÇÃO:</b><div class="valor" contenteditable>' + v(s && s.lotacao) + '</div></td></tr>' +
-        '<tr><td colspan="2"><b>TIPO DE AFASTAMENTO:</b><div class="valor' + (afast.length ? ' afast' : '') + '" contenteditable>' +
-          (afast.length ? afast.map(function (a) { return '<div>' + esc(a) + '</div>'; }).join('') : '<span class="xis">' + new Array(35).join('x - ') + 'x</span>') + '</div></td></tr>' +
-        '<tr><td colspan="2"><b>TIPO DE VÍNCULO:</b><div class="valor" contenteditable>' + v(s && s.vinculo) + '</div></td></tr>' +
-        '<tr><td colspan="2"><b>TEMPO DE SERVIÇO:</b> <b contenteditable>' + v(tempo) + '</b></td></tr>' +
-        '<tr><td colspan="2"><b>INFORMAÇÕES FINANCEIRAS:</b><div class="valor esq" contenteditable>' + v(financeiro) + '</div></td></tr>' +
-      '</table>' +
-      '<table class="grade compl"><tr><td><b>INFORMAÇÕES COMPLEMENTARES:</b>' +
-        '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +
-      '</td></tr></table>' +
-      '<p class="local" contenteditable>' + esc(cfg('cidade')) + ', ' + esc(D.dataExtenso(dataEmissao)) + '.</p>' +
-      '<div class="assinaturas">' +
-        '<div><span class="linha"></span><div contenteditable>' + linhasHTML(cfg('assinaturaEsq')) + '</div></div>' +
-        '<div><span class="linha"></span><div contenteditable>' + linhasHTML(cfg('assinaturaDir')) + '</div></div>' +
-      '</div>';
+      '<div class="faixa"><i style="background:#00953a"></i><i style="background:#fbb900"></i><i style="background:#0033a0"></i><i style="background:#00953a"></i></div>' +
+      '<div class="corpo">' +
+        '<header class="cab">' +
+          '<img src="assets/logo-jaboatao.png" alt="Prefeitura do Jaboatão dos Guararapes">' +
+          '<div class="orgao"><div>Secretaria Municipal de Administração</div><div>Secretaria Executiva de Gestão de Pessoas</div></div>' +
+        '</header>' +
+        '<div class="titulo"><h1>Dados do Servidor</h1>' +
+          '<div class="data"><span class="rot">Data</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
+        '<div class="cartao">' +
+          '<div class="nome"><span class="rot">Nome</span><b contenteditable>' + v(s && s.nome) + '</b></div>' +
+          '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Observações</span></div>' +
+          linhaDado('Matrícula', v(s && s.matriculaFormatada)) +
+          linhaDado('CPF', v(s && s.cpf)) +
+          linhaDado('Nascimento', v(s && D.dataBR(s.nascimento))) +
+          linhaDado('Admissão', v(s && D.dataBR(s.admissao))) +
+          linhaDado('Cargo', v(s && s.cargo)) +
+          linhaDado('Órgão de origem', v(s && s.orgaoOrigem)) +
+          linhaDado('Lotação', v(s && s.lotacao)) +
+          linhaDado('Vínculo', v(s && s.vinculo)) +
+          linhaDado('Tempo de serviço', v(tempo)) +
+          linhaDado('Afastamentos', afast) +
+          linhaDado('Inf. financeiras', financeiro, 'fin') +
+        '</div>' +
+        '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
+          '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +
+        '</div>' +
+      '</div>' +
+      '<div class="faixa base"><i style="background:#0033a0"></i><i style="background:#00953a"></i><i style="background:#fbb900"></i></div>';
 
+    ajustarAoTamanhoDaFolha();
     $('imprimir').disabled = !s;
-    document.title = s ? 'Requerimento - ' + s.nome : 'Requerimento do Servidor';
+    document.title = s ? 'Dados do Servidor - ' + s.nome : 'Dados do Servidor';
+  }
+
+  // Se o conteúdo não couber em uma página A4 (muitos afastamentos), reduz a fonte do corpo aos poucos.
+  function ajustarAoTamanhoDaFolha() {
+    var folha = $('folha');
+    var corpo = folha.querySelector('.corpo');
+    var tamanho = 9.5;
+    corpo.style.fontSize = '';
+    folha.querySelectorAll('.afast, .compl ol').forEach(function (el) { el.style.fontSize = ''; });
+    while (corpo.scrollHeight > corpo.clientHeight + 1 && tamanho > 6.5) {
+      tamanho -= 0.25;
+      folha.querySelectorAll('.afast, .compl ol').forEach(function (el) { el.style.fontSize = (tamanho - 0.5) + 'pt'; });
+      corpo.style.fontSize = tamanho + 'pt';
+    }
   }
 
   // ---------- eventos ----------
   function iniciar() {
     lerConfig();
     $('cfg-data').value = hojeISO();
-    $('cfg-emissao').value = hojeISO();
 
     iniciarPasta();
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
