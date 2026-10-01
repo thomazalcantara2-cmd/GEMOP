@@ -1,4 +1,4 @@
-# Caminho da pasta onde voce salva os relatorios (INDICE CEDIDOS SAD e relFichaCadastralCompleta).
+# Caminho da pasta onde voce salva os relatorios (FichaContabilis e relFichaCadastralCompleta).
 # Apague o "#" da linha de exemplo abaixo e troque pelo caminho da sua pasta.
 # Sem nenhum caminho aqui, o sistema usa a pasta "planilhas" ao lado do Requerimento.bat.
 # C:\Users\SEU_USUARIO\Downloads

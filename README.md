@@ -5,7 +5,7 @@ exportadas do sistema de RH:
 
 | Planilha | Aba usada | Campos |
 |---|---|---|
-| `INDICE CEDIDOS SAD` | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
+| `FichaContabilis` (antigo `INDICE CEDIDOS SAD`) | `SERVIDORES` | Nome, Matrícula, CPF, Data de admissão, Data de nascimento, Cargo (+ nível), Tipo de vínculo, Salário (Informações financeiras) |
 | `relFichaCadastralCompleta` | `Lotacoes`, `Afastamentos`, `Ferias`, `Faltas` (e `Servidores`) | Lotação atual, Órgão de origem, Tipo de afastamento, Informações complementares, Status funcional |
 
 ## Aplicativo local (recomendado no Windows)
@@ -18,7 +18,7 @@ exportadas do sistema de RH:
    Pode haver **mais de uma Ficha Cadastral** na pasta (ex.: `relFichaCadastralCompleta.main.xlsx` e
    `relFichaCadastralCompletaGABINETE.main.xlsx`): todas com `FichaCadastral` no nome são lidas e somadas.
    Se um servidor aparecer em mais de uma, vale o arquivo mais recente (assim versões antigas na pasta não
-   duplicam dados). Do INDICE, vale só o arquivo mais recente.
+   duplicam dados). Da FichaContabilis, vale só o arquivo mais recente.
 3. Para ter um ícone na Área de Trabalho: botão direito em `Requerimento.bat` → *Enviar para* → *Área de trabalho (criar atalho)*.
 
 Não precisa instalar nada: usa o Windows PowerShell que já vem no Windows. O `servidor.ps1` só atende
@@ -31,8 +31,8 @@ e nenhum dado sai do computador.
 2. Clique em **Escolher pasta das planilhas** e selecione a pasta onde ficam os relatórios (só na primeira vez).
    Nas próximas vezes a página lê a pasta sozinha ao abrir — se o navegador pedir, clique em
    **Carregar da pasta** e em **Permitir** (no Chrome, escolha "Permitir em todas as visitas").
-   Na pasta, usa o arquivo mais recente cujo nome contém `INDICE`/`CEDIDOS` e o mais recente com
-   `FichaCadastral`. Também é possível arrastar as duas planilhas `.xlsx` para a área indicada.
+   Na pasta, usa o arquivo mais recente cujo nome contém `FichaContabilis` (ou o antigo `INDICE`/`CEDIDOS`)
+   e todos com `FichaCadastral`. Também é possível arrastar as duas planilhas `.xlsx` para a área indicada.
 3. Digite o nome do servidor (também aceita matrícula ou CPF) e escolha na lista.
 4. Confira a data (é também a data final do tempo de serviço e do estágio probatório).
 5. Clique em **Imprimir / Salvar PDF**. Qualquer campo da folha pode ser corrigido clicando sobre ele antes de imprimir.
@@ -73,8 +73,8 @@ Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido autom
   - `CONSTA`, `CONSTAM`, `NÃO CONSTA` e `NÃO CONSTAM` (em maiúsculas) saem sempre em negrito;
     no texto configurável, `**trecho**` também sai em negrito.
 - **Matrícula**: `002076671` → `20.766-7.1`.
-- **Vínculo**: `Status Funcional` da ficha + situação do INDICE, ex.: `ESTATUTÁRIO ATIVO / CARGO EFETIVO`.
-- **Informações financeiras**: `vl_salario` do INDICE, com valor por extenso.
+- **Vínculo**: `Status Funcional` da ficha + situação da FichaContabilis, ex.: `ESTATUTÁRIO ATIVO / CARGO EFETIVO`.
+- **Informações financeiras**: `vl_salario` da FichaContabilis, com valor por extenso.
 
 ## Estrutura
 

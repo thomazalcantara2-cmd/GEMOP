@@ -1,5 +1,5 @@
 Salve aqui os relatorios exportados do sistema de RH:
-- INDICE CEDIDOS SAD (.xlsx)
+- FichaContabilis (.xlsx) - antigo INDICE CEDIDOS SAD
 - relFichaCadastralCompleta (.xlsx)
 
 Pode deixar os meses anteriores: o sistema usa sempre o arquivo mais recente de cada um.

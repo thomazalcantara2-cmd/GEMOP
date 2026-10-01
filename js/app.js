@@ -142,7 +142,7 @@
       estado.ficha = estado.fichas.length ? D.combinarFichas(estado.fichas) : null;
       if (naoReconhecidos.length && !opcoes.ignorarDesconhecidos) {
         mostrarErro('Arquivo não reconhecido: ' + naoReconhecidos.join(', ') +
-          '. Envie o "INDICE CEDIDOS SAD" (aba SERVIDORES) e o "relFichaCadastralCompleta" (aba Lotacoes).');
+          '. Envie a "FichaContabilis" (antigo INDICE CEDIDOS SAD, aba SERVIDORES) e o "relFichaCadastralCompleta" (aba Lotacoes).');
       }
       reconstruirBase();
     }).catch(function (e) {
@@ -190,14 +190,14 @@
     });
   }
 
-  // Lê primeiro só as planilhas com o nome esperado; se faltar alguma, lê todas para identificar pelo conteúdo.
+  // Lê primeiro só as planilhas com o nome esperado (FichaContabilis — ou o antigo INDICE/CEDIDOS — e FichaCadastral); se faltar alguma, lê todas para identificar pelo conteúdo.
   function escolherPlanilhas(itens, nomeDe) {
     var nome = function (x) { return D.normalizar(nomeDe(x)).replace(/[^A-Z]/g, ''); };
     var pelosNomes = itens.filter(function (x) {
       var n = nome(x);
-      return n.indexOf('INDICE') >= 0 || n.indexOf('CEDIDOS') >= 0 || n.indexOf('FICHACADASTRAL') >= 0;
+      return /FICHACONTABILIS|INDICE|CEDIDOS|FICHACADASTRAL/.test(n);
     });
-    var temIndice = pelosNomes.some(function (x) { return /INDICE|CEDIDOS/.test(nome(x)); });
+    var temIndice = pelosNomes.some(function (x) { return /FICHACONTABILIS|INDICE|CEDIDOS/.test(nome(x)); });
     var temFicha = pelosNomes.some(function (x) { return nome(x).indexOf('FICHACADASTRAL') >= 0; });
     return temIndice && temFicha ? pelosNomes : itens;
   }
@@ -216,7 +216,7 @@
       $('pasta-nome').textContent = 'Pasta: ' + info.pasta;
       var lista = escolherPlanilhas(info.arquivos || [], function (a) { return a.nome; });
       if (!lista.length) {
-        mostrarErro('Nenhuma planilha .xlsx encontrada na pasta ' + info.pasta + '. Salve lá o INDICE CEDIDOS SAD e o relFichaCadastralCompleta.');
+        mostrarErro('Nenhuma planilha .xlsx encontrada na pasta ' + info.pasta + '. Salve lá a FichaContabilis e o relFichaCadastralCompleta.');
         return;
       }
       return Promise.all(lista.map(function (a) {
@@ -228,7 +228,7 @@
         return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
           if (!estado.indice || !estado.ficha) {
             mostrarErro('Na pasta ' + info.pasta + ' não foi encontrado: ' +
-              [!estado.indice && 'INDICE CEDIDOS SAD', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
+              [!estado.indice && 'FichaContabilis', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
           }
         });
       });
@@ -245,7 +245,7 @@
         return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
           if (!estado.indice || !estado.ficha) {
             mostrarErro('Na pasta "' + pasta.name + '" não foi encontrado: ' +
-              [!estado.indice && 'INDICE CEDIDOS SAD', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
+              [!estado.indice && 'FichaContabilis', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
           }
         });
       });
@@ -311,9 +311,9 @@
     var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
     $('status-indice').innerHTML = i
-      ? '<b>INDICE CEDIDOS SAD</b> — ' + esc(i.nome) + '<br><small>' + i.linhas.length + ' servidores' +
+      ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) + '<br><small>' + i.linhas.length + ' servidores' +
         (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') + modificadoEm(i) + '</small>'
-      : '<b>INDICE CEDIDOS SAD</b> — aguardando arquivo';
+      : '<b>Ficha Contabilis</b> — aguardando arquivo';
     $('status-ficha').className = 'arquivo ' + (f ? 'ok' : '');
     $('status-ficha').innerHTML = f
       ? '<b>Ficha Cadastral Completa</b>' + (f.arquivos.length > 1 ? ' (' + f.arquivos.length + ' arquivos)' : '') +
@@ -372,7 +372,7 @@
       else if (s.semFicha) {
         avisos.push('ATENÇÃO: servidor não encontrado na Ficha Cadastral Completa — afastamentos, férias e faltas NÃO puderam ser verificados e os itens "NÃO CONSTA" podem estar incorretos. Gere a Ficha Cadastral incluindo este servidor.');
         obs.origem = 'Servidor não encontrado na Ficha Cadastral Completa.';
-        obs.lotacao = 'Obtida do INDICE CEDIDOS SAD (servidor não está na Ficha Cadastral).';
+        obs.lotacao = 'Obtida da Ficha Contabilis (servidor não está na Ficha Cadastral).';
         obs.afast = 'Não verificados: servidor não está na Ficha Cadastral.';
       } else if (!s.origemEncontrada) {
         obs.origem = 'Não há órgão anterior à Secretaria de Administração no histórico; foi usado o órgão atual — conferir.';
