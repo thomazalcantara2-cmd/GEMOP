@@ -355,9 +355,15 @@
     return v ? D.paraData(v) : null;
   }
 
-  function linhaDado(rotulo, valorHTML, classe, observacao) {
+  // Nomes das planilhas de onde cada informação foi tirada (coluna "Fonte")
+  var FONTE_CONTABILIS = 'Contabilis';
+  var FONTE_FICHA = 'Ficha Cadastral Completa';
+
+  function linhaDado(rotulo, valorHTML, classe, observacao, fonte) {
     return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) + '</span>' +
-      '<div class="val" contenteditable>' + valorHTML + '</div><div class="obs" contenteditable>' + esc(observacao || '') + '</div></div>';
+      '<div class="val" contenteditable>' + valorHTML + '</div>' +
+      '<div class="fonte" contenteditable>' + esc(fonte || '') + '</div>' +
+      '<div class="obs" contenteditable>' + esc(observacao || '') + '</div></div>';
   }
 
   function renderizar() {
@@ -399,6 +405,9 @@
       ? '<div class="valor-fin"><b>' + esc(D.formatarMoeda(s.salario)) + '</b><span>' + esc(D.valorExtenso(s.salario)) + '</span></div>'
       : '';
     var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
+    // fontes: dados pessoais e funcionais da Contabilis; histórico (lotação, origem, afastamentos) da Ficha Cadastral
+    var temFicha = !!(s && estado.ficha && !s.semFicha);
+    var fonte = function (f) { return s ? f : ''; };
 
     $('folha').innerHTML =
       '<div class="faixa"><i style="background:#00953a"></i><i style="background:#fbb900"></i><i style="background:#0033a0"></i><i style="background:#00953a"></i></div>' +
@@ -411,18 +420,18 @@
           '<div class="data"><span class="rot">Data</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
         '<div class="cartao">' +
           '<div class="nome"><span class="rot">Nome</span><b contenteditable>' + v(s && s.nome) + '</b></div>' +
-          '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Observações</span></div>' +
-          linhaDado('Matrícula', v(s && s.matriculaFormatada)) +
-          linhaDado('CPF', v(s && s.cpf)) +
-          linhaDado('Nascimento', v(s && D.dataBR(s.nascimento))) +
-          linhaDado('Admissão', v(s && D.dataBR(s.admissao))) +
-          linhaDado('Cargo', v(s && s.cargo)) +
-          linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem) +
-          linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao) +
-          linhaDado('Vínculo', v(s && s.vinculo)) +
-          linhaDado('Tempo de serviço', v(tempo)) +
-          linhaDado('Afastamentos', afast, '', obs.afast) +
-          linhaDado('Inf. financeiras', financeiro, 'fin') +
+          '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Fonte</span><span class="rot">Observações</span></div>' +
+          linhaDado('Matrícula', v(s && s.matriculaFormatada), '', '', fonte(FONTE_CONTABILIS)) +
+          linhaDado('CPF', v(s && s.cpf), '', '', fonte(FONTE_CONTABILIS)) +
+          linhaDado('Nascimento', v(s && D.dataBR(s.nascimento)), '', '', fonte(FONTE_CONTABILIS)) +
+          linhaDado('Admissão', v(s && D.dataBR(s.admissao)), '', '', fonte(FONTE_CONTABILIS)) +
+          linhaDado('Cargo', v(s && s.cargo), '', '', fonte(FONTE_CONTABILIS)) +
+          linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem, fonte(temFicha ? FONTE_FICHA : '—')) +
+          linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao, fonte(temFicha ? FONTE_FICHA : FONTE_CONTABILIS)) +
+          linhaDado('Vínculo', v(s && s.vinculo), '', '', fonte(temFicha ? FONTE_FICHA + ' + ' + FONTE_CONTABILIS : FONTE_CONTABILIS)) +
+          linhaDado('Tempo de serviço', v(tempo), '', '', fonte(FONTE_CONTABILIS + ' (cálculo)')) +
+          linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '—')) +
+          linhaDado('Inf. financeiras', financeiro, 'fin', '', fonte(FONTE_CONTABILIS)) +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
           '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +

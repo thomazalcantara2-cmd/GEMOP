@@ -42,7 +42,9 @@ ou gravado. Apenas os textos fixos do formulário (informações complementares 
 de origem) ficam salvos no computador.
 
 A folha segue o modelo **"Dados do Servidor"** (faixas nas cores da Prefeitura, tabela Campo /
-Informação / Observações — a coluna Observações fica em branco para anotações, e pode ser digitada na tela).
+Informação / Fonte / Observações). A coluna **Fonte** diz de qual planilha veio cada informação
+(**Contabilis** ou **Ficha Cadastral Completa**); a coluna **Observações** traz os alertas do campo e pode
+ser digitada na tela.
 Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido automaticamente.
 
 ## Regras de preenchimento
