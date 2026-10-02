@@ -434,6 +434,26 @@
     });
   }
 
+  /*
+   * Histórico de lotação resumido: registros seguidos com o mesmo órgão, unidade orçamentária e local
+   * de trabalho viram um só período (data de início do primeiro e de fim do último). Ordem cronológica.
+   */
+  function historicoLotacao(lotacoes) {
+    var blocos = [];
+    lotacoes.filter(function (l) { return l.inicio; }).slice()
+      .sort(function (x, y) { return valorData(x.inicio) - valorData(y.inicio); })
+      .forEach(function (l) {
+        var chave = [normalizar(l.orgao), normalizar(l.unidade), normalizar(l.local)].join('|');
+        var ultimo = blocos[blocos.length - 1];
+        if (ultimo && ultimo.chave === chave) {
+          if (!l.fim || (ultimo.fim && valorData(l.fim) > valorData(ultimo.fim))) ultimo.fim = l.fim;
+        } else {
+          blocos.push({ chave: chave, orgao: l.orgao, unidade: l.unidade, local: l.local, inicio: l.inicio, fim: l.fim });
+        }
+      });
+    return blocos.map(function (b) { return { orgao: b.orgao, unidade: b.unidade, local: b.local, inicio: b.inicio, fim: b.fim }; });
+  }
+
   function coluna(linha, nomes) {
     var chaves = Object.keys(linha);
     for (var i = 0; i < nomes.length; i++) {
@@ -464,6 +484,7 @@
       if (!k) return;
       (lotacoes[k] = lotacoes[k] || []).push({
         orgao: String(coluna(l, ['Órgão (descrição)']) || '').trim(),
+        unidade: String(coluna(l, ['Unid. Orçamentária (descrição)']) || '').trim(),
         local: String(coluna(l, ['Local de Trabalho (descrição)']) || '').trim(),
         inicio: paraData(coluna(l, ['Início'])),
         fim: paraData(coluna(l, ['Fim']))
@@ -527,6 +548,7 @@
         origemEncontrada: !!origem,
         origemPeriodo: origem,
         historico: hist,
+        historicoLotacao: historicoLotacao(hist),
         afastamentos: agruparAfastamentos(afastamentos[matricula] || []),
         ferias: ferias[matricula] || [],
         faltas: faltas[matricula] || [],
@@ -581,6 +603,7 @@
 
   var api = {
     combinarFichas: combinarFichas,
+    historicoLotacao: historicoLotacao,
     ORGAOS_CESSAO: ORGAOS_CESSAO,
     normalizar: normalizar,
     paraData: paraData,

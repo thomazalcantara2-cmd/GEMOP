@@ -124,6 +124,21 @@
   .folha .linha3:last-child { border-bottom: 0; }
   .folha .afast { display: flex; flex-direction: column; gap: 1mm; font-weight: 500; font-size: 9pt; }
   .folha .afast strong { font-weight: 700; }
+  .folha .resumo { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-bottom: 1px solid var(--linha); }
+  .folha .resumo .cel { display: flex; flex-direction: column; gap: .4mm; padding: 2mm 3mm 2mm 4.5mm; border-bottom: 1px solid #e8ecf2; border-right: 1px solid #e8ecf2; }
+  .folha .resumo .cel:nth-child(4n) { border-right: 0; }
+  .folha .resumo .cel:nth-child(n+5) { border-bottom: 0; }
+  .folha .resumo .cel.dupla { grid-column: span 2; }
+  .folha .resumo .cel b { font-weight: 600; font-size: 1em; }
+  .folha .resumo .fonte { font-size: 6pt; font-weight: 500; color: #7a8599; line-height: 1.2; }
+  .folha .hist table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 7pt; line-height: 1.25; }
+  .folha .hist th { text-align: left; font-size: 6.5pt; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--azul); padding: 1.2mm 2mm; border-bottom: 1px solid var(--linha); }
+  .folha .hist td { padding: .9mm 2mm; border-bottom: 1px solid #eef1f6; vertical-align: top; }
+  .folha .hist tr:last-child td { border-bottom: 0; }
+  .folha .hist th:first-child, .folha .hist td:first-child { padding-left: 5mm; width: 38mm; }
+  .folha .hist td.per { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .folha .hist td.vazio { color: var(--cinza); }
+  .folha .compl-tit small { float: right; font-size: 6pt; font-weight: 500; letter-spacing: 0; text-transform: none; color: #7a8599; }
   .folha .compl-tit { padding: 3mm 5mm; background: #eef2f9; border-bottom: 1px solid var(--linha);
     font-size: 8.5pt; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--azul); }
   .folha .compl ol { margin: 0; padding: 3mm 5mm 3mm 10mm; display: flex; flex-direction: column; gap: 1mm; font-size: 9pt; }

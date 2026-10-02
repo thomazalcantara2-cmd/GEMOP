@@ -41,10 +41,11 @@ As planilhas são lidas apenas no navegador: nenhum dado de servidor é enviado 
 ou gravado. Apenas os textos fixos do formulário (informações complementares e a regra do órgão
 de origem) ficam salvos no computador.
 
-A folha segue o modelo **"Dados do Servidor"** (faixas nas cores da Prefeitura, tabela Campo /
-Informação / Observações). Abaixo do nome de cada campo, em letra pequena, aparece a planilha de onde
-a informação veio (**Contabilis** ou **Ficha Cadastral Completa**); a coluna **Observações** traz os alertas
-do campo e pode ser digitada na tela.
+A folha segue o modelo **"Dados do Servidor"** (faixas nas cores da Prefeitura): nome em destaque; quadro-resumo
+com matrícula, CPF, nascimento, admissão, tempo de serviço, cargo e vínculo; tabela Campo / Informação /
+Observações com órgão de origem, lotação e afastamentos; **Histórico de lotação**; e informações complementares.
+Abaixo do nome de cada campo, em letra pequena, aparece a planilha de onde a informação veio (**Contabilis** ou
+**Ficha Cadastral Completa**); a coluna **Observações** traz os alertas do campo e pode ser digitada na tela.
 Se o conteúdo não couber numa página A4, o tamanho da letra é reduzido automaticamente.
 
 O painel da esquerda pode ser recolhido pelo botão **‹** (e reaberto pelo **›**); a escolha fica lembrada.
@@ -63,6 +64,9 @@ para qualquer lugar da página.
   Se o servidor sempre esteve na Administração, usa o órgão atual. De onde veio o órgão de origem (período
   e local da lotação) e esses alertas aparecem na coluna **Observações** da própria linha.
   A lista de órgãos ignorados pode ser alterada na seção *Regra do órgão de origem*.
+- **Histórico de lotação**: aba `Lotacoes`, em ordem cronológica. Registros seguidos com o mesmo
+  `Órgão`, `Unid. Orçamentária` e `Local de Trabalho` (a ficha traz um por ano) viram um só período, com a data
+  de início do primeiro e a de fim do último (`atual` se ainda em aberto).
 - **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).

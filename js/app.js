@@ -362,6 +362,13 @@
   var FONTE_CONTABILIS = 'Contabilis';
   var FONTE_FICHA = 'Ficha Cadastral Completa';
 
+  // célula do quadro-resumo (dados pessoais e funcionais)
+  function celula(rotulo, valorHTML, fonte, classe) {
+    return '<div class="cel' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) + '</span>' +
+      '<b contenteditable>' + valorHTML + '</b>' +
+      (fonte ? '<span class="fonte" contenteditable>' + esc(fonte) + '</span>' : '') + '</div>';
+  }
+
   function linhaDado(rotulo, valorHTML, classe, observacao, fonte) {
     // a fonte (planilha de onde veio a informação) sai pequena, abaixo do nome do campo
     return '<div class="linha3' + (classe ? ' ' + classe : '') + '"><span class="rot">' + esc(rotulo) +
@@ -409,6 +416,12 @@
         : 'x - x - x';
     }
     var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
+    var historico = s && s.historicoLotacao.length
+      ? s.historicoLotacao.map(function (b) {
+          return '<tr><td class="per">' + esc(D.dataBR(b.inicio)) + ' a ' + esc(b.fim ? D.dataBR(b.fim) : 'atual') + '</td>' +
+            '<td>' + esc(b.orgao) + '</td><td>' + esc(b.unidade) + '</td><td>' + esc(b.local) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="vazio">' + (s ? 'Sem histórico de lotação na Ficha Cadastral Completa.' : '') + '</td></tr>';
     // fontes: dados pessoais e funcionais da Contabilis; histórico (lotação, origem, afastamentos) da Ficha Cadastral
     var temFicha = !!(s && estado.ficha && !s.semFicha);
     var fonte = function (f) { return s ? f : ''; };
@@ -424,17 +437,24 @@
           '<div class="data"><span class="rot">Data</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
         '<div class="cartao">' +
           '<div class="nome"><span class="rot">Nome</span><b contenteditable>' + v(s && s.nome) + '</b></div>' +
+          '<div class="resumo">' +
+            celula('Matrícula', v(s && s.matriculaFormatada), fonte(FONTE_CONTABILIS)) +
+            celula('CPF', v(s && s.cpf), fonte(FONTE_CONTABILIS)) +
+            celula('Nascimento', v(s && D.dataBR(s.nascimento)), fonte(FONTE_CONTABILIS)) +
+            celula('Admissão', v(s && D.dataBR(s.admissao)), fonte(FONTE_CONTABILIS)) +
+            celula('Tempo de serviço', v(tempo), fonte(FONTE_CONTABILIS + ' (calculado)')) +
+            celula('Cargo', v(s && s.cargo), fonte(FONTE_CONTABILIS), 'dupla') +
+            celula('Vínculo', v(s && s.vinculo), fonte(temFicha ? FONTE_FICHA + ' + ' + FONTE_CONTABILIS : FONTE_CONTABILIS)) +
+          '</div>' +
           '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Observações</span></div>' +
-          linhaDado('Matrícula', v(s && s.matriculaFormatada), '', '', fonte(FONTE_CONTABILIS)) +
-          linhaDado('CPF', v(s && s.cpf), '', '', fonte(FONTE_CONTABILIS)) +
-          linhaDado('Nascimento', v(s && D.dataBR(s.nascimento)), '', '', fonte(FONTE_CONTABILIS)) +
-          linhaDado('Admissão', v(s && D.dataBR(s.admissao)), '', '', fonte(FONTE_CONTABILIS)) +
-          linhaDado('Cargo', v(s && s.cargo), '', '', fonte(FONTE_CONTABILIS)) +
           linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem, fonte(temFicha ? FONTE_FICHA : '')) +
           linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao, fonte(temFicha ? FONTE_FICHA : FONTE_CONTABILIS)) +
-          linhaDado('Vínculo', v(s && s.vinculo), '', '', fonte(temFicha ? FONTE_FICHA + ' + ' + FONTE_CONTABILIS : FONTE_CONTABILIS)) +
-          linhaDado('Tempo de serviço', v(tempo), '', '', fonte(FONTE_CONTABILIS + ' (calculado)')) +
           linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '')) +
+        '</div>' +
+        '<div class="cartao hist"><div class="compl-tit">Histórico de lotação' +
+          (s && temFicha ? '<small>' + esc(FONTE_FICHA) + '</small>' : '') + '</div>' +
+          '<table><thead><tr><th>Período</th><th>Órgão</th><th>Unidade orçamentária</th><th>Local de trabalho</th></tr></thead>' +
+          '<tbody contenteditable>' + historico + '</tbody></table>' +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
           '<ol contenteditable>' + complementares.map(function (l) { return '<li>' + textoFormatado(l) + '</li>'; }).join('') + '</ol>' +
@@ -453,10 +473,13 @@
     var corpo = folha.querySelector('.corpo');
     var tamanho = 9.5;
     corpo.style.fontSize = '';
-    folha.querySelectorAll('.afast, .compl ol').forEach(function (el) { el.style.fontSize = ''; });
-    while (corpo.scrollHeight > corpo.clientHeight + 1 && tamanho > 6.5) {
+    var ajustaveis = folha.querySelectorAll('.afast, .compl ol, .hist table');
+    ajustaveis.forEach(function (el) { el.style.fontSize = ''; });
+    while (corpo.scrollHeight > corpo.clientHeight + 1 && tamanho > 6) {
       tamanho -= 0.25;
-      folha.querySelectorAll('.afast, .compl ol').forEach(function (el) { el.style.fontSize = (tamanho - 0.5) + 'pt'; });
+      ajustaveis.forEach(function (el) {
+        el.style.fontSize = (el.tagName === 'TABLE' ? Math.min(7, tamanho - 1.5) : tamanho - 0.5) + 'pt';
+      });
       corpo.style.fontSize = tamanho + 'pt';
     }
   }

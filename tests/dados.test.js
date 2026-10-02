@@ -161,3 +161,18 @@ test('férias do exercício atual com gozo ainda não iniciado saem como program
   assert.strictEqual(D.textoFeriasLicencas([dezembro], [], dt(15, 12, 2026)).split('\n')[0],
     'CONSTA gozo de férias (exercício 2026) de 01/12/2026 a 30/12/2026 (30 dias).');
 });
+
+test('histórico de lotação: registros seguidos no mesmo órgão/unidade/local viram um período', () => {
+  const l = (o, u, loc, ini, fim) => ({ orgao: o, unidade: u, local: loc, inicio: D.paraData(ini), fim: D.paraData(fim) });
+  const h = D.historicoLotacao([
+    l('SEC PLAN', 'SEC PLAN', 'CCTA - PREFEITURA', '01/01/2016', '31/12/2016'),
+    l('SEC PLAN', 'SEC PLAN', 'CCTA - PREFEITURA', '01/12/2015', '31/12/2015'),
+    l('SEC PLAN', 'SEC PLAN', 'CCTA - PREFEITURA', '01/01/2017', '31/01/2024'),
+    l('SAD', 'SAD', 'CCTA - PREFEITURA', '01/02/2024', null),
+    l('SEC PLAN', 'SEC PLAN', 'CCTA - PREFEITURA', '01/01/2014', '30/11/2015')
+  ].reverse());
+  assert.deepStrictEqual(h.map(b => [b.orgao, D.dataBR(b.inicio), b.fim ? D.dataBR(b.fim) : 'atual']), [
+    ['SEC PLAN', '01/01/2014', '31/01/2024'],
+    ['SAD', '01/02/2024', 'atual']
+  ]);
+});
