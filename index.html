@@ -96,7 +96,7 @@
   .folha .faixa { display: flex; height: 6px; flex: none; }
   .folha .faixa.base { height: 4px; }
   .folha .faixa i { flex: 1; }
-  .folha .corpo { padding: 8mm 13mm 8mm; display: flex; flex-direction: column; flex: 1; gap: 4mm; min-height: 0; }
+  .folha .corpo { padding: 7mm 13mm 7mm; display: flex; flex-direction: column; flex: 1; gap: 3.2mm; min-height: 0; }
   .folha .corpo > * { flex: none; }
   .folha .cab { display: flex; align-items: center; justify-content: space-between; gap: 6mm; padding-bottom: 4mm; border-bottom: 1px solid var(--linha); }
   .folha .cab img { height: 15mm; width: auto; display: block; }
@@ -112,7 +112,7 @@
   .folha .nome { display: flex; flex-direction: column; gap: .5mm; padding: 3.5mm 4.5mm; background: var(--azul); color: #fff; }
   .folha .nome .rot { color: #fff; opacity: .85; letter-spacing: .08em; font-weight: 600; }
   .folha .nome b { font-size: 13pt; font-weight: 800; }
-  .folha .linha3 { display: grid; grid-template-columns: 34mm minmax(0,1.25fr) minmax(0,1fr); border-bottom: 1px solid #e8ecf2; min-height: 9mm; }
+  .folha .linha3 { display: grid; grid-template-columns: 34mm minmax(0,1.25fr) minmax(0,1fr); border-bottom: 1px solid #e8ecf2; min-height: 7mm; }
   .folha .linha3 > .rot { padding: 2mm 2mm 2mm 4.5mm; }
   .folha .linha3 > .val { padding: 1.8mm 3mm 1.8mm 0; font-weight: 600; }
   .folha .linha3 > .rot .fonte { display: block; margin-top: .8mm; font-size: 6pt; font-weight: 500; letter-spacing: 0; text-transform: none; color: #7a8599; line-height: 1.25; }
@@ -135,7 +135,14 @@
   .folha .hist th { text-align: left; font-size: 6.5pt; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--azul); padding: 1.2mm 2mm; border-bottom: 1px solid var(--linha); }
   .folha .hist td { padding: .9mm 2mm; border-bottom: 1px solid #eef1f6; vertical-align: top; }
   .folha .hist tr:last-child td { border-bottom: 0; }
-  .folha .hist th:first-child, .folha .hist td:first-child { padding-left: 5mm; width: 38mm; }
+  .folha .hist col.c-ini { width: 22mm; }
+  .folha .hist col.c-fim { width: 18mm; }
+  .folha .hist th { vertical-align: bottom; padding-top: .9mm; padding-bottom: .9mm; }
+  .folha .hist .compl-tit { padding-top: 2mm; padding-bottom: 2mm; }
+  .folha .hist th.per-tit { text-align: center; padding-bottom: .6mm; border-bottom: 1px solid #c3cbd9; padding-left: 5mm; }
+  .folha .hist th.sub { font-size: 6pt; color: var(--cinza); padding-top: .6mm; }
+  .folha .hist th.ini, .folha .hist td.ini { padding-left: 5mm; }
+  .folha .hist th.fim, .folha .hist td.fim { border-right: 1px solid #e3e7ee; }
   .folha .hist td.per { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .folha .hist td.vazio { color: var(--cinza); }
   .folha .compl-tit small { float: right; font-size: 6pt; font-weight: 500; letter-spacing: 0; text-transform: none; color: #7a8599; }

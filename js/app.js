@@ -418,10 +418,10 @@
     var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
     var historico = s && s.historicoLotacao.length
       ? s.historicoLotacao.map(function (b) {
-          return '<tr><td class="per">' + esc(D.dataBR(b.inicio)) + ' a ' + esc(b.fim ? D.dataBR(b.fim) : 'atual') + '</td>' +
+          return '<tr><td class="per ini">' + esc(D.dataBR(b.inicio)) + '</td><td class="per fim">' + esc(b.fim ? D.dataBR(b.fim) : 'atual') + '</td>' +
             '<td>' + esc(b.orgao) + '</td><td>' + esc(b.unidade) + '</td><td>' + esc(b.local) + '</td></tr>';
         }).join('')
-      : '<tr><td colspan="4" class="vazio">' + (s ? 'Sem histórico de lotação na Ficha Cadastral Completa.' : '') + '</td></tr>';
+      : '<tr><td colspan="5" class="vazio">' + (s ? 'Sem histórico de lotação na Ficha Cadastral Completa.' : '') + '</td></tr>';
     // fontes: dados pessoais e funcionais da Contabilis; histórico (lotação, origem, afastamentos) da Ficha Cadastral
     var temFicha = !!(s && estado.ficha && !s.semFicha);
     var fonte = function (f) { return s ? f : ''; };
@@ -453,7 +453,9 @@
         '</div>' +
         '<div class="cartao hist"><div class="compl-tit">Histórico de lotação' +
           (s && temFicha ? '<small>' + esc(FONTE_FICHA) + '</small>' : '') + '</div>' +
-          '<table><thead><tr><th>Período</th><th>Órgão</th><th>Unidade orçamentária</th><th>Local de trabalho</th></tr></thead>' +
+          '<table><colgroup><col class="c-ini"><col class="c-fim"><col><col><col></colgroup>' +
+          '<thead><tr><th colspan="2" class="per-tit">Período</th><th rowspan="2">Órgão</th><th rowspan="2">Unidade orçamentária</th>' +
+          '<th rowspan="2">Local de trabalho</th></tr><tr><th class="sub ini">Início</th><th class="sub fim">Fim</th></tr></thead>' +
           '<tbody contenteditable>' + historico + '</tbody></table>' +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
@@ -473,12 +475,12 @@
     var corpo = folha.querySelector('.corpo');
     var tamanho = 9.5;
     corpo.style.fontSize = '';
-    var ajustaveis = folha.querySelectorAll('.afast, .compl ol, .hist table');
+    var ajustaveis = folha.querySelectorAll('.afast, .compl ol, .hist table, .linha3 > .obs');
     ajustaveis.forEach(function (el) { el.style.fontSize = ''; });
-    while (corpo.scrollHeight > corpo.clientHeight + 1 && tamanho > 6) {
+    while (corpo.scrollHeight > corpo.clientHeight + 1 && tamanho > 5.5) {
       tamanho -= 0.25;
       ajustaveis.forEach(function (el) {
-        el.style.fontSize = (el.tagName === 'TABLE' ? Math.min(7, tamanho - 1.5) : tamanho - 0.5) + 'pt';
+        el.style.fontSize = (el.tagName === 'TABLE' || el.classList.contains('obs') ? Math.max(5.5, Math.min(7, tamanho - 1.5)) : tamanho - 0.5) + 'pt';
       });
       corpo.style.fontSize = tamanho + 'pt';
     }

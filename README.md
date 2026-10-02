@@ -65,7 +65,8 @@ para qualquer lugar da página.
   e local da lotação) e esses alertas aparecem na coluna **Observações** da própria linha.
   A lista de órgãos ignorados pode ser alterada na seção *Regra do órgão de origem*.
 - **Histórico de lotação**: aba `Lotacoes`, em ordem cronológica. Registros seguidos com o mesmo
-  `Órgão`, `Unid. Orçamentária` e `Local de Trabalho` (a ficha traz um por ano) viram um só período, com a data
+  `Órgão`, `Unid. Orçamentária` e `Local de Trabalho` (a ficha traz um por ano) viram um só período (colunas
+  **Início** e **Fim**), com a data
   de início do primeiro e a de fim do último (`atual` se ainda em aberto).
 - **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
