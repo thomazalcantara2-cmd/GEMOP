@@ -68,6 +68,10 @@ para qualquer lugar da página.
   `Órgão`, `Unid. Orçamentária` e `Local de Trabalho` (a ficha traz um por ano) viram um só período (colunas
   **Início** e **Fim**), com a data
   de início do primeiro e a de fim do último (`atual` se ainda em aberto).
+  No painel, em **Histórico de lotação — contar períodos por**, escolha um ou mais campos (Órgão, Unidade
+  orçamentária, Local de trabalho): um novo período começa só quando muda algum dos campos marcados, e a tabela
+  mostra apenas essas colunas. Ex.: marcando só *Local de trabalho*, uma troca de órgão com o mesmo local não
+  quebra o período. A escolha fica lembrada no navegador.
 - **Afastamentos**: todos os afastamentos da aba `Afastamentos`, agrupados por tipo (`Descrição (descrição)`)
   em ordem cronológica, com os períodos. Períodos seguidos do mesmo tipo são unidos
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).

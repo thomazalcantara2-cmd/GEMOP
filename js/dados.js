@@ -434,16 +434,21 @@
     });
   }
 
+  var CAMPOS_LOTACAO = ['orgao', 'unidade', 'local'];
+
   /*
-   * Histórico de lotação resumido: registros seguidos com o mesmo órgão, unidade orçamentária e local
-   * de trabalho viram um só período (data de início do primeiro e de fim do último). Ordem cronológica.
+   * Histórico de lotação resumido: registros seguidos com os mesmos valores nos campos escolhidos
+   * (padrão: órgão, unidade orçamentária e local de trabalho) viram um só período — data de início do
+   * primeiro e de fim do último. Ordem cronológica. campos: subconjunto de ['orgao', 'unidade', 'local'].
    */
-  function historicoLotacao(lotacoes) {
+  function historicoLotacao(lotacoes, campos) {
+    campos = (campos || CAMPOS_LOTACAO).filter(function (c) { return CAMPOS_LOTACAO.indexOf(c) >= 0; });
+    if (!campos.length) campos = CAMPOS_LOTACAO;
     var blocos = [];
     lotacoes.filter(function (l) { return l.inicio; }).slice()
       .sort(function (x, y) { return valorData(x.inicio) - valorData(y.inicio); })
       .forEach(function (l) {
-        var chave = [normalizar(l.orgao), normalizar(l.unidade), normalizar(l.local)].join('|');
+        var chave = campos.map(function (c) { return normalizar(l[c]); }).join('|');
         var ultimo = blocos[blocos.length - 1];
         if (ultimo && ultimo.chave === chave) {
           if (!l.fim || (ultimo.fim && valorData(l.fim) > valorData(ultimo.fim))) ultimo.fim = l.fim;

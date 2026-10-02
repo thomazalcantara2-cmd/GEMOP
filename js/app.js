@@ -422,12 +422,15 @@
         : 'x - x - x';
     }
     var complementares = D.informacoesComplementares(cfg('complementares'), s, dataDoc);
-    var historico = s && s.historicoLotacao.length
-      ? s.historicoLotacao.map(function (b) {
+    // histórico de lotação agrupado pelos campos marcados no painel (só esses campos viram colunas)
+    var campos = camposHistorico();
+    var blocos = s ? D.historicoLotacao(s.historico, campos) : [];
+    var historico = blocos.length
+      ? blocos.map(function (b) {
           return '<tr><td class="per ini">' + esc(D.dataBR(b.inicio)) + '</td><td class="per fim">' + esc(b.fim ? D.dataBR(b.fim) : 'atual') + '</td>' +
-            '<td>' + esc(b.orgao) + '</td><td>' + esc(b.unidade) + '</td><td>' + esc(b.local) + '</td></tr>';
+            campos.map(function (c) { return '<td>' + esc(b[c]) + '</td>'; }).join('') + '</tr>';
         }).join('')
-      : '<tr><td colspan="5" class="vazio">' + (s ? 'Sem histórico de lotação na Ficha Cadastral Completa.' : '') + '</td></tr>';
+      : '<tr><td colspan="' + (2 + campos.length) + '" class="vazio">' + (s ? 'Sem histórico de lotação na Ficha Cadastral Completa.' : '') + '</td></tr>';
     // fontes: dados pessoais e funcionais da Contabilis; histórico (lotação, origem, afastamentos) da Ficha Cadastral
     var temFicha = !!(s && estado.ficha && !s.semFicha);
     var fonte = function (f) { return s ? f : ''; };
@@ -459,9 +462,10 @@
         '</div>' +
         '<div class="cartao hist"><div class="compl-tit">Histórico de lotação' +
           (s && temFicha ? '<small>' + esc(FONTE_FICHA) + '</small>' : '') + '</div>' +
-          '<table><colgroup><col class="c-ini"><col class="c-fim"><col><col><col></colgroup>' +
-          '<thead><tr><th colspan="2" class="per-tit">Período</th><th rowspan="2">Órgão</th><th rowspan="2">Unidade orçamentária</th>' +
-          '<th rowspan="2">Local de trabalho</th></tr><tr><th class="sub ini">Início</th><th class="sub fim">Fim</th></tr></thead>' +
+          '<table><colgroup><col class="c-ini"><col class="c-fim">' + campos.map(function () { return '<col>'; }).join('') + '</colgroup>' +
+          '<thead><tr><th colspan="2" class="per-tit">Período</th>' +
+          campos.map(function (c) { return '<th rowspan="2">' + TITULOS_LOTACAO[c] + '</th>'; }).join('') +
+          '</tr><tr><th class="sub ini">Início</th><th class="sub fim">Fim</th></tr></thead>' +
           '<tbody contenteditable>' + historico + '</tbody></table>' +
         '</div>' +
         '<div class="cartao compl"><div class="compl-tit">Informações complementares</div>' +
@@ -490,6 +494,29 @@
       });
       corpo.style.fontSize = tamanho + 'pt';
     }
+  }
+
+  // ---------- campos usados para agrupar o histórico de lotação ----------
+  var CHAVE_HISTORICO = 'gemop-requerimento-historico-campos';
+  var TITULOS_LOTACAO = { orgao: 'Órgão', unidade: 'Unidade orçamentária', local: 'Local de trabalho' };
+
+  function camposHistorico() {
+    return ['orgao', 'unidade', 'local'].filter(function (c) { return $('hist-' + c).checked; });
+  }
+
+  function iniciarCamposHistorico() {
+    var salvos = null;
+    try { salvos = JSON.parse(localStorage.getItem(CHAVE_HISTORICO) || 'null'); } catch (e) { salvos = null; }
+    ['orgao', 'unidade', 'local'].forEach(function (c) {
+      var el = $('hist-' + c);
+      el.checked = !salvos || salvos.indexOf(c) >= 0;
+      el.addEventListener('change', function () {
+        if (!camposHistorico().length) el.checked = true; // pelo menos um campo
+        try { localStorage.setItem(CHAVE_HISTORICO, JSON.stringify(camposHistorico())); } catch (e) { /* ignora */ }
+        renderizar();
+      });
+    });
+    if (!camposHistorico().length) ['orgao', 'unidade', 'local'].forEach(function (c) { $('hist-' + c).checked = true; });
   }
 
   // ---------- painel lateral retrátil ----------
@@ -523,6 +550,7 @@
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
 
     iniciarPainel();
+    iniciarCamposHistorico();
 
     // arrastar as planilhas para qualquer lugar da página
     ['dragenter', 'dragover'].forEach(function (ev) {

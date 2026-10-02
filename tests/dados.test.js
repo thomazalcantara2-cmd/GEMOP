@@ -176,3 +176,17 @@ test('histórico de lotação: registros seguidos no mesmo órgão/unidade/local
     ['SAD', '01/02/2024', 'atual']
   ]);
 });
+
+test('histórico de lotação agrupado só pelo local de trabalho (órgão muda, local não)', () => {
+  const l = (o, loc, ini, fim) => ({ orgao: o, unidade: o, local: loc, inicio: D.paraData(ini), fim: D.paraData(fim) });
+  const regs = [
+    l('SEC PLAN', 'CCTA - PREFEITURA', '01/01/2014', '31/12/2018'),
+    l('SEC ADM', 'CCTA - PREFEITURA', '01/01/2019', '31/01/2024'),
+    l('SEC ADM', 'CCTA - TRIBUNAL', '01/02/2024', null)
+  ];
+  const fmt = h => h.map(b => [b.local, D.dataBR(b.inicio), b.fim ? D.dataBR(b.fim) : 'atual']);
+  assert.deepStrictEqual(fmt(D.historicoLotacao(regs, ['local'])), [
+    ['CCTA - PREFEITURA', '01/01/2014', '31/01/2024'], ['CCTA - TRIBUNAL', '01/02/2024', 'atual']]);
+  assert.strictEqual(D.historicoLotacao(regs).length, 3);
+  assert.deepStrictEqual(D.historicoLotacao(regs, ['orgao']).map(b => b.orgao), ['SEC PLAN', 'SEC ADM']);
+});
