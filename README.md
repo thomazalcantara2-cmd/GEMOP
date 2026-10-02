@@ -34,7 +34,7 @@ e nenhum dado sai do computador.
    Na pasta, usa o arquivo mais recente cujo nome contém `FichaContabilis` (ou o antigo `INDICE`/`CEDIDOS`)
    e todos com `FichaCadastral`. Também é possível arrastar as duas planilhas `.xlsx` para a área indicada.
 3. Digite o nome do servidor (também aceita matrícula ou CPF) e escolha na lista.
-4. Confira a data (é também a data final do tempo de serviço e do estágio probatório).
+4. Confira a data de emissão (é também a data final do cálculo do tempo de serviço).
 5. Clique em **Imprimir / Salvar PDF**. Qualquer campo da folha pode ser corrigido clicando sobre ele antes de imprimir.
 
 As planilhas são lidas apenas no navegador: nenhum dado de servidor é enviado para a internet
@@ -73,10 +73,11 @@ para qualquer lugar da página.
   (ex.: 01/01/2025 a 31/12/2025 + 01/01/2026 a 31/12/2026 → 01/01/2025 a 31/12/2026).
   O nome do tipo aparece por extenso (ex.: `LICENCA PREMIO` → **Licença-prêmio**); quando o tipo tem mais de
   um período, os períodos ficam um abaixo do outro. Sem afastamentos, o campo fica com `x - x - x`.
-- **Informações complementares** (o texto de cada item pode ser ajustado na tela; os marcadores entre chaves
+- **Informações complementares** (padrão: faltas; férias e licenças; processo disciplinar; contrato temporário — o texto de cada item pode ser ajustado na tela; os marcadores entre chaves
   são preenchidos automaticamente):
   - `{faltas}` — aba `Faltas`: sem registros → `NÃO CONSTAM faltas...`; com registros → `CONSTAM faltas...` e as datas.
-  - `{estagio}` — admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data do documento:
+  - `{estagio}` — **retirado do texto padrão por enquanto** (pode ser recolocado digitando `{estagio}` numa linha
+    das informações complementares, na tela). Regra: admissão + 3 anos (admitidos até 07/03/1996: + 2 anos), comparado com a data do documento:
     já terminou → `O servidor **CONCLUIU** o estágio probatório em dd/mm/aaaa.`;
     ainda em curso → `Servidor em estágio probatório, com término previsto em dd/mm/aaaa (faltam ...)`.
   - `{ferias_licencas}` — férias (aba `Ferias`), comparando o *Exercício* com o ano da data do documento:

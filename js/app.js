@@ -3,13 +3,12 @@
   'use strict';
 
   var D = window.Dados;
-  var CHAVE_CONFIG = 'gemop-requerimento-config-v2';
+  var CHAVE_CONFIG = 'gemop-requerimento-config-v3';
+  var CHAVE_CONFIG_ANTIGA = 'gemop-requerimento-config-v2';
 
   var PADRAO = {
     complementares: [
-      'FICHA financeira: {ano}.',
       '{faltas}',
-      '{estagio}',
       '{ferias_licencas}',
       'NÃO CONSTA processo administrativo disciplinar, na modalidade inquérito administrativo, em andamento.',
       'NÃO CONSTA contrato de prazo determinado para atendimento de excepcional interesse público.'
@@ -53,6 +52,13 @@
   function lerConfig() {
     var cfg = {};
     try { cfg = JSON.parse(localStorage.getItem(CHAVE_CONFIG) || '{}') || {}; } catch (e) { cfg = {}; }
+    // versão anterior: aproveita a regra do órgão de origem; o texto das informações complementares mudou
+    if (!Object.keys(cfg).length) {
+      try {
+        var antiga = JSON.parse(localStorage.getItem(CHAVE_CONFIG_ANTIGA) || '{}') || {};
+        if (antiga.orgaosCessao != null) cfg.orgaosCessao = antiga.orgaosCessao;
+      } catch (e) { /* ignora */ }
+    }
     Object.keys(PADRAO).forEach(function (k) {
       var el = $('cfg-' + k);
       if (el) el.value = cfg[k] != null ? cfg[k] : PADRAO[k];
@@ -434,7 +440,7 @@
           '<div class="orgao"><div>Secretaria Municipal de Administração</div><div>Secretaria Executiva de Gestão de Pessoas</div></div>' +
         '</header>' +
         '<div class="titulo"><h1>Dados do Servidor</h1>' +
-          '<div class="data"><span class="rot">Data</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
+          '<div class="data"><span class="rot">Data de emissão</span><b contenteditable>' + esc(D.dataBR(dataDoc)) + '</b></div></div>' +
         '<div class="cartao">' +
           '<div class="nome"><span class="rot">Nome</span><b contenteditable>' + v(s && s.nome) + '</b></div>' +
           '<div class="resumo">' +
@@ -448,7 +454,7 @@
           '</div>' +
           '<div class="linha3 titulos"><span class="rot">Campo</span><span class="rot">Informação</span><span class="rot">Observações</span></div>' +
           linhaDado('Órgão de origem', v(s && s.orgaoOrigem), '', obs.origem, fonte(temFicha ? FONTE_FICHA : '')) +
-          linhaDado('Lotação', v(s && s.lotacao), '', obs.lotacao, fonte(temFicha ? FONTE_FICHA : FONTE_CONTABILIS)) +
+          linhaDado('Lotação atual', v(s && s.lotacao), '', obs.lotacao, fonte(temFicha ? FONTE_FICHA : FONTE_CONTABILIS)) +
           linhaDado('Afastamentos', afast, '', obs.afast, fonte(temFicha ? FONTE_FICHA : '')) +
         '</div>' +
         '<div class="cartao hist"><div class="compl-tit">Histórico de lotação' +
