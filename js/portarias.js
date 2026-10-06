@@ -130,6 +130,37 @@
     return isNaN(n) ? '' : n + ' (' + D.inteiroExtenso(n) + ') dias';
   }
 
+  // Deferimento e indeferimento têm o mesmo texto, mudando só o verbo (e colunas opcionais no deferimento).
+  function pedidoSobre(id, nome, verbo, extras) {
+    return {
+      id: id,
+      nome: nome,
+      campos: [
+        { id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3' },
+        { id: 'pedido', rotulo: 'Pedido', tipo: 'texto', padrao: 'Licença para Curso',
+          opcoes: ['Licença para Curso', 'Licença sem Vencimentos', 'Licença Prêmio', 'Dispensa de Estágio Probatório'] },
+        { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
+          padrao: function (c) { return 'despacho d' + locativo(c.secretaria).replace(/^n/, ''); },
+          ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação' }
+      ].concat(extras),
+      gerar: function (c) {
+        var colunas = ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem'];
+        var linha = [c.v('processo'), c.nome, c.matricula, semPalavraSecretaria(c.secretaria)];
+        if (c.tem('decenio')) { colunas.push('Decênio'); linha.push(c.v('decenio')); }
+        if (c.tem('periodo')) { colunas.push('Período de Gozo'); linha.push(c.v('periodo')); }
+        return [
+          { t: 'p', texto: '**CONSIDERANDO** a existência do requerimento individual formulado ' + c.g.pelo + ' ' + c.g.servidor +
+            ' abaixo ' + c.g.discriminado + '.' },
+          { t: 'p', texto: '**RESOLVE:**' },
+          { t: 'p', texto: '**Art. 1º. ' + verbo + '** o pedido de **' + c.v('pedido') + '**, adotando integralmente os fundamentos ' +
+            'elencados no ' + c.v('fundamento') + ', ' + c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
+          { t: 'tabela', colunas: colunas, linha: linha },
+          { t: 'p', texto: '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.' }
+        ];
+      }
+    };
+  }
+
   // ---------- modelos ----------
   // campos: o que a pessoa preenche além do servidor. padrao pode ser função de (dados) para valores que dependem do servidor.
   // gerar(c): c.v(id) = valor do campo (ou "[rótulo]" se faltar), c.g = palavras no gênero do servidor,
@@ -158,30 +189,11 @@
         ];
       }
     },
-    {
-      id: 'indeferimento',
-      nome: 'Indeferimento de pedido (licença, dispensa…)',
-      campos: [
-        { id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3' },
-        { id: 'pedido', rotulo: 'Pedido indeferido', tipo: 'texto', padrao: 'Licença para Curso',
-          opcoes: ['Licença para Curso', 'Dispensa de Estágio Probatório'] },
-        { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
-          padrao: function (c) { return 'despacho d' + locativo(c.secretaria).replace(/^n/, ''); },
-          ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação' }
-      ],
-      gerar: function (c) {
-        return [
-          { t: 'p', texto: '**CONSIDERANDO** a existência do requerimento individual formulado ' + c.g.pelo + ' ' + c.g.servidor +
-            ' abaixo ' + c.g.discriminado + '.' },
-          { t: 'p', texto: '**RESOLVE:**' },
-          { t: 'p', texto: '**Art. 1º. INDEFERIR** o pedido de **' + c.v('pedido') + '**, adotando integralmente os fundamentos ' +
-            'elencados no ' + c.v('fundamento') + ', ' + c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
-          { t: 'tabela', colunas: ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem'],
-            linha: [c.v('processo'), c.nome, c.matricula, semPalavraSecretaria(c.secretaria)] },
-          { t: 'p', texto: '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.' }
-        ];
-      }
-    },
+    pedidoSobre('deferimento', 'Deferimento de pedido (licença, dispensa…)', 'DEFERIR', [
+      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio' },
+      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo' }
+    ]),
+    pedidoSobre('indeferimento', 'Indeferimento de pedido (licença, dispensa…)', 'INDEFERIR', []),
     {
       id: 'readaptacao',
       nome: 'Readaptação de função',

@@ -131,6 +131,23 @@ test('indeferimento: pedido e fundamento digitados; servidora', () => {
   assert.match(r.blocos[2].texto, /pedido de \*\*Dispensa de Estágio Probatório\*\*.*no parecer da Assessoria Jurídica da Secretaria Municipal de Educação, da servidora abaixo:$/);
 });
 
+test('deferimento: mesmo texto com DEFERIR; colunas opcionais Decênio e Período', () => {
+  const dados = { tipo: 'deferimento', numero: '522', data: dt(25, 3, 2026),
+    servidor: { nome: 'FULANA DE TAL', matricula: '000927031', cargo: 'Analista em Saúde', secretaria: 'Secretaria Municipal de Saúde', sexo: 'F' },
+    formatoMatricula: 'pontos', campos: { processo: '26.18.000004305-9', pedido: 'Licença Prêmio' } };
+  const simples = P.gerarPortaria(dados);
+  assert.deepStrictEqual(simples.faltando, []);
+  assert.strictEqual(simples.blocos[2].texto,
+    '**Art. 1º. DEFERIR** o pedido de **Licença Prêmio**, adotando integralmente os fundamentos elencados no ' +
+    'despacho da Secretaria Municipal de Saúde, da servidora abaixo:');
+  assert.deepStrictEqual(simples.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem']);
+  dados.campos.decenio = '96/06 e 06/16'; dados.campos.periodo = '01.04.2026 a 29.06.2026';
+  const completo = P.gerarPortaria(dados);
+  assert.deepStrictEqual(completo.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
+  assert.deepStrictEqual(completo.blocos[3].linha, ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
+  assert.ok(!/DEFERIR/.test(P.gerarPortaria(Object.assign({}, dados, { tipo: 'indeferimento' })).blocos[2].texto.replace('INDEFERIR', '')));
+});
+
 test('readaptação de função: texto do modelo', () => {
   const r = P.gerarPortaria({ tipo: 'readaptacao', numero: '554', data: dt(1, 4, 2026),
     servidor: { nome: 'KEZIA MONTEIRO DE FIGUEIREDO LIMA DOS SANTOS', matricula: '009136921', cargo: 'Professor 1',
