@@ -132,13 +132,13 @@ test('indeferimento: tipo "Dispensa de Estágio Probatório", fundamento digitad
 });
 
 test('sem marcar "Indeferida" a portaria é deferida; colunas opcionais Decênio e Período', () => {
-  const dados = { tipo: 'licenca-premio', numero: '522', data: dt(25, 3, 2026),
+  const dados = { tipo: 'licenca-curso', numero: '522', data: dt(25, 3, 2026),
     servidor: { nome: 'FULANA DE TAL', matricula: '000927031', cargo: 'Analista em Saúde', secretaria: 'Secretaria Municipal de Saúde', sexo: 'F' },
     formatoMatricula: 'pontos', campos: { processo: '26.18.000004305-9' } };
   const simples = P.gerarPortaria(dados);
   assert.deepStrictEqual(simples.faltando, []);
   assert.strictEqual(simples.blocos[2].texto,
-    '**Art. 1º. DEFERIR** o pedido de **Licença Prêmio**, adotando integralmente os fundamentos elencados no ' +
+    '**Art. 1º. DEFERIR** o pedido de **Licença para Curso**, adotando integralmente os fundamentos elencados no ' +
     'despacho da Secretaria Municipal de Saúde, da servidora abaixo:');
   assert.deepStrictEqual(simples.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem']);
   dados.campos.decenio = '96/06 e 06/16'; dados.campos.periodo = '01.04.2026 a 29.06.2026';
@@ -146,7 +146,7 @@ test('sem marcar "Indeferida" a portaria é deferida; colunas opcionais Decênio
   assert.deepStrictEqual(completo.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
   assert.deepStrictEqual(completo.blocos[3].linhas[0], ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
   dados.campos.indeferido = true;
-  assert.match(P.gerarPortaria(dados).blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença Prêmio\*\*/);
+  assert.match(P.gerarPortaria(dados).blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença para Curso\*\*/);
 });
 
 test('"Outro pedido": o pedido é digitado; Licença sem Vencimentos tem texto próprio', () => {
@@ -218,7 +218,7 @@ test('vários servidores: só mulheres vai para o feminino; processo faltando ci
 });
 
 test('vários servidores: colunas Decênio e Período só aparecem se alguém tiver', () => {
-  const r = P.gerarPortaria({ tipo: 'licenca-premio', numero: '522', data: dt(25, 3, 2026), campos: {}, servidores: [
+  const r = P.gerarPortaria({ tipo: 'licenca-curso', numero: '522', data: dt(25, 3, 2026), campos: {}, servidores: [
     pessoa('ANA', '9270', 'F', null, { processo: '1', decenio: '96/06 e 06/16', periodo: '01.04.2026 a 29.06.2026' }),
     pessoa('BIA', '149276', 'F', null, { processo: '2' })] });
   assert.deepStrictEqual(r.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
@@ -248,4 +248,112 @@ test('readaptação de vários servidores: ofício igual vira um só considerand
   dados.servidores[1].campos.oficio = 'GPM nº 200/2026';
   const r2 = P.gerarPortaria(dados);
   assert.match(r2.blocos[1].texto, /Ofício GPM nº 200\/2026, referente ao servidor BRUNO\.$/);
+});
+
+// ---------- modelos do levantamento no Diário Oficial ----------
+const base1 = (tipo, campos, servidores, extra) => P.gerarPortaria(Object.assign({ tipo, numero: '1000', data: dt(6, 10, 2026), campos, servidores }, extra));
+const textos = (r) => r.blocos.map((b) => b.texto || b);
+
+test('licença prêmio deferida: concessão de gozo com decênio e período (Portaria 522)', () => {
+  const r = base1('licenca-premio', {}, [
+    pessoa('ANA', '9270', 'F', 'Secretaria Municipal de Saúde', { processo: '26.18.000004305-9', decenio: '96/06 e 06/16', periodo: '01.04.2026 a 29.06.2026' }),
+    pessoa('BIA', '149276', 'F', null, { processo: '25.17.000018988-3', decenio: '2003/2013', periodo: '01.04.2026 a 30.04.2026' })], { formatoMatricula: 'pontos' });
+  assert.deepStrictEqual(r.faltando, []);
+  assert.strictEqual(r.blocos[2].texto,
+    '**Art. 1º. CONCEDER** o gozo de licença prêmio, de acordo com as Informações funcionais emitida pela Unidade de Gestão de Pessoas - UGEP, ' +
+    'às servidoras relacionadas abaixo, nos períodos especificados:');
+  assert.deepStrictEqual(r.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem', 'Decênio', 'Período de Gozo']);
+  assert.deepStrictEqual(r.blocos[3].linhas[0], ['26.18.000004305-9', 'ANA', '0.0000927.0', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
+  const sem = base1('licenca-premio', {}, [pessoa('CARLOS', '1', 'M', null, { processo: '1' })]);
+  assert.deepStrictEqual(sem.faltando, ['Decênio', 'Período de gozo']);
+  assert.match(sem.blocos[2].texto, /ao servidor relacionado abaixo, no período especificado:$/);
+  const ind = base1('licenca-premio', { indeferido: true }, [pessoa('CARLOS', '1', 'M', null, { processo: '1' })]);
+  assert.deepStrictEqual(ind.faltando, []);
+  assert.match(ind.blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença Prêmio\*\*/);
+});
+
+test('licença por doença em pessoa da família', () => {
+  const r = base1('licenca-doenca-familia', { efeitos: dt(1, 9, 2026) }, [pessoa('ANA', '161888', 'F', null, {})]);
+  assert.strictEqual(r.blocos[2].texto,
+    '**Art. 1º. CONCEDER** à servidora **ANA**, matrícula 000161888, Professor 2, lotada na Secretaria Municipal de Educação, Licença por Motivo de ' +
+    'Doença em Pessoa da Família, pelo período de 30 (trinta) dias, nos termos do art. 91, §2º, inciso I, da Lei nº 224/96.');
+  assert.strictEqual(r.blocos[3].texto, '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação, retroagindo seus efeitos a 01.09.2026.');
+});
+
+test('retorno de licença para curso (Portaria 487)', () => {
+  const r = base1('retorno-licenca-curso', {}, [pessoa('WAGNER RAMOS DE AMORIM', '002132411', 'M', null,
+    { requerimento: '26.17.000002583-5', dataRequerimento: dt(2, 2, 2026), efeitos: dt(1, 3, 2026) })]);
+  assert.strictEqual(r.blocos[0].texto, 'Considerando a solicitação do servidor através do requerimento pessoal nº 26.17.000002583-5, datado de 02.02.2026.');
+  assert.strictEqual(r.blocos[2].texto,
+    '**Art. 1º. RETORNAR** da Licença para Curso, o servidor **WAGNER RAMOS DE AMORIM**, matrícula nº 002132411 Cargo Professor 2, lotado na Secretaria Municipal de Educação.');
+  assert.match(r.blocos[3].texto, /retroagindo seus efeitos a 01\.03\.2026\.$/);
+});
+
+test('readaptação definitiva não tem prazo', () => {
+  const r = base1('readaptacao', { definitiva: true }, [pessoa('ANA', '9136921', 'F', null, { oficio: 'GPM nº 1/2026' })]);
+  assert.deepStrictEqual(r.faltando, []);
+  assert.match(r.blocos[2].texto, /^\*\*Art\. 1º\. CONCEDER\*\* definitivamente \*\*Readaptação de Função\*\*, à servidora \*\*ANA\*\*, mat\. 009136921 /);
+  assert.ok(!/período de/.test(r.blocos[2].texto));
+});
+
+test('redução de carga horária: tabela com data do requerimento e sem Decênio', () => {
+  const r = base1('reducao-ch', { indeferido: true, fundamento: 'parecer nº 5/2026 da Gerência de Política de Pessoal', efeitos: dt(1, 9, 2026) },
+    [pessoa('ANA', '9136921', 'F', null, { processo: '26.17.1-1', dataReq: dt(3, 8, 2026) })]);
+  assert.deepStrictEqual(r.faltando, []);
+  assert.strictEqual(r.blocos[2].texto, '**Art. 1º. INDEFERIR** o pedido de **Redução de Carga Horária**, adotando integralmente os fundamentos elencados no parecer nº 5/2026 da Gerência de Política de Pessoal:');
+  assert.deepStrictEqual(r.blocos[3].colunas, ['Nº Processo', 'Nome', 'Matrícula', 'Secretaria', 'Data do Requerimento']);
+  assert.strictEqual(r.blocos[3].linhas[0][4], '03.08.2026');
+  assert.match(r.blocos[4].texto, /retroagindo seus efeitos a 01\.09\.2026\.$/);
+  assert.deepStrictEqual(base1('reducao-ch', {}, [pessoa('ANA', '1', 'F', null, { processo: '1', dataReq: dt(1, 1, 2026) })]).faltando, ['Fundamentos adotados']);
+});
+
+test('abono de permanência deferido: de acordo com o parecer, retroagindo à data do requerimento', () => {
+  const r = base1('abono-permanencia', { fundamento: 'parecer nº 77/2026 da Gerência de Política de Pessoal' },
+    [pessoa('CARLOS', '1', 'M', null, { processo: '9', dataReq: dt(5, 5, 2026) })]);
+  assert.strictEqual(r.blocos[2].texto, '**Art. 1º. DEFERIR** o pedido de **Abono de Permanência**, de acordo com o parecer nº 77/2026 da Gerência de Política de Pessoal, do servidor abaixo:');
+  assert.strictEqual(r.blocos[4].texto, '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação, retroagindo seus efeitos à data do requerimento.');
+});
+
+test('salário família: deferido sem fundamento; indeferido cita o despacho da SEGEP', () => {
+  const s = [pessoa('ANA', '1', 'F', null, { processo: '9', dataReq: dt(5, 5, 2026) })];
+  const def = base1('salario-familia', {}, s);
+  assert.deepStrictEqual(def.faltando, []);
+  assert.strictEqual(def.blocos[2].texto, '**Art. 1º. DEFERIR** o pedido de **Salário Família**:');
+  const ind = base1('salario-familia', { indeferido: true }, s);
+  assert.strictEqual(ind.blocos[2].texto,
+    '**Art. 1º. INDEFERIR** o pedido de **Salário Família**, adotando integralmente os fundamentos elencados no despacho da Secretaria Executiva de Gestão de Pessoas:');
+});
+
+test('tornar sem efeito: uma frase para todos os servidores', () => {
+  const r = base1('tornar-sem-efeito', { portaria: '1300/2026', edicao: '180', dataEdicao: dt(25, 9, 2026), objeto: 'licença prêmio' },
+    [pessoa('ANA', '9270', 'F'), pessoa('BIA', '149276', 'F')]);
+  assert.deepStrictEqual(r.faltando, []);
+  assert.strictEqual(r.blocos[0].texto, '**RESOLVE:**');
+  assert.strictEqual(r.blocos[1].texto,
+    '**Art. 1º. TORNAR SEM EFEITO** a Portaria nº 1300/2026 - SEGEP, publicada no Diário Oficial nº 180, de 25.09.2026, no que se refere à concessão de ' +
+    'licença prêmio às servidoras **ANA**, matrícula 000009270 e **BIA**, matrícula 000149276.');
+  assert.strictEqual(r.blocos[2].texto, '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação.');
+});
+
+test('encerramento de cessão e prorrogação de pós-graduação usam só o primeiro servidor', () => {
+  const r = base1('encerramento-cessao', { portariaCessao: '1200/2026', dataPortariaCessao: dt(1, 2, 2026), oficio: '10/2026', dataOficio: dt(2, 9, 2026),
+    orgao: 'Tribunal de Justiça', dataEncerramento: dt(30, 9, 2026), dataRetorno: dt(1, 10, 2026), efeitos: dt(30, 9, 2026) },
+    [pessoa('ANA', '9270', 'F'), pessoa('BIA', '149276', 'F')]);
+  assert.deepStrictEqual(r.faltando, []);
+  const t = textos(r).join('\n');
+  assert.ok(t.includes('ANA') && !t.includes('BIA'));
+  assert.match(r.blocos[4].texto, /^\*\*Art\. 1º\. ENCERRAR\*\*, em 30\.09\.2026, a cessão da servidora \*\*ANA\*\*, matrícula 000009270, cedida ao Tribunal de Justiça\.$/);
+  assert.match(r.blocos[5].texto, /^\*\*Art\. 2º\.\*\* A servidora retorna a partir de 01\.10\.2026, ficando lotada na Secretaria Municipal de Educação\.$/);
+  const pos = base1('prorrogacao-pos', { requerimento: '1', parecer: '9/2026', dataParecer: dt(1, 8, 2026), curso: 'Mestrado', programa: 'Educação',
+    instituicao: 'UFPE', inicio: dt(1, 9, 2026), fim: dt(31, 8, 2027) }, [pessoa('ANA', '9270', 'F')]);
+  assert.deepStrictEqual(pos.faltando, []);
+  assert.strictEqual(pos.blocos[pos.blocos.length - 1].texto, '**Art. 3º.** Publique-se e cumpra-se.');
+});
+
+test('enquadramento e tipos agrupados', () => {
+  const r = base1('enquadramento', { processo: '26.17.1-1' }, [pessoa('ANA', '9270', 'F', null, { classe: 'B', nivel: 'II', referencia: '3' })]);
+  assert.strictEqual(r.blocos[1].texto, '**CONSIDERANDO** o despacho da Secretaria Municipal de Educação;');
+  assert.match(r.blocos[3].texto, /^\*\*Art\. 1º\. ENQUADRAR\*\* a servidora \*\*ANA\*\* matrícula 000009270, no cargo de Professor 2 classe B nível II referência 3\.$/);
+  assert.ok(P.TIPOS.every((t) => t.grupo));
+  assert.strictEqual(new Set(P.TIPOS.map((t) => t.id)).size, P.TIPOS.length);
 });

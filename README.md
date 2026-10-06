@@ -117,11 +117,21 @@ modelo (processo, requerimento, ofício… — o que é de cada servidor aparece
 texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco de assinatura eletrônica
 (código verificador e CRC) é colocado pelo próprio SEI e não faz parte do modelo.
 
-| Modelo | Campos a preencher | Preenchido pela planilha |
-|---|---|---|
-| **Exoneração a pedido** | nº e data do requerimento; retroação (opcional); tipo do cargo e fundamento legal (já vêm preenchidos) | nome, matrícula, cargo, secretaria, servidor/servidora |
-| **Licença sem Vencimentos**, **Licença para Curso**, **Licença Prêmio**, **Dispensa de Estágio Probatório** ou **Outro pedido** (digitar o nome) | caixa **Indeferida** logo abaixo do tipo (desmarcada = **deferida**, texto "DEFERIR"; marcada = "INDEFERIR"); nº do processo; fundamentos adotados (padrão: despacho da secretaria); decênio e período de gozo (opcionais, criam as colunas na tabela) | nome, matrícula, secretaria de origem |
-| **Readaptação de função** | ofício da Junta Médica; período (180 dias, com extenso); retroação (opcional) | nome, matrícula, cargo, secretaria |
+Os modelos vêm do levantamento das portarias da SEGEP no Diário Oficial (arquivo `Modelos de Portarias da SEGEP`) e dos
+PDFs do SEI enviados; os campos que faltam aparecem em amarelo. A lista de tipos é agrupada por assunto:
+
+| Assunto | Tipos (todos aceitam vários servidores, exceto onde indicado) |
+|---|---|
+| Licenças e afastamentos | **Licença Prêmio** (sem marcar "Indeferida" = concessão de gozo com decênio e período, como a Portaria 522; marcada = indeferimento); **Licença sem Vencimentos**, **Licença para Curso** (caixa **Indeferida**; desmarcada = deferida); **Licença por doença em pessoa da família**; **Retorno de licença para curso**; **Prorrogação de licença para pós-graduação** (1 servidor) |
+| Saúde e condições de trabalho | **Readaptação de função** (caixa **Definitiva**; desmarcada = temporária, com prazo em dias); **Redução de carga horária** (caixa **Indeferida**) |
+| Vínculo, lotação e carreira | **Exoneração a pedido**; **Encerramento de cessão** (1 servidor); **Enquadramento** de cargo, classe, nível e referência (1 servidor); **Dispensa de Estágio Probatório** (caixa **Indeferida**) |
+| Benefícios e pedidos | **Abono de permanência** (deferido: "de acordo com o parecer…", retroagindo à data do requerimento); **Salário família** (deferido sem fundamento; indeferido cita o despacho da SEGEP) |
+| Correção de atos | **Tornar sem efeito** uma portaria anterior |
+| Outros pedidos | **Outro pedido** (digite o nome do pedido; serve para irredutibilidade de vencimentos, isenção de imposto de renda, licença prêmio em pecúnia, cômputo de tempo de serviço…) |
+
+Ainda **não** estão no programa: gratificação de insalubridade (concessão e revisão), enquadramento por titulação,
+cessão em regime de permuta, majoração de jornada, designação de gestor e fiscais, e errata — pedem tabelas com dados
+que não vêm da planilha (laudos, classes, servidor de outro município) ou têm estrutura própria.
 
 Regras de preenchimento:
 

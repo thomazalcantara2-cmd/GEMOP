@@ -349,6 +349,9 @@
 
     var avisos = [];
     escolhidos.forEach(function (s) { avisos = avisos.concat(avisosDoServidor(s, escolhidos.length > 1)); });
+    if (tipoAtual().unico && escolhidos.length > 1) {
+      avisos.push('Este modelo é para um servidor só: foi usado apenas o primeiro (' + escolhidos[0].nome + '). Retire os demais ou faça outra portaria.');
+    }
     if (escolhidos.length && portaria.faltando.length) avisos.push('Falta preencher: ' + portaria.faltando.join('; ') + '.');
     $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
     $('avisos').hidden = !avisos.length;
@@ -421,7 +424,12 @@
 
   // ---------- eventos ----------
   function iniciar() {
-    $('tipo').innerHTML = R.TIPOS.map(function (t) { return '<option value="' + t.id + '">' + esc(t.nome) + '</option>'; }).join('');
+    // tipos agrupados por assunto
+    $('tipo').innerHTML = R.grupos().map(function (g) {
+      return '<optgroup label="' + esc(g) + '">' + R.TIPOS.filter(function (t) { return t.grupo === g; }).map(function (t) {
+        return '<option value="' + t.id + '">' + esc(t.nome) + '</option>';
+      }).join('') + '</optgroup>';
+    }).join('');
     $('v-matricula').innerHTML = R.FORMATOS_MATRICULA.map(function (f) { return '<option value="' + f.id + '">' + esc(f.rotulo) + '</option>'; }).join('');
     lerConfig();
     $('v-data').value = hojeISO();
