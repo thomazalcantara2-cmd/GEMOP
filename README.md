@@ -1,4 +1,7 @@
-# GEMOP — Requerimento do Servidor (Cedidos SAD)
+# GEMOP — Requerimento do Servidor (Cedidos SAD) e Portarias
+
+Este projeto tem dois programas que usam as mesmas planilhas: o **Requerimento do Servidor** (abaixo) e as
+**Portarias** (seção *Portarias*, mais adiante).
 
 Página que preenche automaticamente o **Requerimento do Servidor** a partir de duas planilhas
 exportadas do sistema de RH:
@@ -97,13 +100,49 @@ para qualquer lugar da página.
 - **Matrícula**: `002076671` → `20.766-7.1`.
 - **Vínculo**: `Status Funcional` da ficha + situação da FichaContabilis, ex.: `ESTATUTÁRIO ATIVO / CARGO EFETIVO`.
 
+## Portarias
+
+Segundo programa do projeto: gera a **Portaria** (folha A4 no modelo da Secretaria de Administração, com cabeçalho
+e assinatura do Secretário Executivo de Gestão de Pessoas) com os dados do servidor lidos da **FichaContabilis**
+— só essa planilha é necessária.
+
+**Como abrir:** dê dois cliques em **`Portarias.bat`** (mesma pasta de planilhas do Requerimento; funciona ao
+mesmo tempo que ele). Sem o aplicativo, abra `portarias.html` no Chrome/Edge e escolha a pasta ou arraste a
+FichaContabilis, como no Requerimento.
+
+**Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF); 3) digite o **nº da
+portaria**, a data e os campos do modelo (processo, requerimento, ofício…); 4) **Imprimir / Salvar PDF** ou
+**Copiar texto** (para colar no SEI). Os campos que faltam aparecem em amarelo na folha e na faixa de avisos, e o
+texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco de assinatura eletrônica
+(código verificador e CRC) é colocado pelo próprio SEI e não faz parte do modelo.
+
+| Modelo | Campos a preencher | Preenchido pela planilha |
+|---|---|---|
+| **Exoneração a pedido** | nº e data do requerimento; retroação (opcional); tipo do cargo e fundamento legal (já vêm preenchidos) | nome, matrícula, cargo, secretaria, servidor/servidora |
+| **Indeferimento de pedido** (licença para curso, dispensa de estágio probatório…) | nº do processo; pedido indeferido; fundamentos adotados (padrão: despacho da secretaria) | nome, matrícula, secretaria de origem |
+| **Readaptação de função** | ofício da Junta Médica; período (180 dias, com extenso); retroação (opcional) | nome, matrícula, cargo, secretaria |
+
+Regras de preenchimento:
+
+- **Cargo**: `nm_cargo` em maiúsculas e sem acento vira `Professor 2`. **Servidor/servidora** (e lotado/lotada, pelo/pela…)
+  segue a coluna `tp_sexo`; se estiver vazia, sai no masculino com um aviso — o painel permite trocar.
+- **Secretaria**: os 2 primeiros dígitos de `cd_centroCusto` identificam a secretaria (15… Educação, 16… Saúde…); o
+  nome é o do centro de custo "SECRETARIA MUNICIPAL…" com o mesmo início, na própria planilha. Servidores
+  **cedidos** (centro de custo `SEGEPE - CEDIDOS`) recebem um aviso, pois a planilha não informa o órgão de origem —
+  confira o campo **Secretaria** (e **Cargo**) no painel, que podem ser corrigidos à mão.
+- **Matrícula**: escolha o formato no painel — `009133641` (padrão), `0.0913364.1` ou `9.133-6.4`.
+- **Textos fixos** (preâmbulo e quem assina) ficam em *Textos fixos* e são lembrados neste computador.
+- O número da portaria não vem da planilha: digite-o. O ano do título é o da data da portaria.
+
 ## Estrutura
 
-- `Requerimento.bat` / `servidor.ps1` — aplicativo local (servidor só para este computador, PowerShell 5.1+)
+- `Requerimento.bat` / `Portarias.bat` / `servidor.ps1` — aplicativos locais (servidor só para este computador, PowerShell 5.1+)
 - `pasta.txt` — caminho opcional da pasta das planilhas; `planilhas/` — pasta padrão
 - `index.html` — interface e layout da folha A4; `assets/` — logo e fonte Public Sans (SIL OFL)
 - `js/dados.js` — regras de extração (funções puras, testadas)
-- `js/app.js` — leitura das planilhas, busca e montagem da folha
+- `js/planilhas.js` — leitura dos `.xlsx`, pasta e servidor local (compartilhado pelos dois programas)
+- `js/app.js` — busca e montagem da folha do Requerimento
+- `portarias.html`, `js/portarias.js` (modelos e regras, testados), `js/portarias-app.js` (tela) — Portarias
 - `vendor/xlsx.full.min.js` — [SheetJS](https://sheetjs.com) 0.18.5 (Apache-2.0), leitura de `.xlsx`
 - `tests/` — testes das regras: `node --test`
 

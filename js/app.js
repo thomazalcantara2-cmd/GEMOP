@@ -3,6 +3,7 @@
   'use strict';
 
   var D = window.Dados;
+  var P = window.Planilhas;
   var CHAVE_CONFIG = 'gemop-requerimento-config-v3';
   var CHAVE_CONFIG_ANTIGA = 'gemop-requerimento-config-v2';
 
@@ -79,63 +80,19 @@
     return el ? el.value : PADRAO[k];
   }
 
-  // ---------- leitura das planilhas ----------
-  function lerArquivo(arquivo) {
-    return new Promise(function (resolve, reject) {
-      var leitor = new FileReader();
-      leitor.onload = function () {
-        try {
-          resolve(XLSX.read(new Uint8Array(leitor.result), { type: 'array' }));
-        } catch (e) { reject(e); }
-      };
-      leitor.onerror = function () { reject(leitor.error); };
-      leitor.readAsArrayBuffer(arquivo);
-    });
-  }
-
-  function linhasDaAba(wb, nome) {
-    var alvo = D.normalizar(nome);
-    var aba = wb.SheetNames.filter(function (n) { return D.normalizar(n) === alvo; })[0];
-    return aba ? XLSX.utils.sheet_to_json(wb.Sheets[aba], { raw: true, defval: null }) : null;
-  }
-
-  function identificar(wb, nomeArquivo) {
-    var lotacoes = linhasDaAba(wb, 'Lotacoes');
-    if (lotacoes) {
-      return { tipo: 'ficha', nome: nomeArquivo, servidores: linhasDaAba(wb, 'Servidores') || [],
-        lotacoes: lotacoes, afastamentos: linhasDaAba(wb, 'Afastamentos') || [],
-        ferias: linhasDaAba(wb, 'Ferias') || [], faltas: linhasDaAba(wb, 'Faltas') || [] };
-    }
-    for (var i = 0; i < wb.SheetNames.length; i++) {
-      var linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { raw: true, defval: null });
-      if (linhas.length && 'nu_matricula' in linhas[0] && 'nm_Funcionario' in linhas[0]) {
-        return { tipo: 'indice', nome: nomeArquivo, linhas: linhas, anoMes: linhas[0].dt_anoMes };
-      }
-    }
-    return null;
-  }
-
+  // ---------- leitura das planilhas (js/planilhas.js, compartilhado com o programa de Portarias) ----------
   // opcoes.ignorarDesconhecidos: na leitura da pasta, arquivos que não são as planilhas esperadas são ignorados.
   function carregarArquivos(lista, opcoes) {
     opcoes = opcoes || {};
-    // do mais antigo para o mais novo: se houver duas versões da mesma planilha, vale a mais recente
-    var arquivos = Array.prototype.slice.call(lista || []).sort(function (a, b) {
-      return (a.lastModified || 0) - (b.lastModified || 0);
-    });
-    if (!arquivos.length) return Promise.resolve();
+    if (!lista || !lista.length) return Promise.resolve();
     mostrarErro('');
-    return Promise.all(arquivos.map(function (f) {
-      return lerArquivo(f).then(function (wb) {
-        var r = identificar(wb, f.name);
-        if (r) r.modificado = f.lastModified ? new Date(f.lastModified) : null;
-        return r;
-      });
-    })).then(function (res) {
+    return P.ler(lista).then(function (res) {
       var naoReconhecidos = [];
       // na leitura da pasta, a lista de fichas é refeita; arrastando arquivos, as fichas se somam
       if (opcoes.ignorarDesconhecidos) estado.fichas = [];
-      res.forEach(function (r, i) {
-        if (!r) naoReconhecidos.push(arquivos[i].name);
+      res.forEach(function (x) {
+        var r = x.resultado;
+        if (!r) naoReconhecidos.push(x.nome);
         else if (r.tipo === 'indice') estado.indice = r;
         else {
           estado.fichas = estado.fichas.filter(function (f) { return f.nome !== r.nome; });
@@ -157,86 +114,25 @@
   }
 
   // ---------- pasta das planilhas (Chrome/Edge: File System Access API) ----------
-  // O navegador não deixa uma página abrir pastas do computador sozinha: a pasta é escolhida
-  // uma vez e o acesso fica guardado neste navegador (IndexedDB) para as próximas vezes.
-  var BANCO = 'gemop-requerimento', LOJA = 'pasta';
-
-  function bancoPasta(modo, valor) {
-    return new Promise(function (resolve) {
-      try {
-        var req = indexedDB.open(BANCO, 1);
-        req.onupgradeneeded = function () { req.result.createObjectStore(LOJA); };
-        req.onerror = function () { resolve(null); };
-        req.onsuccess = function () {
-          try {
-            var tx = req.result.transaction(LOJA, modo === 'gravar' ? 'readwrite' : 'readonly');
-            var loja = tx.objectStore(LOJA);
-            var op = modo === 'gravar' ? loja.put(valor, 'pasta') : loja.get('pasta');
-            op.onsuccess = function () { resolve(op.result || null); };
-            op.onerror = function () { resolve(null); };
-          } catch (e) { resolve(null); }
-        };
-      } catch (e) { resolve(null); }
-    });
-  }
-
-  function planilhasDaPasta(pasta) {
-    var arquivos = [];
-    var iterador = pasta.values();
-    function proximo() {
-      return iterador.next().then(function (item) {
-        if (item.done) return arquivos;
-        var h = item.value;
-        if (h.kind !== 'file' || !/\.xlsx?$/i.test(h.name) || /^~\$/.test(h.name)) return proximo();
-        return h.getFile().then(function (f) { arquivos.push(f); return proximo(); });
-      });
-    }
-    return proximo().then(function (todos) {
-      return escolherPlanilhas(todos, function (f) { return f.name; });
-    });
-  }
-
-  // Lê primeiro só as planilhas com o nome esperado (FichaContabilis — ou o antigo INDICE/CEDIDOS — e FichaCadastral); se faltar alguma, lê todas para identificar pelo conteúdo.
-  function escolherPlanilhas(itens, nomeDe) {
-    var nome = function (x) { return D.normalizar(nomeDe(x)).replace(/[^A-Z]/g, ''); };
-    var pelosNomes = itens.filter(function (x) {
-      var n = nome(x);
-      return /FICHACONTABILIS|INDICE|CEDIDOS|FICHACADASTRAL/.test(n);
-    });
-    var temIndice = pelosNomes.some(function (x) { return /FICHACONTABILIS|INDICE|CEDIDOS/.test(nome(x)); });
-    var temFicha = pelosNomes.some(function (x) { return nome(x).indexOf('FICHACADASTRAL') >= 0; });
-    return temIndice && temFicha ? pelosNomes : itens;
-  }
+  var BANCO = 'gemop-requerimento';
 
   // ---------- modo aplicativo local (Requerimento.bat + servidor.ps1) ----------
-  // O servidor local (só neste computador) entrega a lista e o conteúdo das planilhas da pasta configurada.
   function carregarDoServidorLocal() {
-    return fetch('api/planilhas', { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }).then(function (info) {
+    return P.doServidorLocal().then(function (info) {
       $('bloco-pasta').hidden = false;
       $('escolher-pasta').hidden = true;
       $('recarregar').hidden = false;
       $('recarregar').textContent = 'Recarregar planilhas';
       $('pasta-nome').textContent = 'Pasta: ' + info.pasta;
-      var lista = escolherPlanilhas(info.arquivos || [], function (a) { return a.nome; });
-      if (!lista.length) {
+      if (!info.arquivos.length) {
         mostrarErro('Nenhuma planilha .xlsx encontrada na pasta ' + info.pasta + '. Salve lá a FichaContabilis e o relFichaCadastralCompleta.');
         return;
       }
-      return Promise.all(lista.map(function (a) {
-        return fetch('api/arquivo?nome=' + encodeURIComponent(a.nome), { cache: 'no-store' }).then(function (r) {
-          if (!r.ok) throw new Error('não foi possível ler ' + a.nome);
-          return r.blob();
-        }).then(function (b) { return new File([b], a.nome, { lastModified: a.modificado }); });
-      })).then(function (arquivos) {
-        return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
-          if (!estado.indice || !estado.ficha) {
-            mostrarErro('Na pasta ' + info.pasta + ' não foi encontrado: ' +
-              [!estado.indice && 'FichaContabilis', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
-          }
-        });
+      return carregarArquivos(info.arquivos, { ignorarDesconhecidos: true }).then(function () {
+        if (!estado.indice || !estado.ficha) {
+          mostrarErro('Na pasta ' + info.pasta + ' não foi encontrado: ' +
+            [!estado.indice && 'FichaContabilis', !estado.ficha && 'relFichaCadastralCompleta'].filter(Boolean).join(' e ') + '.');
+        }
       });
     });
   }
@@ -246,7 +142,7 @@
     return permissao.then(function (estadoPermissao) {
       if (estadoPermissao !== 'granted') { mostrarPasta(pasta, false); return; }
       mostrarPasta(pasta, true);
-      return planilhasDaPasta(pasta).then(function (arquivos) {
+      return P.arquivosDaPasta(pasta).then(function (arquivos) {
         if (!arquivos.length) { mostrarErro('Nenhuma planilha .xlsx encontrada na pasta "' + pasta.name + '".'); return; }
         return carregarArquivos(arquivos, { ignorarDesconhecidos: true }).then(function () {
           if (!estado.indice || !estado.ficha) {
@@ -267,7 +163,7 @@
 
   function escolherPasta() {
     window.showDirectoryPicker({ id: 'planilhas-cedidos', mode: 'read' }).then(function (pasta) {
-      bancoPasta('gravar', pasta);
+      P.bancoPasta(BANCO, 'gravar', pasta);
       return carregarDaPasta(pasta, false);
     }).catch(function (e) { if (e.name !== 'AbortError') mostrarErro('Não foi possível abrir a pasta: ' + e.message); });
   }
@@ -289,7 +185,7 @@
   function iniciarSeletorPasta() {
     if (!('showDirectoryPicker' in window)) { $('bloco-pasta').hidden = true; return; }
     $('escolher-pasta').addEventListener('click', escolherPasta);
-    bancoPasta('ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); });
+    P.bancoPasta(BANCO, 'ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); });
   }
 
   function reconstruirBase() {

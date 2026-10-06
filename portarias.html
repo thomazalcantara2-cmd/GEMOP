@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portarias</title>
+<style>
+  :root {
+    --bg: #eef1f5; --painel: #ffffff; --texto: #1c2430; --suave: #5b6675; --borda: #d4dae3;
+    --destaque: #1f5fa8; --destaque-texto: #ffffff; --ok: #1e7a46; --aviso-bg: #fff6dd; --aviso: #7a5600;
+    --erro-bg: #fde8e8; --erro: #9b1c1c; --sel: #e6f0fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181e; --painel: #1d232b; --texto: #e4e8ee; --suave: #9aa5b3; --borda: #333c48;
+      --destaque: #5b9be0; --destaque-texto: #0d1117; --ok: #5cc98a; --aviso-bg: #3a3017; --aviso: #f1d27a;
+      --erro-bg: #3d1d1d; --erro: #f3a6a6; --sel: #22354b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
+  .app { display: grid; grid-template-columns: 380px 1fr; min-height: 100vh; }
+  .app.recolhida { grid-template-columns: 1fr; }
+  .app.recolhida aside { display: none; }
+  .alternar { position: fixed; top: 14px; left: 362px; z-index: 20; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    font-size: 18px; line-height: 1; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+  .app.recolhida .alternar { left: 10px; }
+  #det-planilhas { margin-top: 10px; }
+  body.arrastando main { outline: 3px dashed var(--destaque); outline-offset: -8px; }
+  aside { background: var(--painel); border-right: 1px solid var(--borda); padding: 20px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--suave); margin: 0 0 18px; font-size: 13px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); margin: 22px 0 8px; }
+  #zona { border: 2px dashed var(--borda); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; display: block; }
+  #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
+  #zona input { display: none; }
+  #zona span { color: var(--destaque); font-weight: 600; }
+  .pasta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .pasta button { padding: 8px 12px; font-size: 13px; }
+  .pasta small { color: var(--suave); width: 100%; }
+  .arquivo { font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--borda); color: var(--suave); }
+  .arquivo.ok { color: var(--texto); border-color: var(--ok); }
+  .arquivo.ok b::before { content: "✓ "; color: var(--ok); }
+  .arquivo small { color: var(--suave); }
+  .busca-wrap { position: relative; }
+  input[type=text], input[type=search], input[type=date], input[type=number], select, textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel); color: var(--texto); font: inherit;
+  }
+  textarea { resize: vertical; min-height: 60px; font-size: 13px; }
+  #busca { font-size: 15px; padding: 11px 12px; }
+  #busca:disabled { opacity: .6; }
+  #resultados { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel);
+    position: absolute; left: 0; right: 0; z-index: 5; max-height: 340px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+  #resultados li { padding: 7px 9px; border-radius: 6px; cursor: pointer; }
+  #resultados li:hover, #resultados li.sel { background: var(--sel); }
+  #resultados li small { display: block; color: var(--suave); font-size: 12px; }
+  #resultados li.vazio { color: var(--suave); cursor: default; }
+  label.campo { display: block; font-size: 12px; color: var(--suave); margin: 10px 0 4px; }
+  label.campo small { font-weight: 400; }
+  .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
+  .botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  button { font: inherit; border-radius: 8px; padding: 10px 14px; border: 1px solid var(--borda); background: var(--painel); color: var(--texto); cursor: pointer; }
+  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 600; flex: 1; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  #erro { background: var(--erro-bg); color: var(--erro); padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+  #avisos { background: var(--aviso-bg); color: var(--aviso); padding: 8px 12px; border-radius: 8px; font-size: 13px; width: 210mm; max-width: 100%; margin: 0 auto 12px; }
+  #avisos p { margin: 4px 0; }
+  #copiado { color: var(--ok); font-size: 12px; width: 100%; margin: 0; }
+  .nota { font-size: 12px; color: var(--suave); margin-top: 14px; }
+  main { padding: 24px 16px; overflow-x: auto; }
+  .dica { text-align: center; color: var(--suave); font-size: 12px; margin: 10px 0 0; }
+
+  /* ---------- Folha A4 (sempre em cores de papel; segue o modelo de Portaria da SEGEP) ---------- */
+  .folha { width: 210mm; height: 297mm; margin: 0 auto; background: #fff; color: #000; overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0,0,0,.18); padding: 14mm 20mm 14mm; font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .folha [contenteditable]:hover { outline: 1px dashed #9bb8dc; }
+  .folha [contenteditable]:focus { outline: 1px solid #1f5fa8; }
+  .folha .cab { text-align: center; font-family: 'Times New Roman', Times, serif; line-height: 1.25; }
+  .folha .cab img { height: 24mm; width: auto; display: block; margin: 0 auto 4mm; }
+  .folha .cab .org { font-size: 11pt; }
+  .folha .cab .end { font-size: 8pt; }
+  .folha h1 { font: 700 12.5pt/1.3 'Times New Roman', Times, serif; text-align: center; margin: 9mm 0 9mm; }
+  .folha .texto { text-align: justify; }
+  .folha .texto p { margin: 0 0 5mm; }
+  .folha .texto table { width: 100%; border-collapse: collapse; margin: 0 0 6mm; font-family: 'Times New Roman', Times, serif; font-size: 10.5pt; line-height: 1.3; }
+  .folha .texto th, .folha .texto td { border: 1px solid #000; padding: 3mm 2.5mm; text-align: center; vertical-align: middle; }
+  .folha .texto th { font-weight: 700; }
+  .folha .texto b { font-weight: 700; }
+  .folha .texto .falta { background: #fff1a8; }
+  .folha .local, .folha .assina { text-align: center; margin: 0; }
+  .folha .local { margin-top: 12mm; }
+  .folha .assina.nome { margin-top: 8mm; font-weight: 700; font-family: 'Times New Roman', Times, serif; }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--borda); }
+    .alternar { left: auto; right: 10px; }
+    .app.recolhida .alternar { left: auto; right: 10px; }
+    main { padding: 16px; }
+  }
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .app { display: block; }
+    aside, #avisos, .dica, .alternar { display: none !important; }
+    main { padding: 0; overflow: visible; }
+    .folha { box-shadow: none; margin: 0; }
+    .folha [contenteditable] { outline: none !important; }
+    .folha .texto .falta { background: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <button id="alternar-painel" class="alternar" type="button" title="Recolher painel" aria-label="Recolher painel" aria-expanded="true">‹</button>
+  <aside id="painel">
+    <h1>Portarias</h1>
+    <p class="sub">SEGEP — preenchimento automático a partir da FichaContabilis</p>
+
+    <div id="erro" hidden></div>
+
+    <h2>1. Tipo de portaria</h2>
+    <select id="tipo" aria-label="Tipo de portaria"></select>
+
+    <h2>2. Servidor</h2>
+    <div class="busca-wrap">
+      <input id="busca" type="search" autocomplete="off" placeholder="Carregue a planilha primeiro" disabled>
+      <ul id="resultados" role="listbox" hidden></ul>
+    </div>
+    <div class="dupla">
+      <div>
+        <label class="campo" for="v-cargo">Cargo</label>
+        <input id="v-cargo" type="text" placeholder="vem da planilha">
+      </div>
+      <div>
+        <label class="campo" for="v-secretaria">Secretaria</label>
+        <input id="v-secretaria" type="text" placeholder="vem da planilha">
+      </div>
+    </div>
+    <label class="campo" for="v-sexo">Servidor / servidora</label>
+    <select id="v-sexo">
+      <option value="">Conforme a planilha</option>
+      <option value="M">Servidor (masculino)</option>
+      <option value="F">Servidora (feminino)</option>
+    </select>
+
+    <h2>3. Dados da portaria</h2>
+    <div class="dupla">
+      <div>
+        <label class="campo" for="v-numero">Nº da portaria</label>
+        <input id="v-numero" type="text" inputmode="numeric" placeholder="ex.: 537">
+      </div>
+      <div>
+        <label class="campo" for="v-data">Data da portaria</label>
+        <input id="v-data" type="date">
+      </div>
+    </div>
+    <div id="campos-tipo"></div>
+    <label class="campo" for="v-matricula">Formato da matrícula</label>
+    <select id="v-matricula"></select>
+
+    <details>
+      <summary>Textos fixos (preâmbulo e assinatura)</summary>
+      <label class="campo" for="cfg-preambulo">Preâmbulo (**trecho** = negrito)</label>
+      <textarea id="cfg-preambulo" rows="5"></textarea>
+      <label class="campo" for="cfg-assinanteNome">Nome de quem assina</label>
+      <input id="cfg-assinanteNome" type="text">
+      <label class="campo" for="cfg-assinanteCargo">Cargo de quem assina</label>
+      <input id="cfg-assinanteCargo" type="text">
+    </details>
+
+    <details id="det-planilhas">
+      <summary>Planilha carregada</summary>
+      <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
+        <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
+        <button id="recarregar" type="button" class="prim" hidden>Recarregar da pasta</button>
+        <small id="pasta-nome"></small>
+      </div>
+      <label id="zona">
+        <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
+        ou arraste a FichaContabilis aqui / <span>clique para escolher</span>
+      </label>
+      <div id="status-indice" class="arquivo"></div>
+    </details>
+
+    <div class="botoes">
+      <button id="imprimir" class="prim" disabled>Imprimir / Salvar PDF</button>
+      <button id="copiar" disabled title="Copia o texto da portaria para colar no SEI">Copiar texto</button>
+      <button id="restaurar" title="Volta os textos fixos ao padrão">Restaurar padrão</button>
+      <p id="copiado" hidden>Texto copiado.</p>
+    </div>
+    <p class="nota">A planilha é lida apenas neste navegador: nenhum dado é enviado para a internet. Só os textos fixos ficam salvos neste computador; os dados dos servidores, não.</p>
+  </aside>
+
+  <main>
+    <div id="avisos" hidden></div>
+    <article id="folha" class="folha"></article>
+    <p class="dica">O texto da folha pode ser ajustado clicando sobre ele antes de imprimir. Campos em amarelo ainda precisam ser preenchidos.</p>
+  </main>
+</div>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="js/dados.js"></script>
+<script src="js/planilhas.js"></script>
+<script src="js/portarias.js"></script>
+<script src="js/portarias-app.js"></script>
+</body>
+</html>

@@ -1,7 +1,13 @@
-﻿# Requerimento do Servidor - aplicativo local
+﻿# Aplicativo local (Requerimento do Servidor e Portarias)
 # Abre um servidor que so atende este computador (127.0.0.1) e entrega a pagina
 # e as planilhas da pasta configurada. Nenhum dado sai do computador.
 # Compativel com o Windows PowerShell 5.1 (ja instalado no Windows).
+# Sem parametros abre o Requerimento do Servidor; Portarias.bat usa -Pagina portarias.html.
+param(
+    [string]$Pagina = '',
+    [int]$PortaInicial = 8765,
+    [string]$Titulo = 'Requerimento do Servidor'
+)
 
 $ErrorActionPreference = 'Stop'
 $raiz = $PSScriptRoot
@@ -114,7 +120,7 @@ function Atender($cliente) {
 
 # escolhe uma porta livre (mesma porta sempre que possivel, para manter as configuracoes salvas)
 $ouvinte = $null
-foreach ($p in 8765..8785) {
+foreach ($p in $PortaInicial..($PortaInicial + 20)) {
     try {
         $ouvinte = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, $p)
         $ouvinte.Start()
@@ -122,18 +128,18 @@ foreach ($p in 8765..8785) {
         break
     } catch { $ouvinte = $null }
 }
-if (-not $ouvinte) { Write-Host 'Nao foi possivel abrir o aplicativo: nenhuma porta livre entre 8765 e 8785.'; Read-Host 'Enter para sair'; exit 1 }
+if (-not $ouvinte) { Write-Host "Nao foi possivel abrir o aplicativo: nenhuma porta livre entre $PortaInicial e $($PortaInicial + 20)."; Read-Host 'Enter para sair'; exit 1 }
 
 $endereco = "http://127.0.0.1:$porta/"
 Write-Host ''
-Write-Host '  Requerimento do Servidor - aplicativo local' -ForegroundColor Cyan
+Write-Host "  $Titulo - aplicativo local" -ForegroundColor Cyan
 Write-Host "  Endereco:  $endereco"
 Write-Host "  Planilhas: $pasta"
 Write-Host ''
 Write-Host '  Deixe esta janela aberta enquanto usar o sistema. Feche-a para encerrar.' -ForegroundColor Yellow
 Write-Host ''
 
-if (-not $env:REQUERIMENTO_SEM_NAVEGADOR) { Start-Process $endereco }
+if (-not $env:REQUERIMENTO_SEM_NAVEGADOR) { Start-Process ($endereco + $Pagina) }
 
 try {
     while ($true) {
