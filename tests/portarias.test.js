@@ -108,9 +108,9 @@ test('exoneração sem retroação e servidor do sexo masculino', () => {
 });
 
 test('indeferimento: texto e tabela do modelo', () => {
-  const r = P.gerarPortaria({ tipo: 'indeferimento', numero: '540', data: dt(30, 3, 2026),
+  const r = P.gerarPortaria({ tipo: 'licenca-curso', numero: '540', data: dt(30, 3, 2026),
     servidor: { nome: 'FULANO DE TAL', matricula: '002026731', cargo: 'Professor 1', secretaria: 'Secretaria Municipal de Educação', sexo: 'M' },
-    formatoMatricula: 'pontos', campos: { processo: '26.17.000003900-3' } });
+    formatoMatricula: 'pontos', campos: { indeferido: true, processo: '26.17.000003900-3' } });
   assert.deepStrictEqual(r.faltando, []);
   assert.strictEqual(r.blocos[0].texto,
     '**CONSIDERANDO** a existência do requerimento individual formulado pelo servidor abaixo discriminado.');
@@ -122,19 +122,19 @@ test('indeferimento: texto e tabela do modelo', () => {
   assert.strictEqual(r.blocos[4].texto, '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.');
 });
 
-test('indeferimento: pedido e fundamento digitados; servidora', () => {
-  const r = P.gerarPortaria({ tipo: 'indeferimento', numero: '530', data: dt(27, 3, 2026),
+test('indeferimento: tipo "Dispensa de Estágio Probatório", fundamento digitado; servidora', () => {
+  const r = P.gerarPortaria({ tipo: 'dispensa-estagio', numero: '530', data: dt(27, 3, 2026),
     servidor: Object.assign({}, servidora, { sexo: 'F' }),
-    campos: { processo: '26.17.000006111-4', pedido: 'Dispensa de Estágio Probatório',
+    campos: { indeferido: true, processo: '26.17.000006111-4',
       fundamento: 'parecer da Assessoria Jurídica da Secretaria Municipal de Educação' } });
   assert.match(r.blocos[0].texto, /formulado pela servidora abaixo discriminada\.$/);
   assert.match(r.blocos[2].texto, /pedido de \*\*Dispensa de Estágio Probatório\*\*.*no parecer da Assessoria Jurídica da Secretaria Municipal de Educação, da servidora abaixo:$/);
 });
 
-test('deferimento: mesmo texto com DEFERIR; colunas opcionais Decênio e Período', () => {
-  const dados = { tipo: 'deferimento', numero: '522', data: dt(25, 3, 2026),
+test('sem marcar "Indeferida" a portaria é deferida; colunas opcionais Decênio e Período', () => {
+  const dados = { tipo: 'licenca-premio', numero: '522', data: dt(25, 3, 2026),
     servidor: { nome: 'FULANA DE TAL', matricula: '000927031', cargo: 'Analista em Saúde', secretaria: 'Secretaria Municipal de Saúde', sexo: 'F' },
-    formatoMatricula: 'pontos', campos: { processo: '26.18.000004305-9', pedido: 'Licença Prêmio' } };
+    formatoMatricula: 'pontos', campos: { processo: '26.18.000004305-9' } };
   const simples = P.gerarPortaria(dados);
   assert.deepStrictEqual(simples.faltando, []);
   assert.strictEqual(simples.blocos[2].texto,
@@ -145,7 +145,18 @@ test('deferimento: mesmo texto com DEFERIR; colunas opcionais Decênio e Períod
   const completo = P.gerarPortaria(dados);
   assert.deepStrictEqual(completo.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
   assert.deepStrictEqual(completo.blocos[3].linha, ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
-  assert.ok(!/DEFERIR/.test(P.gerarPortaria(Object.assign({}, dados, { tipo: 'indeferimento' })).blocos[2].texto.replace('INDEFERIR', '')));
+  dados.campos.indeferido = true;
+  assert.match(P.gerarPortaria(dados).blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença Prêmio\*\*/);
+});
+
+test('"Outro pedido": o pedido é digitado; Licença sem Vencimentos tem texto próprio', () => {
+  const base = { numero: '518', data: dt(24, 3, 2026), servidor: servidora, campos: { indeferido: true, processo: '1' } };
+  const outro = P.gerarPortaria(Object.assign({ tipo: 'outro-pedido' }, base));
+  assert.deepStrictEqual(outro.faltando, ['Pedido']);
+  assert.match(outro.blocos[2].texto, /pedido de \*\*\[pedido\]\*\*/);
+  const sv = P.gerarPortaria(Object.assign({ tipo: 'licenca-sem-vencimentos' }, base));
+  assert.deepStrictEqual(sv.faltando, []);
+  assert.match(sv.blocos[2].texto, /INDEFERIR\*\* o pedido de \*\*Licença sem Vencimentos\*\*/);
 });
 
 test('readaptação de função: texto do modelo', () => {

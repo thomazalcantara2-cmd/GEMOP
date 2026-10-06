@@ -119,8 +119,7 @@ texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco d
 | Modelo | Campos a preencher | Preenchido pela planilha |
 |---|---|---|
 | **Exoneração a pedido** | nº e data do requerimento; retroação (opcional); tipo do cargo e fundamento legal (já vêm preenchidos) | nome, matrícula, cargo, secretaria, servidor/servidora |
-| **Deferimento de pedido** (licença para curso, licença-prêmio…) | nº do processo; pedido; fundamentos adotados (padrão: despacho da secretaria); decênio e período de gozo (opcionais, criam as colunas na tabela) | nome, matrícula, secretaria de origem |
-| **Indeferimento de pedido** (licença para curso, licença sem vencimentos, dispensa de estágio probatório…) | nº do processo; pedido indeferido; fundamentos adotados (padrão: despacho da secretaria) | nome, matrícula, secretaria de origem |
+| **Licença sem Vencimentos**, **Licença para Curso**, **Licença Prêmio**, **Dispensa de Estágio Probatório** ou **Outro pedido** (digitar o nome) | caixa **Indeferida** logo abaixo do tipo (desmarcada = **deferida**, texto "DEFERIR"; marcada = "INDEFERIR"); nº do processo; fundamentos adotados (padrão: despacho da secretaria); decênio e período de gozo (opcionais, criam as colunas na tabela) | nome, matrícula, secretaria de origem |
 | **Readaptação de função** | ofício da Junta Médica; período (180 dias, com extenso); retroação (opcional) | nome, matrícula, cargo, secretaria |
 
 Regras de preenchimento:

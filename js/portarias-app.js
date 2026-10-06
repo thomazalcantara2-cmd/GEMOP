@@ -212,16 +212,26 @@
   function montarCamposDoTipo() {
     var tipo = tipoAtual();
     var guardados = estado.valores[tipo.id] = estado.valores[tipo.id] || {};
-    $('campos-tipo').innerHTML = tipo.campos.map(function (c) {
+    var caixas = tipo.campos.filter(function (c) { return c.tipo === 'caixa'; });
+    var demais = tipo.campos.filter(function (c) { return c.tipo !== 'caixa'; });
+    // caixas de marcar ficam logo abaixo do tipo de portaria
+    $('opcao-tipo').innerHTML = caixas.map(function (c) {
+      return '<label><input id="c-' + c.id + '" type="checkbox"> <span><b>' + esc(c.rotulo) + '</b>' +
+        (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</span></label>';
+    }).join('');
+    caixas.forEach(function (c) {
+      var el = $('c-' + c.id);
+      el.checked = !!guardados[c.id];
+      el.addEventListener('change', function () { guardados[c.id] = el.checked; renderizar(); });
+    });
+    $('campos-tipo').innerHTML = demais.map(function (c) {
       var entrada = c.tipo === 'data' ? 'date' : (c.tipo === 'numero' ? 'number' : 'text');
       return '<label class="campo" for="c-' + c.id + '">' + esc(c.rotulo) +
         (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>' +
         '<input id="c-' + c.id + '" data-campo="' + c.id + '" type="' + entrada + '"' +
-        (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') +
-        (c.opcoes ? ' list="o-' + c.id + '"' : '') + '>' +
-        (c.opcoes ? '<datalist id="o-' + c.id + '">' + c.opcoes.map(function (o) { return '<option value="' + esc(o) + '">'; }).join('') + '</datalist>' : '');
+        (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
     }).join('');
-    tipo.campos.forEach(function (c) {
+    demais.forEach(function (c) {
       var el = $('c-' + c.id);
       el.value = guardados[c.id] || '';
       el.addEventListener('input', function () { guardados[c.id] = el.value; renderizar(); });
@@ -231,7 +241,7 @@
   // Padrão de cada campo aparece como sugestão (placeholder) e vale quando o campo fica vazio.
   function sugerirPadroes(servidor) {
     tipoAtual().campos.forEach(function (c) {
-      if (c.padrao == null) return;
+      if (c.padrao == null || !$('c-' + c.id)) return;
       var padrao = typeof c.padrao === 'function' ? c.padrao({ secretaria: servidor.secretaria }) : c.padrao;
       $('c-' + c.id).placeholder = padrao;
     });
@@ -240,6 +250,7 @@
   function valoresDosCampos() {
     var campos = {};
     tipoAtual().campos.forEach(function (c) {
+      if (c.tipo === 'caixa') { campos[c.id] = $('c-' + c.id).checked; return; }
       var v = $('c-' + c.id).value.trim();
       campos[c.id] = c.tipo === 'data' ? (v ? D.paraData(v) : null) : v;
     });

@@ -130,19 +130,23 @@
     return isNaN(n) ? '' : n + ' (' + D.inteiroExtenso(n) + ') dias';
   }
 
-  // Deferimento e indeferimento têm o mesmo texto, mudando só o verbo (e colunas opcionais no deferimento).
-  function pedidoSobre(id, nome, verbo, extras) {
+  // Portaria sobre um pedido (licença, dispensa…): deferida ou indeferida, conforme a caixa "Indeferida".
+  // O texto é o mesmo; muda só o verbo. Sem pedidoFixo, o pedido é digitado.
+  function pedidoSobre(id, nome, pedidoFixo) {
+    var campos = [{ id: 'indeferido', rotulo: 'Indeferida', tipo: 'caixa', abaixoDoTipo: true,
+      ajuda: 'desmarcado = deferida (concedida)' }];
+    campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3' });
+    if (!pedidoFixo) campos.push({ id: 'pedido', rotulo: 'Pedido', tipo: 'texto', exemplo: 'Licença para Curso' });
+    campos.push(
+      { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
+        padrao: function (c) { return 'despacho d' + locativo(c.secretaria).replace(/^n/, ''); },
+        ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação' },
+      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio' },
+      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo' });
     return {
       id: id,
       nome: nome,
-      campos: [
-        { id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3' },
-        { id: 'pedido', rotulo: 'Pedido', tipo: 'texto', padrao: 'Licença para Curso',
-          opcoes: ['Licença para Curso', 'Licença sem Vencimentos', 'Licença Prêmio', 'Dispensa de Estágio Probatório'] },
-        { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
-          padrao: function (c) { return 'despacho d' + locativo(c.secretaria).replace(/^n/, ''); },
-          ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação' }
-      ].concat(extras),
+      campos: campos,
       gerar: function (c) {
         var colunas = ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem'];
         var linha = [c.v('processo'), c.nome, c.matricula, semPalavraSecretaria(c.secretaria)];
@@ -152,8 +156,9 @@
           { t: 'p', texto: '**CONSIDERANDO** a existência do requerimento individual formulado ' + c.g.pelo + ' ' + c.g.servidor +
             ' abaixo ' + c.g.discriminado + '.' },
           { t: 'p', texto: '**RESOLVE:**' },
-          { t: 'p', texto: '**Art. 1º. ' + verbo + '** o pedido de **' + c.v('pedido') + '**, adotando integralmente os fundamentos ' +
-            'elencados no ' + c.v('fundamento') + ', ' + c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
+          { t: 'p', texto: '**Art. 1º. ' + (c.marcado('indeferido') ? 'INDEFERIR' : 'DEFERIR') + '** o pedido de **' +
+            (pedidoFixo || c.v('pedido')) + '**, adotando integralmente os fundamentos elencados no ' + c.v('fundamento') + ', ' +
+            c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
           { t: 'tabela', colunas: colunas, linha: linha },
           { t: 'p', texto: '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.' }
         ];
@@ -189,11 +194,11 @@
         ];
       }
     },
-    pedidoSobre('deferimento', 'Deferimento de pedido (licença, dispensa…)', 'DEFERIR', [
-      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio' },
-      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo' }
-    ]),
-    pedidoSobre('indeferimento', 'Indeferimento de pedido (licença, dispensa…)', 'INDEFERIR', []),
+    pedidoSobre('licenca-sem-vencimentos', 'Licença sem Vencimentos', 'Licença sem Vencimentos'),
+    pedidoSobre('licenca-curso', 'Licença para Curso', 'Licença para Curso'),
+    pedidoSobre('licenca-premio', 'Licença Prêmio', 'Licença Prêmio'),
+    pedidoSobre('dispensa-estagio', 'Dispensa de Estágio Probatório', 'Dispensa de Estágio Probatório'),
+    pedidoSobre('outro-pedido', 'Outro pedido (digitar o nome)', null),
     {
       id: 'readaptacao',
       nome: 'Readaptação de função',
@@ -258,6 +263,7 @@
       return valor;
     }
     contexto.tem = function (id) { return !!bruto(id); };
+    contexto.marcado = function (id) { return !!(dados.campos && dados.campos[id] === true); };
     contexto.v = function (id) {
       var valor = bruto(id), c = campo(id);
       if (!valor) {

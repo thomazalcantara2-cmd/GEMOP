@@ -57,6 +57,8 @@
   #resultados li.vazio { color: var(--suave); cursor: default; }
   label.campo { display: block; font-size: 12px; color: var(--suave); margin: 10px 0 4px; }
   label.campo small { font-weight: 400; }
+  #opcao-tipo label { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; cursor: pointer; }
+  #opcao-tipo input { width: auto; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   details { margin-top: 6px; }
   summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
@@ -125,6 +127,7 @@
 
     <h2>1. Tipo de portaria</h2>
     <select id="tipo" aria-label="Tipo de portaria"></select>
+    <div id="opcao-tipo"></div>
 
     <h2>2. Servidor</h2>
     <div class="busca-wrap">
