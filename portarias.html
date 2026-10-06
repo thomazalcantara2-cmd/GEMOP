@@ -59,6 +59,12 @@
   label.campo small { font-weight: 400; }
   #opcao-tipo label { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; cursor: pointer; }
   #opcao-tipo input { width: auto; }
+  #lista-servidores { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  #lista-servidores li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid var(--borda); border-radius: 8px; padding: 6px 6px 6px 10px; }
+  #lista-servidores small { display: block; color: var(--suave); font-size: 12px; }
+  #lista-servidores button { padding: 2px 9px; flex: none; }
+  .servidor-campos { border: 1px solid var(--borda); border-radius: 8px; margin: 12px 0 4px; padding: 0 12px 10px; }
+  .servidor-campos legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   details { margin-top: 6px; }
   summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
@@ -75,7 +81,7 @@
   .dica { text-align: center; color: var(--suave); font-size: 12px; margin: 10px 0 0; }
 
   /* ---------- Folha A4 (sempre em cores de papel; segue o modelo de Portaria da SEGEP) ---------- */
-  .folha { width: 210mm; height: 297mm; margin: 0 auto; background: #fff; color: #000; overflow: hidden;
+  .folha { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; color: #000;
     box-shadow: 0 2px 16px rgba(0,0,0,.18); padding: 14mm 20mm 14mm; font-family: Calibri, Carlito, 'Segoe UI', Arial, sans-serif;
     font-size: 11pt; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .folha [contenteditable]:hover { outline: 1px dashed #9bb8dc; }
@@ -92,6 +98,8 @@
   .folha .texto th { font-weight: 700; }
   .folha .texto td:first-child, .folha .texto td:nth-child(3) { white-space: nowrap; }
   .folha .texto b { font-weight: 700; }
+  .folha .texto tr { break-inside: avoid; }
+  .folha .assina, .folha .local { break-inside: avoid; }
   .folha .texto .falta { background: #fff1a8; }
   .folha .local, .folha .assina { text-align: center; margin: 0; }
   .folha .local { margin-top: 12mm; }
@@ -104,13 +112,13 @@
     .app.recolhida .alternar { left: auto; right: 10px; }
     main { padding: 16px; }
   }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 14mm 20mm; }
   @media print {
     body { background: #fff; }
     .app { display: block; }
     aside, #avisos, .dica, .alternar { display: none !important; }
     main { padding: 0; overflow: visible; }
-    .folha { box-shadow: none; margin: 0; }
+    .folha { box-shadow: none; margin: 0; padding: 0; width: auto; min-height: 0; }
     .folha [contenteditable] { outline: none !important; }
     .folha .texto .falta { background: none; }
   }
@@ -129,27 +137,13 @@
     <select id="tipo" aria-label="Tipo de portaria"></select>
     <div id="opcao-tipo"></div>
 
-    <h2>2. Servidor</h2>
+    <h2>2. Servidores</h2>
     <div class="busca-wrap">
       <input id="busca" type="search" autocomplete="off" placeholder="Carregue a planilha primeiro" disabled>
       <ul id="resultados" role="listbox" hidden></ul>
     </div>
-    <div class="dupla">
-      <div>
-        <label class="campo" for="v-cargo">Cargo</label>
-        <input id="v-cargo" type="text" placeholder="vem da planilha">
-      </div>
-      <div>
-        <label class="campo" for="v-secretaria">Secretaria</label>
-        <input id="v-secretaria" type="text" placeholder="vem da planilha">
-      </div>
-    </div>
-    <label class="campo" for="v-sexo">Servidor / servidora</label>
-    <select id="v-sexo">
-      <option value="">Conforme a planilha</option>
-      <option value="M">Servidor (masculino)</option>
-      <option value="F">Servidora (feminino)</option>
-    </select>
+    <p class="nota" style="margin:6px 0 0">Para incluir mais de um servidor na mesma portaria, busque e escolha um por vez.</p>
+    <ul id="lista-servidores"></ul>
 
     <h2>3. Dados da portaria</h2>
     <div class="dupla">
@@ -163,6 +157,7 @@
       </div>
     </div>
     <div id="campos-tipo"></div>
+    <div id="campos-servidores"></div>
     <label class="campo" for="v-matricula">Formato da matrícula</label>
     <select id="v-matricula"></select>
 

@@ -110,8 +110,9 @@ e assinatura do Secretário Executivo de Gestão de Pessoas) com os dados do ser
 mesmo tempo que ele). Sem o aplicativo, abra `portarias.html` no Chrome/Edge e escolha a pasta ou arraste a
 FichaContabilis, como no Requerimento.
 
-**Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF); 3) digite o **nº da
-portaria**, a data e os campos do modelo (processo, requerimento, ofício…); 4) **Imprimir / Salvar PDF** ou
+**Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF) — para **mais de um servidor
+na mesma portaria**, busque e escolha um por vez (o ✕ retira); 3) digite o **nº da portaria**, a data e os campos do
+modelo (processo, requerimento, ofício… — o que é de cada servidor aparece num quadro por servidor); 4) **Imprimir / Salvar PDF** ou
 **Copiar texto** (para colar no SEI). Os campos que faltam aparecem em amarelo na folha e na faixa de avisos, e o
 texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco de assinatura eletrônica
 (código verificador e CRC) é colocado pelo próprio SEI e não faz parte do modelo.
@@ -124,6 +125,12 @@ texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco d
 
 Regras de preenchimento:
 
+- **Vários servidores**: o texto vai para o plural (como na Portaria 518: "os pedidos…, dos servidores abaixo") e a tabela
+  ganha uma linha por servidor; sai no feminino só se todos forem mulheres. Em **Exoneração** e **Readaptação** cada
+  servidor ganha o seu artigo (Art. 1º, Art. 2º…) e a vigência fica no último — esse formato é adaptação nossa, ainda
+  não conferida com uma portaria publicada. Se a portaria passar de uma página, ela segue para a próxima ao imprimir.
+- **Cargo, secretaria e servidor/servidora** vêm da planilha e não ficam no painel: para corrigir, edite direto o texto
+  da folha antes de imprimir.
 - **Cargo**: `nm_cargo` em maiúsculas e sem acento vira `Professor 2`. **Servidor/servidora** (e lotado/lotada, pelo/pela…)
   segue a coluna `tp_sexo`; se estiver vazia, sai no masculino com um aviso — o painel permite trocar.
 - **Secretaria**: os 2 primeiros dígitos de `cd_centroCusto` identificam a secretaria (15… Educação, 16… Saúde…); o

@@ -130,68 +130,112 @@
     return isNaN(n) ? '' : n + ' (' + D.inteiroExtenso(n) + ') dias';
   }
 
+  // Palavras no gênero do(s) servidor(es). sexo: 'F' = feminino (qualquer outro valor = masculino).
+  // Vários servidores: feminino só se todos forem mulheres.
+  function genero(sexo, plural) {
+    var f = sexo === 'F', s = plural ? 's' : '';
+    return {
+      servidor: f ? 'servidora' + s : (plural ? 'servidores' : 'servidor'),
+      o: (f ? 'a' : 'o') + s, a_: f ? (plural ? 'às' : 'à') : (plural ? 'aos' : 'ao'),
+      da: (f ? 'da' : 'do') + s, do_: plural ? (f ? 'das' : 'dos') : (f ? 'da' : 'do'),
+      pelo: plural ? (f ? 'pelas' : 'pelos') : (f ? 'pela' : 'pelo'),
+      lotado: (f ? 'lotada' : 'lotado') + s, discriminado: (f ? 'discriminada' : 'discriminado') + s
+    };
+  }
+
+  // Valor sugerido de um campo (padrao pode ser função de { secretaria, secretarias, n }).
+  function valorPadrao(campo, servidores) {
+    if (campo.padrao == null) return '';
+    if (typeof campo.padrao !== 'function') return campo.padrao;
+    var secretarias = [];
+    servidores.forEach(function (s) { if (s.secretaria && secretarias.indexOf(s.secretaria) < 0) secretarias.push(s.secretaria); });
+    return campo.padrao({ secretaria: secretarias[0] || '', secretarias: secretarias, n: servidores.length });
+  }
+
+  function dedupe(lista) {
+    return lista.filter(function (x, i) { return lista.indexOf(x) === i; });
+  }
+
+  // ---------- modelos ----------
+  // campos: o que a pessoa preenche além do servidor. porServidor = um valor para cada servidor da portaria.
+  // gerar(c): c.n = nº de servidores; c.servs[i] = { nome, matricula, cargo, secretaria, g, v(id), tem(id) } (por servidor);
+  //   c.g = palavras no gênero de todos; c.v(id) = campo comum (ou "[rótulo]" se faltar); c.tem(id); c.marcado(id).
+  // Com vários servidores, os modelos individuais (exoneração, readaptação) repetem o artigo de cada servidor.
+
   // Portaria sobre um pedido (licença, dispensa…): deferida ou indeferida, conforme a caixa "Indeferida".
   // O texto é o mesmo; muda só o verbo. Sem pedidoFixo, o pedido é digitado.
   function pedidoSobre(id, nome, pedidoFixo) {
     var campos = [{ id: 'indeferido', rotulo: 'Indeferida', tipo: 'caixa', abaixoDoTipo: true,
       ajuda: 'desmarcado = deferida (concedida)' }];
-    campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3' });
+    campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3', porServidor: true });
     if (!pedidoFixo) campos.push({ id: 'pedido', rotulo: 'Pedido', tipo: 'texto', exemplo: 'Licença para Curso' });
     campos.push(
       { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
-        padrao: function (c) { return 'despacho d' + locativo(c.secretaria).replace(/^n/, ''); },
-        ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação' },
-      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio' },
-      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo' });
+        padrao: function (x) {
+          if (x.n > 1) return x.secretarias.length === 1 ? 'despachos d' + locativo(x.secretaria).replace(/^n/, '') : 'despachos das respectivas secretarias';
+          return 'despacho d' + locativo(x.secretaria).replace(/^n/, '');
+        },
+        ajuda: 'ex.: parecer da Assessoria Jurídica da Secretaria Municipal de Educação; com vários servidores, no plural' },
+      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio', porServidor: true },
+      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo', porServidor: true });
     return {
       id: id,
       nome: nome,
       campos: campos,
       gerar: function (c) {
+        var plural = c.n > 1;
         var colunas = ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem'];
-        var linha = [c.v('processo'), c.nome, c.matricula, semPalavraSecretaria(c.secretaria)];
-        if (c.tem('decenio')) { colunas.push('Decênio'); linha.push(c.v('decenio')); }
-        if (c.tem('periodo')) { colunas.push('Período de Gozo'); linha.push(c.v('periodo')); }
+        var temDecenio = c.servs.some(function (x) { return x.tem('decenio'); });
+        var temPeriodo = c.servs.some(function (x) { return x.tem('periodo'); });
+        if (temDecenio) colunas.push('Decênio');
+        if (temPeriodo) colunas.push('Período de Gozo');
+        var linhas = c.servs.map(function (x) {
+          var l = [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria)];
+          if (temDecenio) l.push(x.tem('decenio') ? x.v('decenio') : '');
+          if (temPeriodo) l.push(x.tem('periodo') ? x.v('periodo') : '');
+          return l;
+        });
         return [
-          { t: 'p', texto: '**CONSIDERANDO** a existência do requerimento individual formulado ' + c.g.pelo + ' ' + c.g.servidor +
-            ' abaixo ' + c.g.discriminado + '.' },
+          { t: 'p', texto: '**CONSIDERANDO** a existência ' + (plural ? 'dos requerimentos individuais formulados ' : 'do requerimento individual formulado ') +
+            c.g.pelo + ' ' + c.g.servidor + ' abaixo ' + c.g.discriminado + '.' },
           { t: 'p', texto: '**RESOLVE:**' },
-          { t: 'p', texto: '**Art. 1º. ' + (c.marcado('indeferido') ? 'INDEFERIR' : 'DEFERIR') + '** o pedido de **' +
-            (pedidoFixo || c.v('pedido')) + '**, adotando integralmente os fundamentos elencados no ' + c.v('fundamento') + ', ' +
-            c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
-          { t: 'tabela', colunas: colunas, linha: linha },
+          { t: 'p', texto: '**Art. 1º. ' + (c.marcado('indeferido') ? 'INDEFERIR' : 'DEFERIR') + '** ' + (plural ? 'os pedidos' : 'o pedido') +
+            ' de **' + (pedidoFixo || c.v('pedido')) + '**, adotando integralmente os fundamentos elencados ' + (plural ? 'nos ' : 'no ') +
+            c.v('fundamento') + ', ' + c.g.do_ + ' ' + c.g.servidor + ' abaixo:' },
+          { t: 'tabela', colunas: colunas, linhas: linhas },
           { t: 'p', texto: '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.' }
         ];
       }
     };
   }
 
-  // ---------- modelos ----------
-  // campos: o que a pessoa preenche além do servidor. padrao pode ser função de (dados) para valores que dependem do servidor.
-  // gerar(c): c.v(id) = valor do campo (ou "[rótulo]" se faltar), c.g = palavras no gênero do servidor,
-  //   c.nome, c.matricula, c.cargo, c.secretaria, c.pendente(id) = campo obrigatório vazio.
   var TIPOS = [
     {
       id: 'exoneracao',
       nome: 'Exoneração a pedido',
       campos: [
-        { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4' },
-        { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data' },
+        { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4', porServidor: true },
+        { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true },
         { id: 'tipoCargo', rotulo: 'Tipo do cargo', tipo: 'texto', padrao: 'efetivo', ajuda: 'efetivo, em comissão…' },
         { id: 'baseLegal', rotulo: 'Fundamento legal', tipo: 'texto', padrao: 'art. 54, inciso I, da Lei 224/96' },
-        { id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true }
+        { id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true, porServidor: true }
       ],
       gerar: function (c) {
-        return [
-          { t: 'p', texto: 'Considerando a solicitação ' + c.g.da + ' ' + c.g.servidor + ' através do requerimento nº ' +
-            c.v('requerimento') + ', datado de ' + c.v('dataRequerimento') + '.' },
-          { t: 'p', texto: '**RESOLVE:**' },
-          { t: 'p', texto: '**Art. 1º. EXONERAR** a pedido ' + c.g.o + ' ' + c.g.servidor + ' **' + c.nome + '**, matrícula nº **' +
-            c.matricula + '**, do Cargo ' + c.v('tipoCargo') + ' de ' + c.cargo + ', ' + c.g.lotado + ' ' + locativo(c.secretaria) +
-            ', de acordo com o ' + c.v('baseLegal') + '.' },
-          { t: 'p', texto: '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação' +
-            (c.tem('efeitos') ? ', retroagindo seus efeitos a ' + c.v('efeitos') : '') + '.' }
-        ];
+        var unico = c.n === 1;
+        var blocos = c.servs.map(function (x) {
+          return { t: 'p', texto: 'Considerando a solicitação ' + x.g.da + ' ' + x.g.servidor + (unico ? '' : ' **' + x.nome + '**') +
+            ' através do requerimento nº ' + x.v('requerimento') + ', datado de ' + x.v('dataRequerimento') + '.' };
+        });
+        blocos.push({ t: 'p', texto: '**RESOLVE:**' });
+        c.servs.forEach(function (x, i) {
+          blocos.push({ t: 'p', texto: '**Art. ' + (i + 1) + 'º. EXONERAR** a pedido ' + x.g.o + ' ' + x.g.servidor + ' **' + x.nome +
+            '**, matrícula nº **' + x.matricula + '**, do Cargo ' + c.v('tipoCargo') + ' de ' + x.cargo + ', ' + x.g.lotado + ' ' +
+            locativo(x.secretaria) + ', de acordo com o ' + c.v('baseLegal') +
+            (!unico && x.tem('efeitos') ? ', retroagindo seus efeitos a ' + x.v('efeitos') : '') + '.' });
+        });
+        blocos.push({ t: 'p', texto: '**Art. ' + (c.n + 1) + 'º.** Esta portaria entra em vigor na data da sua publicação' +
+          (unico && c.servs[0].tem('efeitos') ? ', retroagindo seus efeitos a ' + c.servs[0].v('efeitos') : '') + '.' });
+        return blocos;
       }
     },
     pedidoSobre('licenca-sem-vencimentos', 'Licença sem Vencimentos', 'Licença sem Vencimentos'),
@@ -203,22 +247,33 @@
       id: 'readaptacao',
       nome: 'Readaptação de função',
       campos: [
-        { id: 'oficio', rotulo: 'Ofício da Junta Médica', tipo: 'texto', exemplo: 'GPM nº 134/2026' },
-        { id: 'dias', rotulo: 'Período (dias)', tipo: 'numero', padrao: '180' },
+        { id: 'oficio', rotulo: 'Ofício da Junta Médica', tipo: 'texto', exemplo: 'GPM nº 134/2026', porServidor: true },
+        { id: 'dias', rotulo: 'Período (dias)', tipo: 'numero', padrao: '180', porServidor: true },
         { id: 'baseLegal', rotulo: 'Fundamento legal', tipo: 'texto', padrao: 'art. 51 da Lei 224/96' },
-        { id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true }
+        { id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true, porServidor: true }
       ],
       gerar: function (c) {
-        return [
-          { t: 'p', texto: '**CONSIDERANDO** o Parecer da Junta Médica Municipal conforme Ofício ' + c.v('oficio') + '.' },
-          { t: 'p', texto: '**RESOLVE:**' },
-          { t: 'p', texto: '**Art. 1º. CONCEDER** temporariamente **Readaptação de Função**, pelo período de **' + dias(c.v('dias')) +
-            '**, ' + c.g.a_ + ' ' + c.g.servidor + ' **' + c.nome + '**, mat. ' + c.matricula + ' ' + c.g.lotado + ' ' +
-            locativo(c.secretaria) + ', no cargo de ' + c.cargo + ', para desempenhar suas atividades em áreas administrativas, ' +
-            'nos termos do ' + c.v('baseLegal') + '.' },
-          { t: 'p', texto: '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação' +
-            (c.tem('efeitos') ? ', retroagindo seus efeitos a ' + c.v('efeitos') : '') + '.' }
-        ];
+        var unico = c.n === 1;
+        var oficios = dedupe(c.servs.map(function (x) { return x.v('oficio'); }));
+        var blocos = [];
+        if (oficios.length === 1) {
+          blocos.push({ t: 'p', texto: '**CONSIDERANDO** o Parecer da Junta Médica Municipal conforme Ofício ' + oficios[0] + '.' });
+        } else {
+          c.servs.forEach(function (x) {
+            blocos.push({ t: 'p', texto: '**CONSIDERANDO** o Parecer da Junta Médica Municipal conforme Ofício ' + x.v('oficio') +
+              ', referente ' + x.g.a_ + ' ' + x.g.servidor + ' ' + x.nome + '.' });
+          });
+        }
+        blocos.push({ t: 'p', texto: '**RESOLVE:**' });
+        c.servs.forEach(function (x, i) {
+          blocos.push({ t: 'p', texto: '**Art. ' + (i + 1) + 'º. CONCEDER** temporariamente **Readaptação de Função**, pelo período de **' +
+            dias(x.v('dias')) + '**, ' + x.g.a_ + ' ' + x.g.servidor + ' **' + x.nome + '**, mat. ' + x.matricula + ' ' + x.g.lotado + ' ' +
+            locativo(x.secretaria) + ', no cargo de ' + x.cargo + ', para desempenhar suas atividades em áreas administrativas, ' +
+            'nos termos do ' + c.v('baseLegal') + (!unico && x.tem('efeitos') ? ', retroagindo seus efeitos a ' + x.v('efeitos') : '') + '.' });
+        });
+        blocos.push({ t: 'p', texto: '**Art. ' + (c.n + 1) + 'º.** Esta portaria entra em vigor na data da sua publicação' +
+          (unico && c.servs[0].tem('efeitos') ? ', retroagindo seus efeitos a ' + c.servs[0].v('efeitos') : '') + '.' });
+        return blocos;
       }
     }
   ];
@@ -227,20 +282,12 @@
     return TIPOS.filter(function (t) { return t.id === id; })[0] || null;
   }
 
-  // Palavras no gênero do servidor (sexo: 'F' = feminino; qualquer outro valor = masculino).
-  function genero(sexo) {
-    var f = sexo === 'F';
-    return {
-      servidor: f ? 'servidora' : 'servidor',
-      o: f ? 'a' : 'o', a_: f ? 'à' : 'ao', da: f ? 'da' : 'do', do_: f ? 'da' : 'do', pelo: f ? 'pela' : 'pelo',
-      lotado: f ? 'lotada' : 'lotado', discriminado: f ? 'discriminada' : 'discriminado'
-    };
-  }
-
   /*
    * Monta a Portaria.
-   * dados: { tipo, numero, data: {a,m,d}, servidor: { nome, matricula, cargo, secretaria, sexo },
-   *          formatoMatricula, campos: { id: texto | {a,m,d} }, config: { preambulo, assinanteNome, assinanteCargo } }
+   * dados: { tipo, numero, data: {a,m,d}, servidores: [{ nome, matricula, cargo, secretaria, sexo, campos }],
+   *          formatoMatricula, campos: { id: texto | {a,m,d} | true }, config: { preambulo, assinanteNome, assinanteCargo } }
+   *   - campos de cada servidor (campos do servidor) valem para ele; os de dados.campos valem para todos e servem de
+   *     reserva. Também aceita um só servidor em dados.servidor.
    * Devolve { titulo, preambulo, blocos, local, assinatura: { nome, cargo }, faltando: [rótulos dos campos vazios] }.
    * Campo obrigatório vazio aparece no texto como "[rótulo]" e entra em "faltando".
    */
@@ -248,32 +295,46 @@
     var tipo = tipoPorId(dados.tipo);
     if (!tipo) throw new Error('Modelo de portaria desconhecido: ' + dados.tipo);
     var config = Object.assign({}, PADRAO, dados.config || {});
-    var s = dados.servidor || {};
+    var lista = (dados.servidores && dados.servidores.length) ? dados.servidores : [dados.servidor || {}];
     var faltando = [];
-    var contexto = {
-      nome: s.nome || '[servidor]', matricula: formatarMatricula(s.matricula, dados.formatoMatricula) || '[matrícula]',
-      cargo: s.cargo || '[cargo]', secretaria: s.secretaria || '[secretaria]', g: genero(s.sexo)
-    };
     function campo(id) { return tipo.campos.filter(function (x) { return x.id === id; })[0]; }
-    function bruto(id) {
-      var c = campo(id), valor = dados.campos ? dados.campos[id] : null;
-      if (valor && typeof valor === 'object') return valor;
-      valor = String(valor == null ? '' : valor).trim();
-      if (!valor && c && c.padrao != null) valor = typeof c.padrao === 'function' ? c.padrao(contexto) : c.padrao;
-      return valor;
-    }
-    contexto.tem = function (id) { return !!bruto(id); };
-    contexto.marcado = function (id) { return !!(dados.campos && dados.campos[id] === true); };
-    contexto.v = function (id) {
-      var valor = bruto(id), c = campo(id);
-      if (!valor) {
-        if (!c.opcional && faltando.indexOf(c.rotulo) < 0) faltando.push(c.rotulo);
-        return '[' + c.rotulo.toLowerCase() + ']';
-      }
-      if (typeof valor === 'object') return dataPontos(valor);
-      return valor;
+
+    var servs = lista.map(function (s) {
+      var x = {
+        nome: s.nome || '[servidor]', matricula: formatarMatricula(s.matricula, dados.formatoMatricula) || '[matrícula]',
+        cargo: s.cargo || '[cargo]', secretaria: s.secretaria || '[secretaria]', g: genero(s.sexo, false)
+      };
+      x.bruto = function (id) {
+        var valor = s.campos && s.campos[id] != null && s.campos[id] !== '' ? s.campos[id] : (dados.campos ? dados.campos[id] : null);
+        if (valor && typeof valor === 'object') return valor;
+        valor = String(valor == null ? '' : valor).trim();
+        var c = campo(id);
+        if (!valor && c && c.padrao != null) valor = valorPadrao(c, lista.map(function (y) { return { secretaria: y.secretaria }; }));
+        return valor;
+      };
+      x.tem = function (id) { return !!x.bruto(id); };
+      x.v = function (id) {
+        var valor = x.bruto(id), c = campo(id);
+        if (!valor) {
+          var rotulo = c.rotulo + (lista.length > 1 && c.porServidor ? ' (' + x.nome + ')' : '');
+          if (!c.opcional && faltando.indexOf(rotulo) < 0) faltando.push(rotulo);
+          return '[' + c.rotulo.toLowerCase() + ']';
+        }
+        if (typeof valor === 'object') return dataPontos(valor);
+        return valor;
+      };
+      return x;
+    });
+    var todasMulheres = lista.every(function (s) { return s.sexo === 'F'; });
+    var c = {
+      n: servs.length, servs: servs, g: genero(todasMulheres ? 'F' : 'M', servs.length > 1),
+      v: function (id) { return servs[0].v(id); },
+      tem: function (id) { return servs[0].tem(id); },
+      marcado: function (id) { return !!(dados.campos && dados.campos[id] === true); }
     };
-    var blocos = tipo.gerar(contexto);
+    // dados de um servidor só (modelos antigos): c.nome, c.matricula…
+    ['nome', 'matricula', 'cargo', 'secretaria'].forEach(function (k) { c[k] = servs[0][k]; });
+    var blocos = tipo.gerar(c);
     if (!dados.numero) faltando.unshift('Número da portaria');
     return {
       titulo: tituloPortaria(dados.numero ? String(dados.numero).trim() : '', dados.data),
@@ -300,6 +361,7 @@
     dataPontos: dataPontos,
     tituloPortaria: tituloPortaria,
     genero: genero,
+    valorPadrao: valorPadrao,
     gerarPortaria: gerarPortaria
   };
 

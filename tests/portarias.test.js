@@ -118,7 +118,7 @@ test('indeferimento: texto e tabela do modelo', () => {
     '**Art. 1º. INDEFERIR** o pedido de **Licença para Curso**, adotando integralmente os fundamentos elencados no ' +
     'despacho da Secretaria Municipal de Educação, do servidor abaixo:');
   assert.deepStrictEqual(r.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem']);
-  assert.deepStrictEqual(r.blocos[3].linha, ['26.17.000003900-3', 'FULANO DE TAL', '0.0202673.1', 'Municipal de Educação']);
+  assert.deepStrictEqual(r.blocos[3].linhas[0], ['26.17.000003900-3', 'FULANO DE TAL', '0.0202673.1', 'Municipal de Educação']);
   assert.strictEqual(r.blocos[4].texto, '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação.');
 });
 
@@ -144,7 +144,7 @@ test('sem marcar "Indeferida" a portaria é deferida; colunas opcionais Decênio
   dados.campos.decenio = '96/06 e 06/16'; dados.campos.periodo = '01.04.2026 a 29.06.2026';
   const completo = P.gerarPortaria(dados);
   assert.deepStrictEqual(completo.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
-  assert.deepStrictEqual(completo.blocos[3].linha, ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
+  assert.deepStrictEqual(completo.blocos[3].linhas[0], ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
   dados.campos.indeferido = true;
   assert.match(P.gerarPortaria(dados).blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença Prêmio\*\*/);
 });
@@ -188,4 +188,64 @@ test('assinatura e preâmbulo padrão, ajustáveis', () => {
   assert.strictEqual(r.assinatura.nome, 'OUTRA PESSOA');
   assert.strictEqual(r.assinatura.cargo, 'Secretário Executivo de Gestão de Pessoas');
   assert.match(r.preambulo, /Lei Complementar nº\. 50\/2024, de 31 de dezembro de 2024\.$/);
+});
+
+const pessoa = (nome, mat, sexo, secretaria, extra) => ({ nome, matricula: mat, cargo: 'Professor 2', sexo,
+  secretaria: secretaria || 'Secretaria Municipal de Educação', campos: extra || {} });
+
+test('vários servidores no pedido: texto no plural e uma linha para cada um (modelo da Portaria 518)', () => {
+  const r = P.gerarPortaria({ tipo: 'licenca-sem-vencimentos', numero: '518', data: dt(24, 3, 2026), formatoMatricula: 'nove',
+    campos: { indeferido: true }, servidores: [
+      pessoa('CIRLENE SILVA DOS SANTOS RAMOS', '009119481', 'F', null, { processo: '26.17.000002021-3' }),
+      pessoa('FELIPE DE LIMA SOUZA', '091888321', 'M', null, { processo: '26.17.000005868-7' }),
+      pessoa('JOSÉ JEAN CAMPELO DE QUEIROZ JUNIOR', '001343921', 'M', null, { processo: '26.17.000002830-3' })] });
+  assert.deepStrictEqual(r.faltando, []);
+  assert.strictEqual(r.blocos[0].texto,
+    '**CONSIDERANDO** a existência dos requerimentos individuais formulados pelos servidores abaixo discriminados.');
+  assert.strictEqual(r.blocos[2].texto,
+    '**Art. 1º. INDEFERIR** os pedidos de **Licença sem Vencimentos**, adotando integralmente os fundamentos elencados nos ' +
+    'despachos da Secretaria Municipal de Educação, dos servidores abaixo:');
+  assert.strictEqual(r.blocos[3].linhas.length, 3);
+  assert.deepStrictEqual(r.blocos[3].linhas[1], ['26.17.000005868-7', 'FELIPE DE LIMA SOUZA', '091888321', 'Municipal de Educação']);
+});
+
+test('vários servidores: só mulheres vai para o feminino; processo faltando cita o nome', () => {
+  const r = P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026), campos: {},
+    servidores: [pessoa('ANA', '1', 'F', 'Secretaria Municipal de Saúde', { processo: 'x' }), pessoa('BIA', '2', 'F')] });
+  assert.match(r.blocos[0].texto, /pelas servidoras abaixo discriminadas\./);
+  assert.match(r.blocos[2].texto, /despachos das respectivas secretarias, das servidoras abaixo:$/);
+  assert.deepStrictEqual(r.faltando, ['Nº do processo (BIA)']);
+});
+
+test('vários servidores: colunas Decênio e Período só aparecem se alguém tiver', () => {
+  const r = P.gerarPortaria({ tipo: 'licenca-premio', numero: '522', data: dt(25, 3, 2026), campos: {}, servidores: [
+    pessoa('ANA', '9270', 'F', null, { processo: '1', decenio: '96/06 e 06/16', periodo: '01.04.2026 a 29.06.2026' }),
+    pessoa('BIA', '149276', 'F', null, { processo: '2' })] });
+  assert.deepStrictEqual(r.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
+  assert.deepStrictEqual(r.blocos[3].linhas[1].slice(4), ['', '']);
+});
+
+test('exoneração de vários servidores: um artigo para cada e vigência por último', () => {
+  const r = P.gerarPortaria({ tipo: 'exoneracao', numero: '600', data: dt(1, 4, 2026), campos: {}, servidores: [
+    pessoa('ANA', '9133641', 'F', null, { requerimento: '1', dataRequerimento: dt(3, 3, 2026), efeitos: dt(2, 3, 2026) }),
+    pessoa('BRUNO', '9133642', 'M', null, { requerimento: '2', dataRequerimento: dt(4, 3, 2026) })] });
+  assert.deepStrictEqual(r.faltando, []);
+  const textos = r.blocos.map((b) => b.texto);
+  assert.match(textos[0], /^Considerando a solicitação da servidora \*\*ANA\*\* através do requerimento nº 1, datado de 03\.03\.2026\.$/);
+  assert.match(textos[1], /^Considerando a solicitação do servidor \*\*BRUNO\*\*/);
+  assert.match(textos[3], /^\*\*Art\. 1º\. EXONERAR\*\* a pedido a servidora \*\*ANA\*\*.*, retroagindo seus efeitos a 02\.03\.2026\.$/);
+  assert.match(textos[4], /^\*\*Art\. 2º\. EXONERAR\*\* a pedido o servidor \*\*BRUNO\*\*.*Lei 224\/96\.$/);
+  assert.strictEqual(textos[5], '**Art. 3º.** Esta portaria entra em vigor na data da sua publicação.');
+});
+
+test('readaptação de vários servidores: ofício igual vira um só considerando', () => {
+  const dados = { tipo: 'readaptacao', numero: '554', data: dt(1, 4, 2026), campos: {}, servidores: [
+    pessoa('ANA', '9136921', 'F', null, { oficio: 'GPM nº 134/2026' }), pessoa('BRUNO', '9136922', 'M', null, { oficio: 'GPM nº 134/2026', dias: '90' })] };
+  const r = P.gerarPortaria(dados);
+  assert.strictEqual(r.blocos[0].texto, '**CONSIDERANDO** o Parecer da Junta Médica Municipal conforme Ofício GPM nº 134/2026.');
+  assert.match(r.blocos[2].texto, /pelo período de \*\*180 \(cento e oitenta\) dias\*\*, à servidora \*\*ANA\*\*/);
+  assert.match(r.blocos[3].texto, /\*\*90 \(noventa\) dias\*\*, ao servidor \*\*BRUNO\*\*/);
+  dados.servidores[1].campos.oficio = 'GPM nº 200/2026';
+  const r2 = P.gerarPortaria(dados);
+  assert.match(r2.blocos[1].texto, /Ofício GPM nº 200\/2026, referente ao servidor BRUNO\.$/);
 });

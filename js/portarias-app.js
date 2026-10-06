@@ -14,8 +14,9 @@
     indice: null,       // { nome, linhas, anoMes }
     base: [],
     secretarias: {},    // código do centro de custo -> nome da secretaria
-    selecionado: null,
-    valores: {}         // por tipo de portaria: { idDoCampo: texto } (só nesta sessão; nada de servidor é gravado)
+    selecionados: [],   // servidores da portaria, na ordem escolhida
+    valores: {},        // campos comuns, por tipo de portaria: { idDoCampo: texto }
+    valoresServ: {}     // campos de cada servidor: 'matrícula|tipo' -> { idDoCampo: texto }. Só nesta sessão; nada é gravado
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -156,12 +157,12 @@
     estado.secretarias = R.mapaSecretarias(estado.base);
     $('busca').disabled = false;
     $('busca').placeholder = 'Digite o nome, matrícula ou CPF (' + estado.base.length + ' servidores)';
-    if (estado.selecionado) {
-      var mat = estado.selecionado.matricula;
-      var novo = estado.base.filter(function (s) { return s.matricula === mat; })[0] || null;
-      estado.selecionado = novo;
-    }
+    estado.selecionados = estado.selecionados.map(function (x) {
+      return estado.base.filter(function (s) { return s.matricula === x.matricula; })[0] || x;
+    });
     atualizarBusca();
+    montarServidores();
+    montarCamposServidores();
     renderizar();
   }
 
@@ -182,39 +183,74 @@
   // ---------- busca ----------
   function secretariaDe(s) { return R.secretariaDoServidor(s, estado.secretarias); }
 
+  function selecionado(s) {
+    return estado.selecionados.some(function (x) { return x.matricula === s.matricula; });
+  }
+
   function atualizarBusca() {
     var termo = $('busca').value;
     var lista = $('resultados');
     var achados = termo.trim() ? D.buscar(estado.base, termo) : [];
     lista.innerHTML = achados.slice(0, 30).map(function (s, i) {
-      var sel = estado.selecionado && estado.selecionado.matricula === s.matricula;
-      return '<li role="option" data-i="' + i + '" class="' + (sel ? 'sel' : '') + '"><b>' + esc(s.nome) +
-        '</b><small>Mat. ' + esc(s.matriculaFormatada) + ' · ' + esc(R.capitalizar(s.cargoNome)) + ' · ' + esc(secretariaDe(s)) + '</small></li>';
+      return '<li role="option" data-i="' + i + '" class="' + (selecionado(s) ? 'sel' : '') + '"><b>' + esc(s.nome) +
+        '</b><small>Mat. ' + esc(s.matriculaFormatada) + ' · ' + esc(R.capitalizar(s.cargoNome)) + ' · ' + esc(secretariaDe(s)) +
+        (selecionado(s) ? ' · já está na portaria' : '') + '</small></li>';
     }).join('') + (termo.trim() && !achados.length ? '<li class="vazio">Nenhum servidor encontrado.</li>' : '');
     lista.hidden = !termo.trim();
     lista._achados = achados;
   }
 
   function selecionar(s) {
-    estado.selecionado = s;
-    $('busca').value = s.nome;
+    if (!selecionado(s)) estado.selecionados.push(s);
+    $('busca').value = '';
     $('resultados').hidden = true;
-    // cargo, secretaria e sexo voltam ao que a planilha informa (podem ser corrigidos no painel)
-    $('v-cargo').value = '';
-    $('v-secretaria').value = '';
-    $('v-sexo').value = '';
+    montarServidores();
+    montarCamposServidores();
     renderizar();
+  }
+
+  function retirar(matricula) {
+    estado.selecionados = estado.selecionados.filter(function (s) { return s.matricula !== matricula; });
+    montarServidores();
+    montarCamposServidores();
+    renderizar();
+  }
+
+  function montarServidores() {
+    $('lista-servidores').innerHTML = estado.selecionados.map(function (s) {
+      return '<li><span><b>' + esc(s.nome) + '</b><small>Mat. ' + esc(s.matriculaFormatada) + ' · ' + esc(R.capitalizar(s.cargoNome)) +
+        ' · ' + esc(secretariaDe(s)) + '</small></span>' +
+        '<button type="button" data-mat="' + esc(s.matricula) + '" title="Retirar da portaria" aria-label="Retirar ' + esc(s.nome) + ' da portaria">✕</button></li>';
+    }).join('');
   }
 
   // ---------- campos do modelo escolhido ----------
   function tipoAtual() { return R.tipoPorId($('tipo').value) || R.TIPOS[0]; }
 
+  // Valor lido de um campo da tela (data vira {a,m,d}; vazio = '').
+  function lerCampo(el, c) {
+    var v = el.value.trim();
+    return c.tipo === 'data' ? (v ? D.paraData(v) : null) : v;
+  }
+
+  function campoHTML(prefixo, c) {
+    var entrada = c.tipo === 'data' ? 'date' : (c.tipo === 'numero' ? 'number' : 'text');
+    return '<label class="campo" for="' + prefixo + c.id + '">' + esc(c.rotulo) +
+      (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>' +
+      '<input id="' + prefixo + c.id + '" type="' + entrada + '"' + (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
+  }
+
+  function ligarCampo(el, guardados, id) {
+    el.value = guardados[id] || '';
+    el.addEventListener('input', function () { guardados[id] = el.value; renderizar(); });
+  }
+
+  // Campos comuns da portaria (e a caixa "Indeferida", logo abaixo do tipo).
   function montarCamposDoTipo() {
     var tipo = tipoAtual();
     var guardados = estado.valores[tipo.id] = estado.valores[tipo.id] || {};
     var caixas = tipo.campos.filter(function (c) { return c.tipo === 'caixa'; });
-    var demais = tipo.campos.filter(function (c) { return c.tipo !== 'caixa'; });
-    // caixas de marcar ficam logo abaixo do tipo de portaria
+    var comuns = tipo.campos.filter(function (c) { return c.tipo !== 'caixa' && !c.porServidor; });
     $('opcao-tipo').innerHTML = caixas.map(function (c) {
       return '<label><input id="c-' + c.id + '" type="checkbox"> <span><b>' + esc(c.rotulo) + '</b>' +
         (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</span></label>';
@@ -224,63 +260,67 @@
       el.checked = !!guardados[c.id];
       el.addEventListener('change', function () { guardados[c.id] = el.checked; renderizar(); });
     });
-    $('campos-tipo').innerHTML = demais.map(function (c) {
-      var entrada = c.tipo === 'data' ? 'date' : (c.tipo === 'numero' ? 'number' : 'text');
-      return '<label class="campo" for="c-' + c.id + '">' + esc(c.rotulo) +
-        (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>' +
-        '<input id="c-' + c.id + '" data-campo="' + c.id + '" type="' + entrada + '"' +
-        (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
-    }).join('');
-    demais.forEach(function (c) {
-      var el = $('c-' + c.id);
-      el.value = guardados[c.id] || '';
-      el.addEventListener('input', function () { guardados[c.id] = el.value; renderizar(); });
+    $('campos-tipo').innerHTML = comuns.map(function (c) { return campoHTML('c-', c); }).join('');
+    comuns.forEach(function (c) { ligarCampo($('c-' + c.id), guardados, c.id); });
+    montarCamposServidores();
+  }
+
+  // Campos de cada servidor (nº do processo, requerimento…): um quadro por servidor escolhido.
+  function montarCamposServidores() {
+    var tipo = tipoAtual();
+    var porServidor = tipo.campos.filter(function (c) { return c.porServidor; });
+    var varios = estado.selecionados.length > 1;
+    $('campos-servidores').innerHTML = porServidor.length ? estado.selecionados.map(function (s, i) {
+      return '<fieldset class="servidor-campos">' + (varios ? '<legend>' + esc(s.nome) + '</legend>' : '') +
+        porServidor.map(function (c) { return campoHTML('s' + i + '-', c); }).join('') + '</fieldset>';
+    }).join('') : '';
+    estado.selecionados.forEach(function (s, i) {
+      var guardados = estado.valoresServ[s.matricula + '|' + tipo.id] = estado.valoresServ[s.matricula + '|' + tipo.id] || {};
+      porServidor.forEach(function (c) { ligarCampo($('s' + i + '-' + c.id), guardados, c.id); });
     });
   }
 
   // Padrão de cada campo aparece como sugestão (placeholder) e vale quando o campo fica vazio.
-  function sugerirPadroes(servidor) {
+  function sugerirPadroes(servidores) {
     tipoAtual().campos.forEach(function (c) {
-      if (c.padrao == null || !$('c-' + c.id)) return;
-      var padrao = typeof c.padrao === 'function' ? c.padrao({ secretaria: servidor.secretaria }) : c.padrao;
-      $('c-' + c.id).placeholder = padrao;
+      if (c.padrao == null) return;
+      var padrao = R.valorPadrao(c, servidores);
+      if (c.porServidor) {
+        servidores.forEach(function (x, i) { var el = $('s' + i + '-' + c.id); if (el) el.placeholder = padrao; });
+      } else if ($('c-' + c.id)) $('c-' + c.id).placeholder = padrao;
     });
   }
 
   function valoresDosCampos() {
     var campos = {};
     tipoAtual().campos.forEach(function (c) {
+      if (c.porServidor) return;
       if (c.tipo === 'caixa') { campos[c.id] = $('c-' + c.id).checked; return; }
-      var v = $('c-' + c.id).value.trim();
-      campos[c.id] = c.tipo === 'data' ? (v ? D.paraData(v) : null) : v;
+      campos[c.id] = lerCampo($('c-' + c.id), c);
     });
     return campos;
   }
 
   // ---------- folha ----------
-  function dadosDoServidor() {
-    var s = estado.selecionado;
-    if (!s) return { nome: '', matricula: '', cargo: '', secretaria: '', sexo: '' };
-    return {
-      nome: s.nome,
-      matricula: s.matricula,
-      cargo: $('v-cargo').value.trim() || R.capitalizar(s.cargoNome),
-      secretaria: $('v-secretaria').value.trim() || secretariaDe(s),
-      sexo: $('v-sexo').value || s.sexo
-    };
+  // Cargo, secretaria e sexo vêm da planilha; para corrigir, edite direto o texto da folha.
+  function dadosDoServidor(s, i) {
+    var campos = {};
+    tipoAtual().campos.forEach(function (c) {
+      if (c.porServidor) campos[c.id] = lerCampo($('s' + i + '-' + c.id), c);
+    });
+    return { nome: s.nome, matricula: s.matricula, cargo: R.capitalizar(s.cargoNome), secretaria: secretariaDe(s), sexo: s.sexo, campos: campos };
   }
 
-  function avisosDoServidor(s) {
-    var avisos = [];
-    if (!s) return avisos;
-    if (!$('v-sexo').value && s.sexo !== 'F' && s.sexo !== 'M') {
-      avisos.push('A planilha não informa o sexo deste servidor: o texto saiu no masculino. Ajuste em "Servidor / servidora".');
+  function avisosDoServidor(s, varios) {
+    var avisos = [], quem = varios ? s.nome + ': ' : '';
+    if (s.sexo !== 'F' && s.sexo !== 'M') {
+      avisos.push(quem + 'a planilha não informa o sexo: o texto saiu no masculino. Corrija direto no texto da folha, se preciso.');
     }
     if (R.ehCedido(s)) {
-      avisos.push('Este servidor consta como CEDIDO (SEGEPE - Cedidos): a secretaria foi tirada da lotação na planilha, que pode não ser a de origem. Confira o campo "Secretaria".');
+      avisos.push(quem + 'consta como CEDIDO (SEGEPE - Cedidos): a secretaria foi tirada da lotação na planilha, que pode não ser a de origem. Confira na folha.');
     }
     if (!s.codCentroCusto) {
-      avisos.push('Servidor sem centro de custo na planilha: confira o campo "Secretaria".');
+      avisos.push(quem + 'sem centro de custo na planilha: confira a secretaria na folha.');
     }
     return avisos;
   }
@@ -292,30 +332,33 @@
   }
 
   function renderizar() {
-    var s = estado.selecionado;
+    var escolhidos = estado.selecionados;
     var dataDoc = D.paraData($('v-data').value) || D.paraData(hojeISO());
-    var servidor = dadosDoServidor();
-    sugerirPadroes(servidor);
+    var servidores = escolhidos.map(dadosDoServidor);
+    sugerirPadroes(servidores.length ? servidores : [{ secretaria: '' }]);
 
     var portaria = R.gerarPortaria({
       tipo: tipoAtual().id,
       numero: $('v-numero').value.trim(),
       data: dataDoc,
-      servidor: s ? servidor : { nome: '', matricula: '', cargo: '', secretaria: '', sexo: 'M' },
+      servidores: servidores.length ? servidores : [{ nome: '', matricula: '', cargo: '', secretaria: '', sexo: 'M', campos: {} }],
       formatoMatricula: $('v-matricula').value,
       campos: valoresDosCampos(),
       config: configAtual()
     });
 
-    var avisos = avisosDoServidor(s);
-    if (s && portaria.faltando.length) avisos.push('Falta preencher: ' + portaria.faltando.join('; ') + '.');
+    var avisos = [];
+    escolhidos.forEach(function (s) { avisos = avisos.concat(avisosDoServidor(s, escolhidos.length > 1)); });
+    if (escolhidos.length && portaria.faltando.length) avisos.push('Falta preencher: ' + portaria.faltando.join('; ') + '.');
     $('avisos').innerHTML = avisos.map(function (a) { return '<p>' + esc(a) + '</p>'; }).join('');
     $('avisos').hidden = !avisos.length;
 
     var blocos = portaria.blocos.map(function (b) {
       if (b.t === 'tabela') {
         return '<table><thead><tr>' + b.colunas.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead>' +
-          '<tbody><tr>' + b.linha.map(function (c) { return '<td>' + textoFormatado(c) + '</td>'; }).join('') + '</tr></tbody></table>';
+          '<tbody>' + b.linhas.map(function (l) {
+            return '<tr>' + l.map(function (c) { return '<td>' + textoFormatado(c) + '</td>'; }).join('') + '</tr>';
+          }).join('') + '</tbody></table>';
       }
       return '<p>' + textoFormatado(b.texto) + '</p>';
     }).join('');
@@ -335,9 +378,9 @@
         '<p class="assina" contenteditable>' + esc(portaria.assinatura.cargo) + '</p>' +
       '</div>';
 
-    $('imprimir').disabled = !s;
-    $('copiar').disabled = !s;
-    document.title = s ? 'Portaria - ' + s.nome : 'Portarias';
+    $('imprimir').disabled = !escolhidos.length;
+    $('copiar').disabled = !escolhidos.length;
+    document.title = escolhidos.length ? 'Portaria - ' + escolhidos.map(function (x) { return x.nome; }).join(', ') : 'Portarias';
   }
 
   // ---------- copiar o texto (para colar no editor do SEI) ----------
@@ -423,8 +466,12 @@
     });
     $('busca').addEventListener('blur', function () { setTimeout(function () { $('resultados').hidden = true; }, 150); });
 
+    $('lista-servidores').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-mat]');
+      if (b) retirar(b.dataset.mat);
+    });
     $('tipo').addEventListener('change', function () { salvarConfig(); montarCamposDoTipo(); renderizar(); });
-    ['v-cargo', 'v-secretaria', 'v-sexo', 'v-numero', 'v-data', 'v-matricula'].forEach(function (id) {
+    ['v-numero', 'v-data', 'v-matricula'].forEach(function (id) {
       $(id).addEventListener('input', function () { if (id === 'v-matricula') salvarConfig(); renderizar(); });
     });
     CAMPOS_CONFIG.forEach(function (k) {
