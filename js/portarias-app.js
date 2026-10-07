@@ -424,25 +424,78 @@
         '<p class="assina" contenteditable>' + esc(portaria.assinatura.cargo) + '</p>' +
       '</div>';
 
+    ajustarEscala();
     $('imprimir').disabled = !escolhidos.length;
     $('copiar').disabled = !escolhidos.length;
     document.title = escolhidos.length ? 'Portaria - ' + escolhidos.map(function (x) { return x.nome; }).join(', ') : 'Portarias';
   }
 
+  // Na tela, se a barra lateral deixar pouco espaço, a folha encolhe para caber sem rolagem lateral (a impressão não muda).
+  function ajustarEscala() {
+    var folha = $('folha'), area = document.querySelector('main');
+    if (!folha || !area) return;
+    folha.style.zoom = '';
+    var disponivel = area.clientWidth - 32, largura = folha.offsetWidth;
+    if (largura > 0 && disponivel > 0 && disponivel < largura) folha.style.zoom = (disponivel / largura).toFixed(3);
+  }
+
   // ---------- copiar o texto (para colar no editor do SEI) ----------
-  function copiarTexto() {
-    var origem = $('portaria-texto');
+  // Copia o texto da portaria (título, texto, tabela, data e assinatura — sem o logotipo/cabeçalho) como texto formatado
+  // e também como texto simples, para colar tanto no SEI quanto no Word ou no Bloco de Notas.
+  function conteudoParaCopiar() {
+    var copia = $('portaria-texto').cloneNode(true);
+    copia.removeAttribute('id');
+    copia.querySelectorAll('[contenteditable]').forEach(function (el) { el.removeAttribute('contenteditable'); });
+    // fonte e alinhamento ficam no próprio texto, pois o editor de destino não tem o CSS da página
+    copia.querySelectorAll('h1').forEach(function (h) { h.setAttribute('style', 'text-align:center;font-family:"Times New Roman",serif;font-size:12.5pt'); });
+    copia.querySelectorAll('.texto').forEach(function (t) { t.setAttribute('style', 'text-align:justify;font-family:Calibri,Arial,sans-serif;font-size:11pt'); });
+    copia.querySelectorAll('p.local, p.assina').forEach(function (t) { t.setAttribute('style', 'text-align:center;margin:0'); });
+    copia.querySelectorAll('table').forEach(function (t) { t.setAttribute('style', 'width:100%;border-collapse:collapse'); });
+    copia.querySelectorAll('th, td').forEach(function (c) { c.setAttribute('style', 'border:1px solid #000;padding:4px;text-align:center'); });
+    copia.querySelectorAll('.falta').forEach(function (f) { f.setAttribute('style', 'background:#fff1a8'); });
+    var texto = $('portaria-texto').innerText.replace(/\n{3,}/g, '\n\n').trim();
+    return { html: copia.outerHTML, texto: texto };
+  }
+
+  // Plano B (navegadores sem a API nova): seleciona o texto da folha e usa o comando antigo de copiar,
+  // entregando o texto formatado e o texto simples no próprio evento de copiar.
+  function copiarPeloComando(c) {
+    var entregue = false;
+    function aoCopiar(e) {
+      e.clipboardData.setData('text/html', c.html);
+      e.clipboardData.setData('text/plain', c.texto);
+      e.preventDefault();
+      entregue = true;
+    }
     var selecao = window.getSelection();
     var intervalo = document.createRange();
-    intervalo.selectNodeContents(origem);
+    intervalo.selectNodeContents($('portaria-texto'));
     selecao.removeAllRanges();
     selecao.addRange(intervalo);
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.addEventListener('copy', aoCopiar);
+    try { document.execCommand('copy'); } catch (e) { entregue = false; }
+    document.removeEventListener('copy', aoCopiar);
     selecao.removeAllRanges();
-    $('copiado').textContent = ok ? 'Texto copiado. No SEI, cole com Ctrl+V.' : 'Não foi possível copiar: selecione o texto da folha e use Ctrl+C.';
+    return entregue;
+  }
+
+  function avisoDeCopia(ok) {
+    $('copiado').textContent = ok ? 'Texto copiado. No SEI, cole com Ctrl+V.'
+      : 'Não foi possível copiar sozinho. Clique no texto da folha, use Ctrl+A e depois Ctrl+C.';
     $('copiado').hidden = false;
-    setTimeout(function () { $('copiado').hidden = true; }, 4000);
+    clearTimeout(avisoDeCopia._t);
+    avisoDeCopia._t = setTimeout(function () { $('copiado').hidden = true; }, 5000);
+  }
+
+  function copiarTexto() {
+    var c = conteudoParaCopiar();
+    var plano = function () { avisoDeCopia(copiarPeloComando(c)); };
+    if (navigator.clipboard && window.ClipboardItem) {
+      navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([c.html], { type: 'text/html' }),
+        'text/plain': new Blob([c.texto], { type: 'text/plain' })
+      })]).then(function () { avisoDeCopia(true); }, plano);
+    } else plano();
   }
 
   // ---------- painel lateral retrátil ----------
@@ -454,6 +507,7 @@
     b.setAttribute('aria-label', b.title);
     b.setAttribute('aria-expanded', String(!recolhido));
     try { localStorage.setItem(CHAVE_PAINEL, recolhido ? '1' : ''); } catch (e) { /* ignora */ }
+    ajustarEscala();
   }
 
   function iniciarPainel() {
@@ -536,6 +590,7 @@
     $('imprimir').addEventListener('click', function () { window.print(); });
     $('copiar').addEventListener('click', copiarTexto);
 
+    window.addEventListener('resize', ajustarEscala);
     atualizarStatus();
     renderizar();
   }

@@ -19,10 +19,10 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
-  .app { display: grid; grid-template-columns: clamp(420px, 38vw, 660px) 1fr; min-height: 100vh; }
+  .app { display: grid; grid-template-columns: clamp(460px, 48vw, 900px) 1fr; min-height: 100vh; }
   .app.recolhida { grid-template-columns: 1fr; }
   .app.recolhida aside { display: none; }
-  .alternar { position: fixed; top: 14px; left: calc(clamp(420px, 38vw, 660px) - 18px); z-index: 20; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  .alternar { position: fixed; top: 14px; left: calc(clamp(460px, 48vw, 900px) - 18px); z-index: 20; width: 30px; height: 30px; padding: 0; border-radius: 50%;
     font-size: 18px; line-height: 1; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
   .app.recolhida .alternar { left: 10px; }
   #det-planilhas { margin-top: 10px; }
@@ -126,7 +126,7 @@
     .app { display: block; }
     aside, #avisos, .dica, .alternar { display: none !important; }
     main { padding: 0; overflow: visible; }
-    .folha { box-shadow: none; margin: 0; padding: 0; width: auto; min-height: 0; }
+    .folha { box-shadow: none; margin: 0; padding: 0; width: auto; min-height: 0; zoom: 1 !important; }
     .folha [contenteditable] { outline: none !important; }
     .folha .texto .falta { background: none; }
   }
