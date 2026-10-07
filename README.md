@@ -117,7 +117,7 @@ FichaContabilis, como no Requerimento.
 
 **Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF) — para **mais de um servidor
 na mesma portaria**, busque e escolha um por vez (o ✕ retira); 3) digite o **nº da portaria**, a data e os campos do
-modelo (processo, requerimento, ofício… — o que é de cada servidor aparece num quadro por servidor); 4) **Imprimir / Salvar PDF** ou
+modelo (processo, requerimento, ofício… — o que é de cada servidor aparece no cartão dele, logo abaixo do nome; a seção 3 traz só o que vale para a portaria toda); 4) **Imprimir / Salvar PDF** ou
 **Copiar texto** (para colar no SEI). Os campos que faltam aparecem em amarelo na folha e na faixa de avisos, e o
 texto da folha pode ser ajustado clicando sobre ele antes de imprimir. O bloco de assinatura eletrônica
 (código verificador e CRC) é colocado pelo próprio SEI e não faz parte do modelo.
@@ -147,7 +147,7 @@ Regras de preenchimento:
   não conferida com uma portaria publicada. Se a portaria passar de uma página, ela segue para a próxima ao imprimir.
 - **Cargo e servidor/servidora** vêm da planilha e não ficam no painel: para corrigir, edite direto o texto da folha
   antes de imprimir.
-- **Secretaria**: em todos os modelos, no quadro de cada servidor, o campo **Secretaria no texto** deixa escolher entre
+- **Secretaria**: em todos os modelos, no cartão de cada servidor, o campo **Secretaria** deixa escolher entre
   a **Secretaria Municipal** (pelo centro de custo; ex.: Secretaria Municipal de Administração, Governo Digital e
   Inovação) e **onde trabalha** (local de trabalho da planilha; ex.: Secretaria Executiva de Gestão de Pessoas, ou uma
   escola). O campo só aparece quando as duas são diferentes. A escolha vale para o texto, a tabela ("Municipal de
