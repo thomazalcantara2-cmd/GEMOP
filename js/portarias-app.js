@@ -8,6 +8,7 @@
   var CHAVE_CONFIG = 'gemop-portarias-config-v1';
   var CHAVE_PAINEL = 'gemop-portarias-painel-recolhido';
   var BANCO = 'gemop-portarias';
+  var ESCALA_TELA = 0.9;
   var CAMPOS_CONFIG = ['preambulo', 'assinanteNome', 'assinanteCargo'];
 
   var estado = {
@@ -452,7 +453,8 @@
     folha.style.zoom = '';
     var estilo = window.getComputedStyle(area);
     var disponivel = area.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight), largura = folha.offsetWidth;
-    if (largura > 0 && disponivel > 0 && disponivel < largura) folha.style.zoom = (disponivel / largura).toFixed(3);
+    // na tela a folha aparece a 90% (mais compacta) e encolhe mais se faltar espaço; a impressão sempre sai em tamanho normal
+    if (largura > 0 && disponivel > 0) folha.style.zoom = Math.min(ESCALA_TELA, disponivel / largura).toFixed(3);
   }
 
   // ---------- copiar o texto (para colar no editor do SEI) ----------
