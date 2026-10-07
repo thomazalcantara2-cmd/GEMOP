@@ -227,7 +227,7 @@
     $('lista-servidores').innerHTML = estado.selecionados.map(function (s, i) {
       return '<li><div class="servidor-topo"><span><b>' + esc(s.nome) + '</b><small id="resumo-' + i + '">' + esc(resumoDoServidor(s)) + '</small></span>' +
         '<button type="button" data-mat="' + esc(s.matricula) + '" title="Retirar da portaria" aria-label="Retirar ' + esc(s.nome) + ' da portaria">✕</button></div>' +
-        '<div class="servidor-campos">' + campoSecretaria(s, i) + porServidor.map(function (c) { return campoHTML('s' + i + '-', c); }).join('') + '</div></li>';
+        '<div class="servidor-campos">' + campoSecretaria(s, i) + camposHTML('s' + i + '-', porServidor) + '</div></li>';
     }).join('');
     estado.selecionados.forEach(function (s, i) {
       var sel = $('s' + i + '-secretaria');
@@ -262,8 +262,8 @@
         el._opcoes = chave;
         el.value = opcoes.some(function (o) { return o[0] === atual; }) ? atual : opcoes[0][0];
       }
-      var texto = $('c-fundamentoOrigem');
-      if (texto) texto.disabled = el.value !== 'outro';
+      var bloco = $('w-c-fundamentoOrigem');
+      if (bloco) bloco.hidden = el.value !== 'outro';
     });
   }
 
@@ -283,6 +283,21 @@
       }).join('') + '</select>';
     }
     return rotulo + '<input id="' + prefixo + c.id + '" type="' + entrada + '"' + (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
+  }
+
+  // Monta os campos; os que têm a mesma "linha" (e ficam um ao lado do outro na lista) vão juntos na mesma linha da tela,
+  // com larguras proporcionais. Cada campo fica num bloco com id "w-<id do campo>" (para poder esconder).
+  function camposHTML(prefixo, lista) {
+    function bloco(c) { return '<div class="campo-col" id="w-' + prefixo + c.id + '">' + campoHTML(prefixo, c) + '</div>'; }
+    var saida = '', i = 0;
+    while (i < lista.length) {
+      var c = lista[i], grupo = [];
+      if (!c.linha) { saida += bloco(c); i++; continue; }
+      while (i < lista.length && lista[i].linha === c.linha) grupo.push(lista[i++]);
+      saida += '<div class="linha-campos" style="grid-template-columns:' +
+        grupo.map(function (g) { return 'minmax(0,' + (g.largura || 1) + 'fr)'; }).join(' ') + '">' + grupo.map(bloco).join('') + '</div>';
+    }
+    return saida;
   }
 
   function ligarCampo(el, guardados, id) {
@@ -305,7 +320,7 @@
       el.checked = !!guardados[c.id];
       el.addEventListener('change', function () { guardados[c.id] = el.checked; renderizar(); });
     });
-    $('campos-tipo').innerHTML = comuns.map(function (c) { return campoHTML('c-', c); }).join('');
+    $('campos-tipo').innerHTML = camposHTML('c-', comuns);
     comuns.forEach(function (c) { ligarCampo($('c-' + c.id), guardados, c.id); });
     montarServidores();
   }

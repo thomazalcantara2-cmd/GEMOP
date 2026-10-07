@@ -269,10 +269,10 @@
     else if (typeof origemPadrao === 'string') origem.padrao = origemPadrao;
     else origem.exemplo = 'Assessoria Jurídica da Secretaria Municipal de Educação';
     return [
-      { id: 'fundamentoTipo', rotulo: 'Fundamentos adotados: tipo de documento', tipo: 'selecao',
+      { id: 'fundamentoTipo', rotulo: 'Fundamentos adotados: tipo de documento', tipo: 'selecao', linha: 'fundamento', largura: 1.1,
         opcoes: ordem.map(function (t) { return [t.id, t.rotulo]; }) },
-      { id: 'fundamentoNumero', rotulo: 'Fundamento: número/ano', tipo: 'texto', exemplo: '123/2026', opcional: origemPadrao !== null },
-      { id: 'fundamentoOrigemEscolha', rotulo: 'Fundamento: de quem foi', tipo: 'selecao', dinamica: 'origemFundamento',
+      { id: 'fundamentoNumero', rotulo: 'Fundamento: número/ano', tipo: 'texto', exemplo: '123/2026', opcional: origemPadrao !== null, linha: 'fundamento', largura: 0.8 },
+      { id: 'fundamentoOrigemEscolha', rotulo: 'Fundamento: de quem foi', tipo: 'selecao', dinamica: 'origemFundamento', linha: 'fundamento', largura: 1.7,
         padraoEscolha: digitar ? 'outro' : 'servidor',
         opcoes: digitar ? [['outro', 'Outro (digitar abaixo)'], ['servidor', 'Igual à secretaria do servidor']]
           : [['servidor', 'Igual à secretaria do servidor'], ['outro', 'Outro (digitar abaixo)']] },
@@ -322,8 +322,8 @@
   }
 
   var CAMPOS_REQUERIMENTO = [
-    { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4', porServidor: true },
-    { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true }
+    { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4', porServidor: true, linha: 'requerimento', largura: 1.4 },
+    { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true, linha: 'requerimento' }
   ];
 
   /*
@@ -339,15 +339,15 @@
       sufixoServidor: true, grupo: 'Outros pedidos' }, opts || {});
     var campos = [{ id: 'indeferido', rotulo: 'Indeferida', tipo: 'caixa', abaixoDoTipo: true,
       ajuda: 'desmarcado = deferida (concedida)' }];
-    campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3', porServidor: true });
-    if (opts.dataRequerimento) campos.push({ id: 'dataReq', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true });
+    campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3', porServidor: true, linha: 'processo' });
+    if (opts.dataRequerimento) campos.push({ id: 'dataReq', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true, linha: 'processo' });
     if (!pedidoFixo) campos.push({ id: 'pedido', rotulo: 'Pedido', tipo: 'texto', exemplo: 'Licença para Curso' });
     campos = campos.concat(camposFundamento(opts.fundamentoTipoPadrao || 'despacho', opts.fundamentoOrigemPadrao));
     if (opts.efeitos) campos.push({ id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true });
     campos.push(
       { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio', porServidor: true },
-      { id: 'periodoIni', rotulo: 'Período de gozo: início', tipo: 'data', opcional: true, ajuda: 'opcional; cria a coluna Período de Gozo', porServidor: true },
-      { id: 'periodoFim', rotulo: 'Período de gozo: fim', tipo: 'data', opcional: true, porServidor: true });
+      { id: 'periodoIni', rotulo: 'Período de gozo: início', tipo: 'data', opcional: true, linha: 'periodo', ajuda: 'opcional; cria a coluna Período de Gozo', porServidor: true },
+      { id: 'periodoFim', rotulo: 'Período de gozo: fim', tipo: 'data', opcional: true, linha: 'periodo', porServidor: true });
     if (opts.semDecenio) {
       campos = campos.filter(function (x) { return ['decenio', 'periodoIni', 'periodoFim'].indexOf(x.id) < 0; });
     }
@@ -442,10 +442,10 @@
       campos: [
         { id: 'ci', rotulo: 'CI (nº)', tipo: 'texto', exemplo: '0861336-SAD-GAB/SAD-SEGEP' },
         { id: 'baseLegal', rotulo: 'Lei citada', tipo: 'texto', padrao: LEI_FUNCOES },
-        { id: 'acao', rotulo: 'Ação', tipo: 'selecao', opcoes: [['conceder', 'Conceder'], ['dispensar', 'Dispensar']], padrao: 'conceder', porServidor: true },
-        { id: 'simbolo', rotulo: 'Tipo (símbolo)', tipo: 'selecao', porServidor: true,
+        { id: 'acao', rotulo: 'Ação', tipo: 'selecao', opcoes: [['conceder', 'Conceder'], ['dispensar', 'Dispensar']], padrao: 'conceder', porServidor: true, linha: 'funcao' },
+        { id: 'simbolo', rotulo: 'Tipo (símbolo)', tipo: 'selecao', porServidor: true, linha: 'funcao',
           opcoes: [['', 'Escolha…']].concat(o.simbolos.map(function (x) { return [x, x]; })) },
-        { id: 'efeito', rotulo: 'Efeito retroativo a', tipo: 'data', porServidor: true },
+        { id: 'efeito', rotulo: 'Efeito retroativo a', tipo: 'data', porServidor: true, linha: 'funcao', largura: 1.3 },
         { id: 'lotacao', rotulo: 'Lotação (se diferente da secretaria)', tipo: 'texto', opcional: true, exemplo: 'Executiva da Receita', porServidor: true }
       ],
       gerar: function (c) {
@@ -515,15 +515,15 @@
       id: 'prorrogacao-pos', nome: 'Prorrogação de licença para pós-graduação', grupo: 'Licenças e afastamentos', unico: true,
       campos: [
         { id: 'requerimento', rotulo: 'Nº do requerimento (protocolo)', tipo: 'texto', exemplo: '26.17.000001234-5' },
-        { id: 'parecer', rotulo: 'Parecer Jurídico (nº/ano)', tipo: 'texto', exemplo: '123/2026' },
-        { id: 'dataParecer', rotulo: 'Data do parecer', tipo: 'data' },
+        { id: 'parecer', rotulo: 'Parecer Jurídico (nº/ano)', tipo: 'texto', exemplo: '123/2026', linha: 'parecer' },
+        { id: 'dataParecer', rotulo: 'Data do parecer', tipo: 'data', linha: 'parecer' },
         { id: 'baseLegal', rotulo: 'Leis citadas', tipo: 'texto',
           padrao: 'art. 133, § 1º, da Lei Municipal nº 224/96, na Lei Municipal nº 228/96 e na Lei nº 264/2008' },
-        { id: 'curso', rotulo: 'Curso', tipo: 'selecao', opcoes: [['Mestrado', 'Mestrado'], ['Doutorado', 'Doutorado']], porServidor: true },
-        { id: 'programa', rotulo: 'Programa', tipo: 'texto', exemplo: 'Educação', porServidor: true },
+        { id: 'curso', rotulo: 'Curso', tipo: 'selecao', opcoes: [['Mestrado', 'Mestrado'], ['Doutorado', 'Doutorado']], porServidor: true, linha: 'curso', largura: 0.8 },
+        { id: 'programa', rotulo: 'Programa', tipo: 'texto', exemplo: 'Educação', porServidor: true, linha: 'curso', largura: 1.2 },
         { id: 'instituicao', rotulo: 'Instituição', tipo: 'texto', exemplo: 'Universidade Federal de Pernambuco', porServidor: true },
-        { id: 'inicio', rotulo: 'Prorrogação a partir de', tipo: 'data', porServidor: true },
-        { id: 'fim', rotulo: 'Prorrogação até', tipo: 'data', porServidor: true }],
+        { id: 'inicio', rotulo: 'Prorrogação a partir de', tipo: 'data', porServidor: true, linha: 'prorrogacao' },
+        { id: 'fim', rotulo: 'Prorrogação até', tipo: 'data', porServidor: true, linha: 'prorrogacao' }],
       considerandos: function (c) {
         return ['**CONSIDERANDO** o requerimento ' + c.servs[0].g.da + ' ' + c.servs[0].g.servidor + ' protocolado sob o nº ' + c.v('requerimento') + ';',
           '**CONSIDERANDO** o Parecer Jurídico nº ' + c.v('parecer') + ', de ' + c.v('dataParecer') + ';',
@@ -541,8 +541,8 @@
       id: 'readaptacao', nome: 'Readaptação de função (temporária ou definitiva)', grupo: 'Saúde e condições de trabalho',
       campos: [
         { id: 'definitiva', rotulo: 'Definitiva', tipo: 'caixa', abaixoDoTipo: true, ajuda: 'desmarcado = temporária' },
-        { id: 'oficio', rotulo: 'Ofício da Junta Médica', tipo: 'texto', exemplo: 'GPM nº 134/2026', porServidor: true },
-        { id: 'dias', rotulo: 'Período em dias (só se temporária)', tipo: 'numero', padrao: '180', porServidor: true, opcional: true },
+        { id: 'oficio', rotulo: 'Ofício da Junta Médica', tipo: 'texto', exemplo: 'GPM nº 134/2026', porServidor: true, linha: 'oficio', largura: 1.4 },
+        { id: 'dias', rotulo: 'Período em dias (só se temporária)', tipo: 'numero', padrao: '180', porServidor: true, opcional: true, linha: 'oficio' },
         { id: 'baseLegal', rotulo: 'Fundamento legal', tipo: 'texto', padrao: 'art. 51 da Lei 224/96' },
         CAMPO_EFEITOS],
       considerandos: function (c) {
@@ -577,13 +577,13 @@
     atoIndividual({
       id: 'encerramento-cessao', nome: 'Encerramento de cessão', grupo: 'Vínculo, lotação e carreira', unico: true,
       campos: [
-        { id: 'portariaCessao', rotulo: 'Portaria que autorizou a cessão (nº/ano)', tipo: 'texto', exemplo: '1234/2026' },
-        { id: 'dataPortariaCessao', rotulo: 'Data dessa portaria', tipo: 'data' },
-        { id: 'oficio', rotulo: 'Ofício do órgão cessionário (nº/ano)', tipo: 'texto', exemplo: '123/2026' },
-        { id: 'dataOficio', rotulo: 'Data do ofício', tipo: 'data' },
+        { id: 'portariaCessao', rotulo: 'Portaria que autorizou a cessão (nº/ano)', tipo: 'texto', exemplo: '1234/2026', linha: 'cessao', largura: 1.4 },
+        { id: 'dataPortariaCessao', rotulo: 'Data dessa portaria', tipo: 'data', linha: 'cessao' },
+        { id: 'oficio', rotulo: 'Ofício do órgão cessionário (nº/ano)', tipo: 'texto', exemplo: '123/2026', linha: 'oficio', largura: 1.4 },
+        { id: 'dataOficio', rotulo: 'Data do ofício', tipo: 'data', linha: 'oficio' },
         { id: 'orgao', rotulo: 'Órgão cessionário', tipo: 'texto', exemplo: 'Tribunal de Justiça de Pernambuco' },
-        { id: 'dataEncerramento', rotulo: 'Cessão encerrada em', tipo: 'data' },
-        { id: 'dataRetorno', rotulo: 'Retorna a partir de', tipo: 'data' },
+        { id: 'dataEncerramento', rotulo: 'Cessão encerrada em', tipo: 'data', linha: 'retorno' },
+        { id: 'dataRetorno', rotulo: 'Retorna a partir de', tipo: 'data', linha: 'retorno' },
         { id: 'lotacao', rotulo: 'Fica lotado em', tipo: 'texto', padrao: function (x) { return x.secretaria; } },
         { id: 'baseLegal', rotulo: 'Decreto citado', tipo: 'texto', padrao: 'Decreto Municipal nº 051/2019' },
         { id: 'efeitos', rotulo: 'Retroagir efeitos a', tipo: 'data' }],
@@ -609,9 +609,9 @@
       campos: [
         { id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000001234-5' },
         { id: 'despacho', rotulo: 'Despacho da', tipo: 'texto', padrao: function (x) { return x.secretaria; } },
-        { id: 'classe', rotulo: 'Classe', tipo: 'texto', exemplo: 'B' },
-        { id: 'nivel', rotulo: 'Nível', tipo: 'texto', exemplo: 'II' },
-        { id: 'referencia', rotulo: 'Referência', tipo: 'texto', exemplo: '3' },
+        { id: 'classe', rotulo: 'Classe', tipo: 'texto', exemplo: 'B', linha: 'cargo' },
+        { id: 'nivel', rotulo: 'Nível', tipo: 'texto', exemplo: 'II', linha: 'cargo' },
+        { id: 'referencia', rotulo: 'Referência', tipo: 'texto', exemplo: '3', linha: 'cargo' },
         CAMPO_EFEITOS],
       considerandos: function (c) {
         return ['**CONSIDERANDO** o processo ' + c.servs[0].g.da + ' ' + c.servs[0].g.servidor + ' protocolado sob nº ' + c.v('processo') + ';',
@@ -639,8 +639,8 @@
       id: 'tornar-sem-efeito', nome: 'Tornar sem efeito', grupo: 'Correção de atos',
       campos: [
         { id: 'portaria', rotulo: 'Portaria anterior (nº/ano)', tipo: 'texto', exemplo: '1300/2026' },
-        { id: 'edicao', rotulo: 'Diário Oficial nº', tipo: 'texto', exemplo: '180' },
-        { id: 'dataEdicao', rotulo: 'Data da publicação', tipo: 'data' },
+        { id: 'edicao', rotulo: 'Diário Oficial nº', tipo: 'texto', exemplo: '180', linha: 'edicao' },
+        { id: 'dataEdicao', rotulo: 'Data da publicação', tipo: 'data', linha: 'edicao' },
         { id: 'objeto', rotulo: 'Concessão de', tipo: 'texto', exemplo: 'licença prêmio' }],
       considerandos: function () { return []; },
       artigo: function (x, c) {

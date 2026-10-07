@@ -72,6 +72,14 @@
   .servidor-campos { padding: 2px 14px 14px; background: var(--sel); }
   .servidor-campos:empty { display: none; }
   .servidor-campos select, .servidor-campos input { background: var(--painel); }
+  /* card "3. Dados da portaria" (o que vale para a portaria inteira) */
+  .cartao-dados { margin-top: 18px; border: 1px solid var(--ok); border-left-width: 5px; border-radius: 10px; background: var(--painel);
+    box-shadow: 0 2px 8px rgba(30,122,70,.18); overflow: hidden; }
+  .cartao-dados > h2 { margin: 0; padding: 10px 14px; background: var(--ok); color: var(--destaque-texto); font-size: 13px; }
+  .cartao-corpo { padding: 2px 14px 14px; }
+  /* campos lado a lado na mesma linha */
+  .linha-campos { display: grid; gap: 10px; align-items: end; }
+  .campo-col[hidden] { display: none; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   details { margin-top: 6px; }
   summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
@@ -153,7 +161,9 @@
     <p class="nota" style="margin:6px 0 0">Para incluir mais de um servidor na mesma portaria, busque e escolha um por vez.</p>
     <ul id="lista-servidores"></ul>
 
+    <section class="cartao-dados">
     <h2>3. Dados da portaria</h2>
+    <div class="cartao-corpo">
     <div class="dupla">
       <div>
         <label class="campo" for="v-numero">Nº da portaria</label>
@@ -167,6 +177,8 @@
     <div id="campos-tipo"></div>
     <label class="campo" for="v-matricula">Formato da matrícula</label>
     <select id="v-matricula"></select>
+    </div>
+    </section>
 
     <details>
       <summary>Textos fixos (preâmbulo e assinatura)</summary>
