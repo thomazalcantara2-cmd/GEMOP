@@ -323,7 +323,8 @@
   var LEI_FUNCOES = 'art. 28 da Lei Complementar nº 50/2024, alterada pela Lei Complementar nº 51/2025';
   var PREAMBULO_FUNCOES = 'O **SECRETÁRIO EXECUTIVO DE GESTÃO DE PESSOAS**, no uso de suas atribuições legais concedidas pelo ' + LEI_FUNCOES + '.';
 
-  // o: id, nome, sigla ('FGS'), sing, plur (nome da função no singular e no plural), plurais (usa o plural com vários servidores)
+  // o: id, nome, sigla ('FGS'), sing, plur (nome da função no singular e no plural), plurais (usa o plural com vários servidores),
+  // simbolos (alternativas do campo Tipo)
   function funcaoGratificada(o) {
     return {
       id: o.id, nome: o.nome, grupo: 'Funções gratificadas', preambulo: PREAMBULO_FUNCOES,
@@ -331,7 +332,8 @@
         { id: 'ci', rotulo: 'CI (nº)', tipo: 'texto', exemplo: '0861336-SAD-GAB/SAD-SEGEP' },
         { id: 'baseLegal', rotulo: 'Lei citada', tipo: 'texto', padrao: LEI_FUNCOES },
         { id: 'acao', rotulo: 'Ação', tipo: 'selecao', opcoes: [['conceder', 'Conceder'], ['dispensar', 'Dispensar']], padrao: 'conceder', porServidor: true },
-        { id: 'simbolo', rotulo: 'Tipo (símbolo)', tipo: 'texto', exemplo: o.sigla + '-3', porServidor: true },
+        { id: 'simbolo', rotulo: 'Tipo (símbolo)', tipo: 'selecao', porServidor: true,
+          opcoes: [['', 'Escolha…']].concat(o.simbolos.map(function (x) { return [x, x]; })) },
         { id: 'efeito', rotulo: 'Efeito retroativo a', tipo: 'data', porServidor: true },
         { id: 'lotacao', rotulo: 'Lotação (se diferente da secretaria)', tipo: 'texto', opcional: true, exemplo: 'Executiva da Receita', porServidor: true }
       ],
@@ -517,9 +519,11 @@
       colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, deferido: 'nenhum', sufixoServidor: false,
       fundamentoPadrao: 'despacho da Secretaria Executiva de Gestão de Pessoas', semDecenio: true }),
     funcaoGratificada({ id: 'fgs', nome: 'Função Gratificada – FGS (conceder / dispensar)', sigla: 'FGS',
-      sing: 'Função Gratificada – FGS', plur: 'Funções Gratificadas – FGS', plurais: false }),
+      sing: 'Função Gratificada – FGS', plur: 'Funções Gratificadas – FGS', plurais: false,
+      simbolos: ['FGS-1', 'FGS-2', 'FGS-3', 'FGS-4', 'FGS-5'] }),
     funcaoGratificada({ id: 'fas', nome: 'Funções de Apoio e Supervisão – FAS (conceder / dispensar)', sigla: 'FAS',
-      sing: 'Função de Apoio e Supervisão – FAS', plur: 'Funções de Apoio e Supervisão – FAS', plurais: true }),
+      sing: 'Função de Apoio e Supervisão – FAS', plur: 'Funções de Apoio e Supervisão – FAS', plurais: true,
+      simbolos: ['FAS-1', 'FAS-2', 'FAS-3'] }),
     atoIndividual({
       id: 'tornar-sem-efeito', nome: 'Tornar sem efeito', grupo: 'Correção de atos',
       campos: [

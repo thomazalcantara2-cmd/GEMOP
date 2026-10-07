@@ -393,3 +393,11 @@ test('FAS: concessão (Portaria 499); só aparece o artigo que tem servidores', 
   assert.deepStrictEqual(P.gerarPortaria({ tipo: 'fgs', numero: '1', data: dt(1, 4, 2026), campos: {}, servidores: [pessoa('A', '1', 'F')] }).faltando,
     ['CI (nº)', 'Efeito retroativo a', 'Tipo (símbolo)']);
 });
+
+test('FGS e FAS: o tipo (símbolo) é escolhido numa lista, começando em branco', () => {
+  const op = (id) => P.tipoPorId(id).campos.find((c) => c.id === 'simbolo');
+  assert.strictEqual(op('fgs').tipo, 'selecao');
+  assert.deepStrictEqual(op('fgs').opcoes.map((o) => o[1]), ['Escolha…', 'FGS-1', 'FGS-2', 'FGS-3', 'FGS-4', 'FGS-5']);
+  assert.deepStrictEqual(op('fas').opcoes.map((o) => o[1]), ['Escolha…', 'FAS-1', 'FAS-2', 'FAS-3']);
+  assert.strictEqual(op('fgs').opcoes[0][0], '');
+});
