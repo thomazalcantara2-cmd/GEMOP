@@ -235,13 +235,18 @@
 
   function campoHTML(prefixo, c) {
     var entrada = c.tipo === 'data' ? 'date' : (c.tipo === 'numero' ? 'number' : 'text');
-    return '<label class="campo" for="' + prefixo + c.id + '">' + esc(c.rotulo) +
-      (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>' +
-      '<input id="' + prefixo + c.id + '" type="' + entrada + '"' + (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
+    var rotulo = '<label class="campo" for="' + prefixo + c.id + '">' + esc(c.rotulo) +
+      (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>';
+    if (c.tipo === 'selecao') {
+      return rotulo + '<select id="' + prefixo + c.id + '">' + c.opcoes.map(function (o) {
+        return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>';
+      }).join('') + '</select>';
+    }
+    return rotulo + '<input id="' + prefixo + c.id + '" type="' + entrada + '"' + (c.exemplo ? ' placeholder="ex.: ' + esc(c.exemplo) + '"' : '') + '>';
   }
 
   function ligarCampo(el, guardados, id) {
-    el.value = guardados[id] || '';
+    el.value = guardados[id] || (el.tagName === 'SELECT' ? el.options[0].value : '');
     el.addEventListener('input', function () { guardados[id] = el.value; renderizar(); });
   }
 
@@ -360,7 +365,10 @@
       if (b.t === 'tabela') {
         return '<table><thead><tr>' + b.colunas.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead>' +
           '<tbody>' + b.linhas.map(function (l) {
-            return '<tr>' + l.map(function (c) { return '<td>' + textoFormatado(c) + '</td>'; }).join('') + '</tr>';
+            return '<tr>' + l.map(function (c, i) {
+              var classe = ((b.semQuebra || []).indexOf(i) >= 0 ? 'nw ' : '') + ((b.esquerda || []).indexOf(i) >= 0 ? 'e' : '');
+              return '<td' + (classe ? ' class="' + classe.trim() + '"' : '') + '>' + textoFormatado(c) + '</td>';
+            }).join('') + '</tr>';
           }).join('') + '</tbody></table>';
       }
       return '<p>' + textoFormatado(b.texto) + '</p>';

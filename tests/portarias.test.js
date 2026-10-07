@@ -357,3 +357,39 @@ test('enquadramento e tipos agrupados', () => {
   assert.ok(P.TIPOS.every((t) => t.grupo));
   assert.strictEqual(new Set(P.TIPOS.map((t) => t.id)).size, P.TIPOS.length);
 });
+
+test('FGS: dispensa e concessão na mesma portaria (Portaria 498)', () => {
+  const r = P.gerarPortaria({ tipo: 'fgs', numero: '498', data: dt(23, 3, 2026), campos: { ci: '0861336-SAD-GAB/SAD-SEGEP' }, servidores: [
+    pessoa('AMANDA DE MORAIS', '002160461', 'F', 'Secretaria Municipal de Saúde', { acao: 'dispensar', simbolo: 'FGS-3', efeito: dt(1, 3, 2026) }),
+    pessoa('NATALIA OLIVEIRA', '002089302', 'F', 'Secretaria Municipal de Saúde', { acao: 'dispensar', simbolo: 'FGS-4', efeito: dt(1, 3, 2026) }),
+    pessoa('GRYGHOR CAMONNI', '091890881', 'M', 'Secretaria Municipal de Saúde', { simbolo: 'FGS-3', efeito: dt(1, 3, 2026) }),
+    pessoa('JOÃO BOSCO', '002092012', 'M', 'Secretaria Municipal da Fazenda', { simbolo: 'FGS-3', efeito: dt(1, 3, 2026), lotacao: 'Executiva da Receita' }),
+    pessoa('MARTA LÍVIA', '405929543', 'F', 'Secretaria Municipal da Fazenda', { simbolo: 'FGS-3', efeito: dt(24, 3, 2026), lotacao: 'Executiva da Receita' })] });
+  assert.deepStrictEqual(r.faltando, []);
+  assert.match(r.preambulo, /^O \*\*SECRETÁRIO EXECUTIVO DE GESTÃO DE PESSOAS\*\*, no uso de suas atribuições legais concedidas pelo art\. 28 da Lei Complementar nº 50\/2024, alterada pela Lei Complementar nº 51\/2025\.$/);
+  const t = r.blocos.map((b) => b.texto);
+  assert.strictEqual(t[0], '**CONSIDERANDO** os termos da CI nº 0861336-SAD-GAB/SAD-SEGEP;');
+  assert.strictEqual(t[1], '**CONSIDERANDO** que as Funções Gratificadas – FGS obedecem a símbolos, valores e quantitativos de acordo com o art. 28 da Lei Complementar nº 50/2024, alterada pela Lei Complementar nº 51/2025.');
+  assert.strictEqual(t[3], '**Art. 1º DISPENSAR** as servidoras listadas abaixo da Função Gratificada – FGS:');
+  assert.deepStrictEqual(r.blocos[4].colunas, ['MATRÍCULA', 'NOME', 'LOTAÇÃO', 'EFEITO RETROATIVO A', 'TIPO']);
+  assert.deepStrictEqual(r.blocos[4].linhas[1], ['002089302', 'NATALIA OLIVEIRA', 'Municipal de Saúde', '01.03.2026', 'FGS-4']);
+  assert.strictEqual(t[5], '**Art. 2º CONCEDER** aos servidores listados abaixo Função Gratificada – FGS nos moldes a seguir:');
+  assert.deepStrictEqual(r.blocos[6].linhas.map((l) => [l[1], l[2], l[3]]),
+    [['GRYGHOR CAMONNI', 'Municipal de Saúde', '01.03.2026'], ['JOÃO BOSCO', 'Executiva da Receita', '01.03.2026'], ['MARTA LÍVIA', 'Executiva da Receita', '24.03.2026']]);
+  assert.strictEqual(t[7], '**Art. 3º** Esta Portaria entra em vigor na data da sua publicação.');
+});
+
+test('FAS: concessão (Portaria 499); só aparece o artigo que tem servidores', () => {
+  const r = P.gerarPortaria({ tipo: 'fas', numero: '499', data: dt(23, 3, 2026), campos: { ci: '1' }, servidores: [
+    pessoa('AMANDA', '002160461', 'F', 'Secretaria Municipal de Saúde', { simbolo: 'FAS-1', efeito: dt(1, 3, 2026) }),
+    pessoa('ELIS', '002055831', 'F', 'Secretaria Municipal de Saúde', { simbolo: 'FAS-2', efeito: dt(1, 3, 2026) })] });
+  const t = r.blocos.map((b) => b.texto);
+  assert.match(t[1], /as Funções de Apoio e Supervisão – FAS obedecem/);
+  assert.strictEqual(t[3], '**Art. 1º CONCEDER** às servidoras listadas abaixo Funções de Apoio e Supervisão – FAS nos moldes a seguir:');
+  assert.strictEqual(t[5], '**Art. 2º** Esta Portaria entra em vigor na data da sua publicação.');
+  const um = P.gerarPortaria({ tipo: 'fas', numero: '1', data: dt(1, 4, 2026), campos: { ci: '1' }, servidores: [
+    pessoa('BRUNO', '1', 'M', null, { acao: 'dispensar', simbolo: 'FAS-1', efeito: dt(1, 3, 2026) })] });
+  assert.strictEqual(um.blocos[3].texto, '**Art. 1º DISPENSAR** o servidor listado abaixo da Função de Apoio e Supervisão – FAS:');
+  assert.deepStrictEqual(P.gerarPortaria({ tipo: 'fgs', numero: '1', data: dt(1, 4, 2026), campos: {}, servidores: [pessoa('A', '1', 'F')] }).faltando,
+    ['CI (nº)', 'Efeito retroativo a', 'Tipo (símbolo)']);
+});

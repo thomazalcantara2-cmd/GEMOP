@@ -126,6 +126,7 @@ PDFs do SEI enviados; os campos que faltam aparecem em amarelo. A lista de tipos
 | Saúde e condições de trabalho | **Readaptação de função** (caixa **Definitiva**; desmarcada = temporária, com prazo em dias); **Redução de carga horária** (caixa **Indeferida**) |
 | Vínculo, lotação e carreira | **Exoneração a pedido**; **Encerramento de cessão** (1 servidor); **Enquadramento** de cargo, classe, nível e referência (1 servidor); **Dispensa de Estágio Probatório** (caixa **Indeferida**) |
 | Benefícios e pedidos | **Abono de permanência** (deferido: "de acordo com o parecer…", retroagindo à data do requerimento); **Salário família** (deferido sem fundamento; indeferido cita o despacho da SEGEP) |
+| Funções gratificadas | **Função Gratificada – FGS** e **Funções de Apoio e Supervisão – FAS**, modelos das Portarias 498 e 499: portaria coletiva em que **cada servidor** é marcado como **Conceder** ou **Dispensar** (sai um artigo e uma tabela para cada ação, na ordem dispensar → conceder), com o tipo (ex.: FGS-3) e o "efeito retroativo a" de cada um. Preâmbulo próprio (art. 28 da Lei Complementar 50/2024), CI e lei citada nos considerandos. A lotação sai da secretaria da planilha; para outra (ex.: "Executiva da Receita"), preencha **Lotação** no quadro do servidor |
 | Correção de atos | **Tornar sem efeito** uma portaria anterior |
 | Outros pedidos | **Outro pedido** (digite o nome do pedido; serve para irredutibilidade de vencimentos, isenção de imposto de renda, licença prêmio em pecúnia, cômputo de tempo de serviço…) |
 

@@ -277,7 +277,7 @@
             c.g.pelo + ' ' + c.g.servidor + ' abaixo ' + c.g.discriminado + '.' },
           { t: 'p', texto: '**RESOLVE:**' },
           { t: 'p', texto: '**Art. 1º. ' + (indeferir ? 'INDEFERIR' : 'DEFERIR') + '** ' + objeto + fundamentos + fim },
-          { t: 'tabela', colunas: colunas, linhas: linhas },
+          { t: 'tabela', colunas: colunas, linhas: linhas, semQuebra: [0, 2] },
           { t: 'p', texto: '**Art. 2º.** ' + vigencia + '.' }
         ];
       }
@@ -311,9 +311,59 @@
           { t: 'tabela', colunas: ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem', 'Decênio', 'Período de Gozo'],
             linhas: c.servs.map(function (x) {
               return [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria), x.v('decenio', true), x.v('periodo', true)];
-            }) },
+            }), semQuebra: [0, 2] },
           { t: 'p', texto: '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação.' }
         ];
+      }
+    };
+  }
+
+  // Funções gratificadas (FGS) e de apoio e supervisão (FAS): portaria coletiva, com artigos de dispensa e de
+  // concessão (Portarias 498 e 499). Cada servidor escolhe Conceder ou Dispensar; sai um artigo e uma tabela para cada ação.
+  var LEI_FUNCOES = 'art. 28 da Lei Complementar nº 50/2024, alterada pela Lei Complementar nº 51/2025';
+  var PREAMBULO_FUNCOES = 'O **SECRETÁRIO EXECUTIVO DE GESTÃO DE PESSOAS**, no uso de suas atribuições legais concedidas pelo ' + LEI_FUNCOES + '.';
+
+  // o: id, nome, sigla ('FGS'), sing, plur (nome da função no singular e no plural), plurais (usa o plural com vários servidores)
+  function funcaoGratificada(o) {
+    return {
+      id: o.id, nome: o.nome, grupo: 'Funções gratificadas', preambulo: PREAMBULO_FUNCOES,
+      campos: [
+        { id: 'ci', rotulo: 'CI (nº)', tipo: 'texto', exemplo: '0861336-SAD-GAB/SAD-SEGEP' },
+        { id: 'baseLegal', rotulo: 'Lei citada', tipo: 'texto', padrao: LEI_FUNCOES },
+        { id: 'acao', rotulo: 'Ação', tipo: 'selecao', opcoes: [['conceder', 'Conceder'], ['dispensar', 'Dispensar']], padrao: 'conceder', porServidor: true },
+        { id: 'simbolo', rotulo: 'Tipo (símbolo)', tipo: 'texto', exemplo: o.sigla + '-3', porServidor: true },
+        { id: 'efeito', rotulo: 'Efeito retroativo a', tipo: 'data', porServidor: true },
+        { id: 'lotacao', rotulo: 'Lotação (se diferente da secretaria)', tipo: 'texto', opcional: true, exemplo: 'Executiva da Receita', porServidor: true }
+      ],
+      gerar: function (c) {
+        var blocos = [
+          { t: 'p', texto: '**CONSIDERANDO** os termos da CI nº ' + c.v('ci') + ';' },
+          { t: 'p', texto: '**CONSIDERANDO** que ' + 'as ' + o.plur + ' obedecem a símbolos, valores e quantitativos de acordo com o ' +
+            c.v('baseLegal') + '.' },
+          { t: 'p', texto: '**RESOLVE:**' }];
+        var n = 0;
+        ['dispensar', 'conceder'].forEach(function (acao) {
+          var grupo = c.servs.filter(function (x) { return x.v('acao') === acao; });
+          if (!grupo.length) return;
+          n++;
+          var plural = grupo.length > 1;
+          var fem = grupo.every(function (x) { return x.g.o === 'a'; });
+          var listados = (fem ? 'servidora' + (plural ? 's' : '') : 'servidor' + (plural ? 'es' : '')) + ' listad' + (fem ? 'a' : 'o') + (plural ? 's' : '') + ' abaixo';
+          var funcao = o.plurais && plural ? o.plur : o.sing;
+          var texto;
+          if (acao === 'dispensar') {
+            texto = '**Art. ' + n + 'º DISPENSAR** ' + (fem ? 'a' : 'o') + (plural ? 's' : '') + ' ' + listados + ' d' + (o.plurais && plural ? 'as ' : 'a ') + funcao + ':';
+          } else {
+            texto = '**Art. ' + n + 'º CONCEDER** ' + (fem ? (plural ? 'às' : 'à') : (plural ? 'aos' : 'ao')) + ' ' + listados + ' ' + funcao + ' nos moldes a seguir:';
+          }
+          blocos.push({ t: 'p', texto: texto });
+          blocos.push({ t: 'tabela', colunas: ['MATRÍCULA', 'NOME', 'LOTAÇÃO', 'EFEITO RETROATIVO A', 'TIPO'], esquerda: [1], semQuebra: [0, 3, 4],
+            linhas: grupo.map(function (x) {
+              return [x.matricula, x.nome, x.tem('lotacao') ? x.v('lotacao') : semPalavraSecretaria(x.secretaria), x.v('efeito'), x.v('simbolo')];
+            }) });
+        });
+        blocos.push({ t: 'p', texto: '**Art. ' + (n + 1) + 'º** Esta Portaria entra em vigor na data da sua publicação.' });
+        return blocos;
       }
     };
   }
@@ -466,6 +516,10 @@
     pedidoSobre('salario-familia', 'Salário família', 'Salário Família', { grupo: 'Benefícios e pedidos',
       colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, deferido: 'nenhum', sufixoServidor: false,
       fundamentoPadrao: 'despacho da Secretaria Executiva de Gestão de Pessoas', semDecenio: true }),
+    funcaoGratificada({ id: 'fgs', nome: 'Função Gratificada – FGS (conceder / dispensar)', sigla: 'FGS',
+      sing: 'Função Gratificada – FGS', plur: 'Funções Gratificadas – FGS', plurais: false }),
+    funcaoGratificada({ id: 'fas', nome: 'Funções de Apoio e Supervisão – FAS (conceder / dispensar)', sigla: 'FAS',
+      sing: 'Função de Apoio e Supervisão – FAS', plur: 'Funções de Apoio e Supervisão – FAS', plurais: true }),
     atoIndividual({
       id: 'tornar-sem-efeito', nome: 'Tornar sem efeito', grupo: 'Correção de atos',
       campos: [
@@ -548,7 +602,7 @@
     if (!dados.numero) faltando.unshift('Número da portaria');
     return {
       titulo: tituloPortaria(dados.numero ? String(dados.numero).trim() : '', dados.data),
-      preambulo: config.preambulo,
+      preambulo: tipo.preambulo || config.preambulo,
       blocos: blocos,
       local: 'Jaboatão dos Guararapes, ' + D.dataExtenso(dados.data),
       assinatura: { nome: config.assinanteNome, cargo: config.assinanteCargo },

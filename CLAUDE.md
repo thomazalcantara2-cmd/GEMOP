@@ -12,7 +12,7 @@ Dois programas usam as mesmas planilhas e o mesmo `js/dados.js`: o Requerimento 
 - **Portarias**: `portarias.html` + `js/portarias-app.js` (tela) + `js/portarias.js` (modelos e regras, funções puras;
   cada modelo = campos + texto, é só incluir em `TIPOS`). Usa só a FichaContabilis. `Portarias.bat` → `servidor.ps1`
   com `-Pagina portarias.html` (porta própria, 8790+). Cada tipo tem `grupo` (assunto no seletor). Construtores: `pedidoSobre` (pedido com tabela e caixa "Indeferida") e
-  `atoIndividual` (considerandos + um artigo por servidor); `unico: true` = usa só o 1º servidor. Lista completa no README.
+  `atoIndividual` (considerandos + um artigo por servidor); `unico: true` = usa só o 1º servidor; `funcaoGratificada` (FGS/FAS, campo `selecao` Conceder/Dispensar por servidor; tipo com `preambulo` próprio). Lista completa no README.
   Vários servidores por portaria (`servidores[]`; campos `porServidor`); a folha das Portarias cresce e quebra em várias páginas.
 - **Leitura de planilhas** compartilhada: `js/planilhas.js` (`.xlsx`, pasta, servidor local).
 - **Aplicativo local**: `Requerimento.bat` → `servidor.ps1` (Windows PowerShell 5.1, sem instalação; atende só
