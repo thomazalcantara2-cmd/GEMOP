@@ -38,6 +38,7 @@ $pasta = (Resolve-Path -LiteralPath $pasta).Path
 $tipos = @{
     '.html' = 'text/html; charset=utf-8'; '.js' = 'text/javascript; charset=utf-8'; '.css' = 'text/css; charset=utf-8'
     '.png' = 'image/png'; '.woff2' = 'font/woff2'; '.json' = 'application/json; charset=utf-8'
+    '.webp' = 'image/webp'; '.jpg' = 'image/jpeg'; '.jpeg' = 'image/jpeg'; '.gif' = 'image/gif'; '.svg' = 'image/svg+xml'; '.ico' = 'image/x-icon'
     '.xlsx' = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; '.xls' = 'application/vnd.ms-excel'
 }
 

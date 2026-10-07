@@ -107,7 +107,7 @@
   function carregarDaPasta(pasta, pedirPermissao) {
     var permissao = pedirPermissao ? pasta.requestPermission({ mode: 'read' }) : pasta.queryPermission({ mode: 'read' });
     return permissao.then(function (liberada) {
-      if (liberada !== 'granted') { mostrarPasta(pasta, false); return; }
+      if (liberada !== 'granted') { mostrarPasta(pasta, false); mostrarCarregamento(true); return; }
       mostrarPasta(pasta, true);
       return P.arquivosDaPasta(pasta, false).then(function (arquivos) {
         if (!arquivos.length) { mostrarErro('Nenhuma planilha .xlsx encontrada na pasta "' + pasta.name + '".'); return; }
@@ -139,17 +139,26 @@
       } else if (estado.pasta) carregarDaPasta(estado.pasta, true);
     });
     if (/^https?:$/.test(location.protocol)) {
+      // leitura automática da pasta: enquanto carrega, a barra amarela avisa e nada de "inserir planilha" aparece na tela;
+      // o quadro de carregar só aparece se a planilha não for encontrada
       estado.modoLocal = true;
-      carregarDoServidorLocal().catch(function () { estado.modoLocal = false; iniciarSeletorPasta(); });
+      estado.carregando = true;
+      atualizarStatus();
+      carregarDoServidorLocal().then(function () {
+        estado.carregando = false;
+        atualizarStatus();
+        if (!estado.indice) mostrarCarregamento(true);
+      }).catch(function () { estado.carregando = false; estado.modoLocal = false; iniciarSeletorPasta(); });
       return;
     }
     iniciarSeletorPasta();
   }
 
   function iniciarSeletorPasta() {
-    if (!('showDirectoryPicker' in window)) { $('bloco-pasta').hidden = true; return; }
+    // sem leitura automática possível (arquivo aberto direto, sem pasta lembrada): mostra logo o quadro de carregar
+    if (!('showDirectoryPicker' in window)) { $('bloco-pasta').hidden = true; mostrarCarregamento(true); return; }
     $('escolher-pasta').addEventListener('click', escolherPasta);
-    P.bancoPasta(BANCO, 'ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); });
+    P.bancoPasta(BANCO, 'ler').then(function (pasta) { if (pasta) carregarDaPasta(pasta, false); else mostrarCarregamento(true); });
   }
 
   function reconstruirBase() {
@@ -187,14 +196,11 @@
 
   function atualizarStatus() {
     var i = estado.indice;
-    $('topo-sub').textContent = i ? textoDaPlanilha(i) : 'SEGEP · preenchimento automático pela FichaContabilis';
+    $('topo-sub').textContent = i ? textoDaPlanilha(i) : (estado.carregando ? 'SEGEP · carregando a planilha…' : 'SEGEP · preenchimento automático pela FichaContabilis');
     $('topo-sub').title = i ? 'Arquivo: ' + i.nome + ' · ' + i.linhas.length + ' servidores' : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
     $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) : '<b>Ficha Contabilis</b> — aguardando arquivo';
-    clearTimeout(estado.esperaCarga);
     if (i) mostrarCarregamento(false);
-    // dá um tempo para a leitura automática da pasta antes de mostrar o quadro de carregar
-    else estado.esperaCarga = setTimeout(function () { if (!estado.indice) mostrarCarregamento(true); }, 1500);
   }
 
   // ---------- busca ----------
