@@ -42,6 +42,8 @@
     pessoas: 'pessoas', nucleo: 'núcleo', centro: 'centro', professora: 'professora', professor: 'professor',
     programa: 'programa', odontologo: 'odontólogo', medico: 'médico', psicologo: 'psicólogo', engenheiro: 'engenheiro',
     agente: 'agente', combate: 'combate', endemias: 'endemias', comunitario: 'comunitário', comunitaria: 'comunitária',
+    jose: 'josé', joao: 'joão', sao: 'são', conceicao: 'conceição', nazare: 'nazaré', esperanca: 'esperança', assuncao: 'assunção',
+    vitoria: 'vitória', antonio: 'antônio', lucia: 'lúcia',
     apoio: 'apoio', sup: 'sup', ensino: 'ensino', infantil: 'infantil', fundamental: 'fundamental', pedagogo: 'pedagogo'
   };
 
@@ -81,10 +83,35 @@
     return mapa;
   }
 
+  // Nomes oficiais que a planilha escreve sem pontuação.
+  function nomeOficial(texto) {
+    return texto.replace(/Administração Governo Digital/, 'Administração, Governo Digital');
+  }
+
+  // A Secretaria Municipal do servidor (pelo centro de custo), ex.: Secretaria Municipal de Administração, Governo Digital e Inovação.
   function secretariaDoServidor(s, mapa) {
     var cod = (s && s.codCentroCusto) || '';
     var nome = (mapa && cod.length >= 2 && mapa[cod.slice(0, 2)]) || (s && (s.centroCusto || s.localTrabalho)) || '';
-    return capitalizar(nome);
+    return nomeOficial(capitalizar(nome));
+  }
+
+  // Onde o servidor trabalha (local de trabalho da planilha), ex.: Secretaria Executiva de Gestão de Pessoas.
+  function localDeTrabalho(s) {
+    return nomeOficial(capitalizar((s && s.localTrabalho) || ''));
+  }
+
+  // As duas alternativas para o campo Secretaria: a Secretaria Municipal e onde trabalha (se for diferente).
+  function opcoesSecretaria(s, mapa) {
+    var municipal = secretariaDoServidor(s, mapa), trabalho = localDeTrabalho(s);
+    var opcoes = [{ id: 'municipal', rotulo: 'Secretaria Municipal', nome: municipal }];
+    if (trabalho && D.normalizar(trabalho) !== D.normalizar(municipal)) opcoes.push({ id: 'trabalho', rotulo: 'Onde trabalha', nome: trabalho });
+    return opcoes;
+  }
+
+  // Secretaria a usar no texto, conforme a escolha ('municipal' ou 'trabalho').
+  function secretariaEscolhida(s, mapa, escolha) {
+    var op = opcoesSecretaria(s, mapa).filter(function (o) { return o.id === escolha; })[0];
+    return (op || opcoesSecretaria(s, mapa)[0]).nome;
   }
 
   function ehCedido(s) {
@@ -213,6 +240,49 @@
     return (ini ? D.dataBR(ini) : x.v('periodoIni', true)) + ' a ' + (fim ? D.dataBR(fim) : x.v('periodoFim', true));
   }
 
+  // Fundamentos adotados: o tipo de documento (despacho, parecer, CI, ofício…), o número e quem emitiu.
+  var TIPOS_FUNDAMENTO = [
+    { id: 'despacho', rotulo: 'Despacho', sing: 'despacho', plur: 'despachos', fem: false },
+    { id: 'parecer', rotulo: 'Parecer', sing: 'parecer', plur: 'pareceres', fem: false },
+    { id: 'parecer-juridico', rotulo: 'Parecer Jurídico', sing: 'parecer jurídico', plur: 'pareceres jurídicos', fem: false },
+    { id: 'ci', rotulo: 'Comunicação Interna (CI)', sing: 'Comunicação Interna', plur: 'Comunicações Internas', fem: true },
+    { id: 'oficio', rotulo: 'Ofício', sing: 'ofício', plur: 'ofícios', fem: false },
+    { id: 'informacao', rotulo: 'Informação', sing: 'informação', plur: 'informações', fem: true }
+  ];
+
+  // "da Secretaria…", "do Gabinete…", "das respectivas secretarias"
+  function deOrigem(nome) {
+    if (/^respectivas/i.test(nome)) return 'das ' + nome;
+    return (/^(gabinete|n[uú]cleo|conselho|escrit[oó]rio|departamento|instituto|tribunal)/i.test(nome) ? 'do ' : 'da ') + nome;
+  }
+
+  // Campos do fundamento. tipoPadrao: documento que aparece primeiro na lista (e vale se nada for escolhido);
+  // origemPadrao: undefined = a secretaria dos servidores; texto = fixo; null = sem sugestão (obrigatório).
+  function camposFundamento(tipoPadrao, origemPadrao) {
+    var ordem = TIPOS_FUNDAMENTO.filter(function (t) { return t.id === tipoPadrao; })
+      .concat(TIPOS_FUNDAMENTO.filter(function (t) { return t.id !== tipoPadrao; }));
+    var origem = { id: 'fundamentoOrigem', rotulo: 'Fundamento: emitido por', tipo: 'texto' };
+    if (origemPadrao === null) origem.exemplo = 'Gerência de Política de Pessoal';
+    else if (typeof origemPadrao === 'string') origem.padrao = origemPadrao;
+    else origem.padrao = function (x) { return x.n > 1 && x.secretarias.length !== 1 ? 'respectivas secretarias' : x.secretaria; };
+    return [
+      { id: 'fundamentoTipo', rotulo: 'Fundamentos adotados: tipo de documento', tipo: 'selecao',
+        opcoes: ordem.map(function (t) { return [t.id, t.rotulo]; }) },
+      { id: 'fundamentoNumero', rotulo: 'Fundamento: número/ano', tipo: 'texto', exemplo: '123/2026', opcional: origemPadrao !== null },
+      origem
+    ];
+  }
+
+  // "no despacho da Secretaria…", "na Comunicação Interna nº 12/2026 da…", "com o parecer nº…" (prep: 'em' ou 'com')
+  function fundamentoFrase(c, prep, numeroObrigatorio) {
+    var t = TIPOS_FUNDAMENTO.filter(function (x) { return x.id === c.v('fundamentoTipo'); })[0] || TIPOS_FUNDAMENTO[0];
+    var plural = c.n > 1;
+    var artigo = (plural ? (t.fem ? 'as' : 'os') : (t.fem ? 'a' : 'o'));
+    var ligacao = prep === 'em' ? (plural ? (t.fem ? 'nas' : 'nos') : (t.fem ? 'na' : 'no')) : 'com ' + artigo;
+    return ligacao + ' ' + (plural ? t.plur : t.sing) + (c.tem('fundamentoNumero') || numeroObrigatorio ? ' nº ' + c.v('fundamentoNumero') : '') +
+      ' ' + deOrigem(c.v('fundamentoOrigem'));
+  }
+
   var CAMPOS_REQUERIMENTO = [
     { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4', porServidor: true },
     { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true }
@@ -223,7 +293,8 @@
    * "Indeferida". O texto é o mesmo; muda o verbo. Sem pedidoFixo, o pedido é digitado.
    * opts: colunaSecretaria ('Secretaria de Origem'), colunaNome ('Nome do Servidor'), dataRequerimento (coluna extra),
    *   deferido ('adotando' | 'de acordo' | 'nenhum': como o deferimento cita o fundamento), sufixoServidor (false = o artigo
-   *   termina em ":"), fundamentoPadrao (texto fixo; null = sem sugestão), retroRequerimento, efeitos (data opcional).
+   *   termina em ":"), fundamentoTipoPadrao ('despacho'…), fundamentoOrigemPadrao (texto fixo; null = obrigatório),
+   *   retroRequerimento, efeitos (data opcional).
    */
   function pedidoSobre(id, nome, pedidoFixo, opts) {
     opts = Object.assign({ colunaSecretaria: 'Secretaria de Origem', colunaNome: 'Nome do Servidor', deferido: 'adotando',
@@ -233,16 +304,7 @@
     campos.push({ id: 'processo', rotulo: 'Nº do processo', tipo: 'texto', exemplo: '26.17.000003900-3', porServidor: true });
     if (opts.dataRequerimento) campos.push({ id: 'dataReq', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true });
     if (!pedidoFixo) campos.push({ id: 'pedido', rotulo: 'Pedido', tipo: 'texto', exemplo: 'Licença para Curso' });
-    var fundamento = { id: 'fundamento', rotulo: 'Fundamentos adotados', tipo: 'texto',
-      ajuda: 'ex.: parecer nº 123/2026 da Gerência de Política de Pessoal; com vários servidores, no plural' };
-    if (opts.fundamentoPadrao) fundamento.padrao = opts.fundamentoPadrao;
-    else if (opts.fundamentoPadrao !== null) {
-      fundamento.padrao = function (x) {
-        if (x.n > 1) return x.secretarias.length === 1 ? 'despachos d' + locativo(x.secretaria).replace(/^n/, '') : 'despachos das respectivas secretarias';
-        return 'despacho d' + locativo(x.secretaria).replace(/^n/, '');
-      };
-    } else fundamento.exemplo = 'parecer nº 123/2026 da Gerência de Política de Pessoal';
-    campos.push(fundamento);
+    campos = campos.concat(camposFundamento(opts.fundamentoTipoPadrao || 'despacho', opts.fundamentoOrigemPadrao));
     if (opts.efeitos) campos.push({ id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true });
     campos.push(
       { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio', porServidor: true },
@@ -275,9 +337,9 @@
         var fim = opts.sufixoServidor ? ', ' + c.g.do_ + ' ' + c.g.servidor + ' abaixo:' : ':';
         var fundamentos;
         if (indeferir || opts.deferido === 'adotando') {
-          fundamentos = ', adotando integralmente os fundamentos elencados ' + (plural ? 'nos ' : 'no ') + c.v('fundamento');
+          fundamentos = ', adotando integralmente os fundamentos elencados ' + fundamentoFrase(c, 'em', opts.fundamentoOrigemPadrao === null);
         } else if (opts.deferido === 'de acordo') {
-          fundamentos = ', de acordo com o ' + c.v('fundamento');
+          fundamentos = ', de acordo ' + fundamentoFrase(c, 'com', opts.fundamentoOrigemPadrao === null);
         } else fundamentos = '';
         var vigencia = 'Esta Portaria entra em vigor a partir da data de sua publicação';
         if (!indeferir && opts.retroRequerimento) vigencia += ', retroagindo seus efeitos à data do requerimento';
@@ -300,15 +362,14 @@
     var geral = pedidoSobre('licenca-premio', 'Licença Prêmio (concessão de gozo ou indeferimento)', 'Licença Prêmio', { grupo: 'Licenças e afastamentos' });
     return {
       id: geral.id, nome: geral.nome, grupo: geral.grupo,
-      campos: geral.campos.filter(function (x) { return x.id !== 'fundamento'; }).map(function (x) {
+      campos: geral.campos.map(function (x) {
         // na concessão o decênio e o período são obrigatórios (na tabela do indeferimento, opcionais)
         if (x.id === 'decenio') return Object.assign({}, x, { rotulo: 'Decênio', ajuda: 'obrigatório na concessão' });
         if (x.id === 'periodoIni') return Object.assign({}, x, { rotulo: 'Período de gozo: início', ajuda: 'obrigatório na concessão' });
         if (x.id === 'periodoFim') return Object.assign({}, x, { rotulo: 'Período de gozo: fim' });
+        if (x.id === 'fundamentoTipo') return Object.assign({}, x, { rotulo: 'Fundamentos adotados (só se indeferida): tipo' });
         return x;
-      }).concat([
-        { id: 'fundamento', rotulo: 'Fundamentos adotados (só se indeferida)', tipo: 'texto', opcional: true,
-          padrao: function (x) { return x.n > 1 ? 'despachos das respectivas secretarias' : 'despacho d' + locativo(x.secretaria).replace(/^n/, ''); } }]),
+      }),
       gerar: function (c) {
         if (c.marcado('indeferido')) return geral.gerar(c);
         var plural = c.n > 1;
@@ -460,7 +521,7 @@
       }
     }),
     pedidoSobre('reducao-ch', 'Redução de carga horária', 'Redução de Carga Horária', { grupo: 'Saúde e condições de trabalho',
-      colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, sufixoServidor: false, fundamentoPadrao: null,
+      colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, sufixoServidor: false, fundamentoTipoPadrao: 'parecer', fundamentoOrigemPadrao: null,
       efeitos: true, semDecenio: true }),
     atoIndividual({
       id: 'exoneracao', nome: 'Exoneração a pedido', grupo: 'Vínculo, lotação e carreira',
@@ -524,11 +585,11 @@
     }),
     pedidoSobre('dispensa-estagio', 'Dispensa de Estágio Probatório', 'Dispensa de Estágio Probatório', { grupo: 'Vínculo, lotação e carreira' }),
     pedidoSobre('abono-permanencia', 'Abono de permanência', 'Abono de Permanência', { grupo: 'Benefícios e pedidos',
-      colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, deferido: 'de acordo', fundamentoPadrao: null,
+      colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, deferido: 'de acordo', fundamentoTipoPadrao: 'parecer', fundamentoOrigemPadrao: null,
       retroRequerimento: true, semDecenio: true }),
     pedidoSobre('salario-familia', 'Salário família', 'Salário Família', { grupo: 'Benefícios e pedidos',
       colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, deferido: 'nenhum', sufixoServidor: false,
-      fundamentoPadrao: 'despacho da Secretaria Executiva de Gestão de Pessoas', semDecenio: true }),
+      fundamentoOrigemPadrao: 'Secretaria Executiva de Gestão de Pessoas', semDecenio: true }),
     funcaoGratificada({ id: 'fgs', nome: 'Função Gratificada – FGS (conceder / dispensar)', sigla: 'FGS',
       sing: 'Função Gratificada – FGS', plur: 'Funções Gratificadas – FGS', plurais: false,
       simbolos: ['FGS-1', 'FGS-2', 'FGS-3', 'FGS-4', 'FGS-5'] }),
@@ -589,6 +650,8 @@
         valor = String(valor == null ? '' : valor).trim();
         var c = campo(id);
         if (!valor && c && c.padrao != null) valor = valorPadrao(c, lista.map(function (y) { return { secretaria: y.secretaria }; }));
+        // campo de escolha sem valor: vale a primeira opção da lista, como na tela
+        if (!valor && c && c.tipo === 'selecao' && c.opcoes.length) valor = c.opcoes[0][0];
         return valor;
       };
       x.tem = function (id) { return !!x.bruto(id); };
@@ -634,6 +697,9 @@
     capitalizar: capitalizar,
     mapaSecretarias: mapaSecretarias,
     secretariaDoServidor: secretariaDoServidor,
+    localDeTrabalho: localDeTrabalho,
+    opcoesSecretaria: opcoesSecretaria,
+    secretariaEscolhida: secretariaEscolhida,
     ehCedido: ehCedido,
     locativo: locativo,
     semPalavraSecretaria: semPalavraSecretaria,

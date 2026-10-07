@@ -16,6 +16,7 @@
     secretarias: {},    // código do centro de custo -> nome da secretaria
     selecionados: [],   // servidores da portaria, na ordem escolhida
     valores: {},        // campos comuns, por tipo de portaria: { idDoCampo: texto }
+    escolhaSecretaria: {}, // matrícula -> 'municipal' | 'trabalho'
     valoresServ: {}     // campos de cada servidor: 'matrícula|tipo' -> { idDoCampo: texto }. Só nesta sessão; nada é gravado
   };
 
@@ -181,7 +182,8 @@
   }
 
   // ---------- busca ----------
-  function secretariaDe(s) { return R.secretariaDoServidor(s, estado.secretarias); }
+  // Secretaria usada no texto: a Secretaria Municipal ou onde o servidor trabalha, conforme a escolha no quadro dele.
+  function secretariaDe(s) { return R.secretariaEscolhida(s, estado.secretarias, estado.escolhaSecretaria[s.matricula]); }
 
   function selecionado(s) {
     return estado.selecionados.some(function (x) { return x.matricula === s.matricula; });
@@ -270,16 +272,33 @@
     montarCamposServidores();
   }
 
+  // Escolha da secretaria que sai no texto: a Secretaria Municipal ou onde o servidor trabalha (só se forem diferentes).
+  function campoSecretaria(s, i) {
+    var opcoes = R.opcoesSecretaria(s, estado.secretarias);
+    if (opcoes.length < 2) return '';
+    return '<label class="campo" for="s' + i + '-secretaria">Secretaria no texto</label><select id="s' + i + '-secretaria">' +
+      opcoes.map(function (o) { return '<option value="' + o.id + '">' + esc(o.rotulo + ': ' + o.nome) + '</option>'; }).join('') + '</select>';
+  }
+
   // Campos de cada servidor (nº do processo, requerimento…): um quadro por servidor escolhido.
   function montarCamposServidores() {
     var tipo = tipoAtual();
     var porServidor = tipo.campos.filter(function (c) { return c.porServidor; });
     var varios = estado.selecionados.length > 1;
-    $('campos-servidores').innerHTML = porServidor.length ? estado.selecionados.map(function (s, i) {
-      return '<fieldset class="servidor-campos">' + (varios ? '<legend>' + esc(s.nome) + '</legend>' : '') +
+    $('campos-servidores').innerHTML = estado.selecionados.map(function (s, i) {
+      return '<fieldset class="servidor-campos">' + (varios ? '<legend>' + esc(s.nome) + '</legend>' : '') + campoSecretaria(s, i) +
         porServidor.map(function (c) { return campoHTML('s' + i + '-', c); }).join('') + '</fieldset>';
-    }).join('') : '';
+    }).join('');
     estado.selecionados.forEach(function (s, i) {
+      var sel = $('s' + i + '-secretaria');
+      if (sel) {
+        sel.value = estado.escolhaSecretaria[s.matricula] || 'municipal';
+        sel.addEventListener('change', function () {
+          estado.escolhaSecretaria[s.matricula] = sel.value;
+          montarServidores();
+          renderizar();
+        });
+      }
       var guardados = estado.valoresServ[s.matricula + '|' + tipo.id] = estado.valoresServ[s.matricula + '|' + tipo.id] || {};
       porServidor.forEach(function (c) { ligarCampo($('s' + i + '-' + c.id), guardados, c.id); });
     });
@@ -322,7 +341,7 @@
       avisos.push(quem + 'a planilha não informa o sexo: o texto saiu no masculino. Corrija direto no texto da folha, se preciso.');
     }
     if (R.ehCedido(s)) {
-      avisos.push(quem + 'consta como CEDIDO (SEGEPE - Cedidos): a secretaria foi tirada da lotação na planilha, que pode não ser a de origem. Confira na folha.');
+      avisos.push(quem + 'consta como CEDIDO (SEGEPE - Cedidos): a secretaria foi tirada da lotação na planilha, que pode não ser a de origem. Confira em "Secretaria no texto" ou direto na folha.');
     }
     if (!s.codCentroCusto) {
       avisos.push(quem + 'sem centro de custo na planilha: confira a secretaria na folha.');

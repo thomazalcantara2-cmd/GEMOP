@@ -140,8 +140,17 @@ Regras de preenchimento:
   ganha uma linha por servidor; sai no feminino só se todos forem mulheres. Em **Exoneração** e **Readaptação** cada
   servidor ganha o seu artigo (Art. 1º, Art. 2º…) e a vigência fica no último — esse formato é adaptação nossa, ainda
   não conferida com uma portaria publicada. Se a portaria passar de uma página, ela segue para a próxima ao imprimir.
-- **Cargo, secretaria e servidor/servidora** vêm da planilha e não ficam no painel: para corrigir, edite direto o texto
-  da folha antes de imprimir.
+- **Cargo e servidor/servidora** vêm da planilha e não ficam no painel: para corrigir, edite direto o texto da folha
+  antes de imprimir.
+- **Secretaria**: em todos os modelos, no quadro de cada servidor, o campo **Secretaria no texto** deixa escolher entre
+  a **Secretaria Municipal** (pelo centro de custo; ex.: Secretaria Municipal de Administração, Governo Digital e
+  Inovação) e **onde trabalha** (local de trabalho da planilha; ex.: Secretaria Executiva de Gestão de Pessoas, ou uma
+  escola). O campo só aparece quando as duas são diferentes. A escolha vale para o texto, a tabela ("Municipal de
+  Educação" / "Executiva de Gestão de Pessoas") e o fundamento padrão.
+- **Fundamentos adotados** (pedidos): escolha o **tipo de documento** (Despacho, Parecer, Parecer Jurídico, Comunicação
+  Interna, Ofício, Informação), o **número/ano** e **quem emitiu**; o texto concorda sozinho ("no despacho da…", "na
+  Comunicação Interna nº… da…"). Padrão: despacho da secretaria do servidor; no abono de permanência e na redução de
+  carga horária, parecer, com número e órgão obrigatórios.
 - **Cargo**: `nm_cargo` em maiúsculas e sem acento vira `Professor 2`. **Servidor/servidora** (e lotado/lotada, pelo/pela…)
   segue a coluna `tp_sexo`; se estiver vazia, sai no masculino com um aviso — o painel permite trocar.
 - **Secretaria**: os 2 primeiros dígitos de `cd_centroCusto` identificam a secretaria (15… Educação, 16… Saúde…); o

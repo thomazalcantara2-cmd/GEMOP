@@ -16,6 +16,8 @@ const linha = (nome, mat, cargo, cc, cod, sexo, local) => ({
 });
 
 const LINHAS = [
+  linha('THOMAZ TESTE', 11, 'ASSESSOR ADMINISTRATIVO 1', 'SECRETARIA EXECUTIVA DE GESTAO DE PESSOAS', '131022', 'M'),
+  linha('MUNICIPAL ADM', 12, 'ASSESSOR ADMINISTRATIVO 1', 'SECRETARIA MUNICIPAL DE ADMINISTRACAO GOVERNO DIGITAL E INOVACAO', '131002', 'M'),
   linha('MARIA TESTE DA SILVA', '009133641', 'PROFESSOR 2', 'SEGPPE - PROF MAG EFETIVO - ANOS FINAIS', '151022', 'F', 'ESCOLA JOSE CARNEIRO'),
   linha('JOAO TESTE LIMA', 9136921, 'PROFESSOR 1', 'SEGPPE - OUTROS SERV EFETIVOS - APOIO', '151021', 'M'),
   linha('SECRETARIA EDUCACAO LINHA', 1, 'X', 'SECRETARIA MUNICIPAL DE EDUCACAO', '151002', 'F'),
@@ -126,7 +128,7 @@ test('indeferimento: tipo "Dispensa de Estágio Probatório", fundamento digitad
   const r = P.gerarPortaria({ tipo: 'dispensa-estagio', numero: '530', data: dt(27, 3, 2026),
     servidor: Object.assign({}, servidora, { sexo: 'F' }),
     campos: { indeferido: true, processo: '26.17.000006111-4',
-      fundamento: 'parecer da Assessoria Jurídica da Secretaria Municipal de Educação' } });
+      fundamentoTipo: 'parecer', fundamentoOrigem: 'Assessoria Jurídica da Secretaria Municipal de Educação' } });
   assert.match(r.blocos[0].texto, /formulado pela servidora abaixo discriminada\.$/);
   assert.match(r.blocos[2].texto, /pedido de \*\*Dispensa de Estágio Probatório\*\*.*no parecer da Assessoria Jurídica da Secretaria Municipal de Educação, da servidora abaixo:$/);
 });
@@ -297,18 +299,18 @@ test('readaptação definitiva não tem prazo', () => {
 });
 
 test('redução de carga horária: tabela com data do requerimento e sem Decênio', () => {
-  const r = base1('reducao-ch', { indeferido: true, fundamento: 'parecer nº 5/2026 da Gerência de Política de Pessoal', efeitos: dt(1, 9, 2026) },
+  const r = base1('reducao-ch', { indeferido: true, fundamentoNumero: '5/2026', fundamentoOrigem: 'Gerência de Política de Pessoal', efeitos: dt(1, 9, 2026) },
     [pessoa('ANA', '9136921', 'F', null, { processo: '26.17.1-1', dataReq: dt(3, 8, 2026) })]);
   assert.deepStrictEqual(r.faltando, []);
   assert.strictEqual(r.blocos[2].texto, '**Art. 1º. INDEFERIR** o pedido de **Redução de Carga Horária**, adotando integralmente os fundamentos elencados no parecer nº 5/2026 da Gerência de Política de Pessoal:');
   assert.deepStrictEqual(r.blocos[3].colunas, ['Nº Processo', 'Nome', 'Matrícula', 'Secretaria', 'Data do Requerimento']);
   assert.strictEqual(r.blocos[3].linhas[0][4], '03.08.2026');
   assert.match(r.blocos[4].texto, /retroagindo seus efeitos a 01\.09\.2026\.$/);
-  assert.deepStrictEqual(base1('reducao-ch', {}, [pessoa('ANA', '1', 'F', null, { processo: '1', dataReq: dt(1, 1, 2026) })]).faltando, ['Fundamentos adotados']);
+  assert.deepStrictEqual(base1('reducao-ch', {}, [pessoa('ANA', '1', 'F', null, { processo: '1', dataReq: dt(1, 1, 2026) })]).faltando, ['Fundamento: número/ano', 'Fundamento: emitido por']);
 });
 
 test('abono de permanência deferido: de acordo com o parecer, retroagindo à data do requerimento', () => {
-  const r = base1('abono-permanencia', { fundamento: 'parecer nº 77/2026 da Gerência de Política de Pessoal' },
+  const r = base1('abono-permanencia', { fundamentoNumero: '77/2026', fundamentoOrigem: 'Gerência de Política de Pessoal' },
     [pessoa('CARLOS', '1', 'M', null, { processo: '9', dataReq: dt(5, 5, 2026) })]);
   assert.strictEqual(r.blocos[2].texto, '**Art. 1º. DEFERIR** o pedido de **Abono de Permanência**, de acordo com o parecer nº 77/2026 da Gerência de Política de Pessoal, do servidor abaixo:');
   assert.strictEqual(r.blocos[4].texto, '**Art. 2º.** Esta Portaria entra em vigor a partir da data de sua publicação, retroagindo seus efeitos à data do requerimento.');
@@ -408,4 +410,38 @@ test('período de gozo sai em dd/mm/aaaa a dd/mm/aaaa; só uma data preenchida �
   const meio = base1('licenca-curso', {}, [pessoa('ANA', '1', 'F', null, { processo: '1', periodoIni: dt(1, 4, 2026) })]);
   assert.deepStrictEqual(meio.faltando, ['Período de gozo: fim']);
   assert.strictEqual(meio.blocos[3].linhas[0][4], '01/04/2026 a [período de gozo: fim]');
+});
+
+test('fundamentos: tipo de documento, número e quem emitiu', () => {
+  const s = [pessoa('ANA', '1', 'F', null, { processo: '1' })];
+  const f = (campos) => P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026), campos: Object.assign({ indeferido: true }, campos), servidores: s }).blocos[2].texto;
+  assert.match(f({}), /elencados no despacho da Secretaria Municipal de Educação, da servidora abaixo:$/);
+  assert.match(f({ fundamentoTipo: 'ci', fundamentoNumero: '0861336' }), /elencados na Comunicação Interna nº 0861336 da Secretaria Municipal de Educação,/);
+  assert.match(f({ fundamentoTipo: 'oficio', fundamentoNumero: '12/2026', fundamentoOrigem: 'Gabinete do Prefeito' }), /elencados no ofício nº 12\/2026 do Gabinete do Prefeito,/);
+  assert.match(f({ fundamentoTipo: 'parecer-juridico' }), /elencados no parecer jurídico da Secretaria/);
+  const dois = P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026), campos: { fundamentoTipo: 'informacao', fundamentoNumero: '1' },
+    servidores: [pessoa('ANA', '1', 'F', null, { processo: '1' }), pessoa('BIA', '2', 'F', 'Secretaria Municipal de Saúde', { processo: '2' })] });
+  assert.match(dois.blocos[2].texto, /elencados nas informações nº 1 das respectivas secretarias, das servidoras abaixo:$/);
+  assert.deepStrictEqual(P.tipoPorId('abono-permanencia').campos.find((c) => c.id === 'fundamentoTipo').opcoes[0], ['parecer', 'Parecer']);
+});
+
+test('secretaria: escolher entre a Secretaria Municipal e onde o servidor trabalha', () => {
+  const mapa = P.mapaSecretarias(base);
+  const thomaz = por('THOMAZ TESTE');
+  assert.deepStrictEqual(P.opcoesSecretaria(thomaz, mapa).map((o) => [o.id, o.nome]), [
+    ['municipal', 'Secretaria Municipal de Administração, Governo Digital e Inovação'],
+    ['trabalho', 'Secretaria Executiva de Gestão de Pessoas']]);
+  assert.strictEqual(P.secretariaEscolhida(thomaz, mapa, 'trabalho'), 'Secretaria Executiva de Gestão de Pessoas');
+  assert.strictEqual(P.secretariaEscolhida(thomaz, mapa, 'municipal'), 'Secretaria Municipal de Administração, Governo Digital e Inovação');
+  assert.strictEqual(P.secretariaEscolhida(thomaz, mapa, undefined), 'Secretaria Municipal de Administração, Governo Digital e Inovação');
+  // quando o local de trabalho é a própria Secretaria Municipal, só há uma opção
+  assert.strictEqual(P.opcoesSecretaria(por('MUNICIPAL ADM'), mapa).length, 1);
+  // no texto: "lotado na Secretaria Executiva…" e, na tabela, "Executiva de Gestão de Pessoas"
+  const r = base1('licenca-curso', {}, [Object.assign(pessoa('THOMAZ', '11', 'M', P.secretariaEscolhida(thomaz, mapa, 'trabalho'), { processo: '1' }))]);
+  assert.strictEqual(r.blocos[3].linhas[0][3], 'Executiva de Gestão de Pessoas');
+});
+
+test('acentos em nomes de escolas e santos', () => {
+  assert.strictEqual(P.capitalizar('ESCOLA NOSSA SENHORA DA CONCEICAO'), 'Escola Nossa Senhora da Conceição');
+  assert.strictEqual(P.capitalizar('ESCOLA JOSE CARNEIRO'), 'Escola José Carneiro');
 });
