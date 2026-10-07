@@ -59,6 +59,7 @@
   function mostrarErro(msg) {
     $('erro').textContent = msg;
     $('erro').hidden = !msg;
+    if (msg && !estado.indice) mostrarCarregamento(true);
   }
 
   // Só a FichaContabilis é usada; outras planilhas (Ficha Cadastral) são ignoradas.
@@ -167,18 +168,25 @@
     renderizar();
   }
 
+  // O quadro de carregar a planilha fica escondido: a planilha é lida sozinha da pasta. Ele só aparece se ela não for achada
+  // (ou der erro); a situação normal fica resumida na barra superior.
+  function mostrarCarregamento(sim) {
+    $('det-planilhas').hidden = !sim;
+    if (sim) $('det-planilhas').open = true;
+  }
+
   function atualizarStatus() {
     var i = estado.indice;
-    // o quadro abre sozinho enquanto falta a planilha e fecha quando ela carrega
-    if (!i) $('det-planilhas').open = true;
-    else if (!estado.quadroFechado) { $('det-planilhas').open = false; estado.quadroFechado = true; }
     var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
+    var resumo = i ? i.nome + ' · ' + i.linhas.length + ' servidores' + (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') : '';
+    $('topo-sub').textContent = i ? 'SEGEP · ' + resumo : 'SEGEP · preenchimento automático pela FichaContabilis';
+    $('topo-sub').title = i && i.modificado ? 'Arquivo de ' + i.modificado.toLocaleDateString('pt-BR') : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
-    $('status-indice').innerHTML = i
-      ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) + '<br><small>' + i.linhas.length + ' servidores' +
-        (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') +
-        (i.modificado ? ' · arquivo de ' + i.modificado.toLocaleDateString('pt-BR') : '') + '</small>'
-      : '<b>Ficha Contabilis</b> — aguardando arquivo';
+    $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(resumo) : '<b>Ficha Contabilis</b> — aguardando arquivo';
+    clearTimeout(estado.esperaCarga);
+    if (i) mostrarCarregamento(false);
+    // dá um tempo para a leitura automática da pasta antes de mostrar o quadro de carregar
+    else estado.esperaCarga = setTimeout(function () { if (!estado.indice) mostrarCarregamento(true); }, 1500);
   }
 
   // ---------- busca ----------

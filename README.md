@@ -115,6 +115,8 @@ e assinatura do Secretário Executivo de Gestão de Pessoas) com os dados do ser
 mesmo tempo que ele). Sem o aplicativo, abra `portarias.html` no Chrome/Edge e escolha a pasta ou arraste a
 FichaContabilis, como no Requerimento.
 
+**A planilha** é lida sozinha da pasta configurada no `pasta.txt`, sem tela para isso: o nome do arquivo, o total de servidores e a competência aparecem na barra superior, e o botão **Recarregar planilha** (também lá em cima) relê a pasta depois que você salvar uma planilha nova. Só se a planilha não for encontrada é que aparece um quadro para escolher a pasta ou arrastar o arquivo (arrastar para qualquer lugar da página também funciona).
+
 **Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF) — para **mais de um servidor
 na mesma portaria**, busque e escolha um por vez (o ✕ retira); 3) digite o **nº da portaria**, a data e os campos do
 modelo (processo, requerimento, ofício… — o que é de cada servidor aparece no cartão dele, logo abaixo do nome; a seção 3 traz só o que vale para a portaria toda); 4) **Imprimir / Salvar PDF** ou
