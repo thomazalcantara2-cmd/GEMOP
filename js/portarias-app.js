@@ -163,7 +163,6 @@
     });
     atualizarBusca();
     montarServidores();
-    montarCamposServidores();
     renderizar();
   }
 
@@ -207,23 +206,42 @@
     $('busca').value = '';
     $('resultados').hidden = true;
     montarServidores();
-    montarCamposServidores();
     renderizar();
   }
 
   function retirar(matricula) {
     estado.selecionados = estado.selecionados.filter(function (s) { return s.matricula !== matricula; });
     montarServidores();
-    montarCamposServidores();
     renderizar();
   }
 
+  // Resumo (matrícula · cargo · secretaria) que aparece embaixo do nome do servidor.
+  function resumoDoServidor(s) {
+    return 'Mat. ' + s.matriculaFormatada + ' · ' + R.capitalizar(s.cargoNome) + ' · ' + secretariaDe(s);
+  }
+
+  // Um cartão para cada servidor escolhido: nome, resumo e, logo abaixo, os campos dele (nº do processo, decênio…).
   function montarServidores() {
-    $('lista-servidores').innerHTML = estado.selecionados.map(function (s) {
-      return '<li><span><b>' + esc(s.nome) + '</b><small>Mat. ' + esc(s.matriculaFormatada) + ' · ' + esc(R.capitalizar(s.cargoNome)) +
-        ' · ' + esc(secretariaDe(s)) + '</small></span>' +
-        '<button type="button" data-mat="' + esc(s.matricula) + '" title="Retirar da portaria" aria-label="Retirar ' + esc(s.nome) + ' da portaria">✕</button></li>';
+    var tipo = tipoAtual();
+    var porServidor = tipo.campos.filter(function (c) { return c.porServidor; });
+    $('lista-servidores').innerHTML = estado.selecionados.map(function (s, i) {
+      return '<li><div class="servidor-topo"><span><b>' + esc(s.nome) + '</b><small id="resumo-' + i + '">' + esc(resumoDoServidor(s)) + '</small></span>' +
+        '<button type="button" data-mat="' + esc(s.matricula) + '" title="Retirar da portaria" aria-label="Retirar ' + esc(s.nome) + ' da portaria">✕</button></div>' +
+        '<div class="servidor-campos">' + campoSecretaria(s, i) + porServidor.map(function (c) { return campoHTML('s' + i + '-', c); }).join('') + '</div></li>';
     }).join('');
+    estado.selecionados.forEach(function (s, i) {
+      var sel = $('s' + i + '-secretaria');
+      if (sel) {
+        sel.value = estado.escolhaSecretaria[s.matricula] || 'municipal';
+        sel.addEventListener('change', function () {
+          estado.escolhaSecretaria[s.matricula] = sel.value;
+          $('resumo-' + i).textContent = resumoDoServidor(s);
+          renderizar();
+        });
+      }
+      var guardados = estado.valoresServ[s.matricula + '|' + tipo.id] = estado.valoresServ[s.matricula + '|' + tipo.id] || {};
+      porServidor.forEach(function (c) { ligarCampo($('s' + i + '-' + c.id), guardados, c.id); });
+    });
   }
 
   // ---------- campos do modelo escolhido ----------
@@ -289,7 +307,7 @@
     });
     $('campos-tipo').innerHTML = comuns.map(function (c) { return campoHTML('c-', c); }).join('');
     comuns.forEach(function (c) { ligarCampo($('c-' + c.id), guardados, c.id); });
-    montarCamposServidores();
+    montarServidores();
   }
 
   // Escolha da secretaria que sai no texto: a Secretaria Municipal ou onde o servidor trabalha (só se forem diferentes).
@@ -298,30 +316,6 @@
     if (opcoes.length < 2) return '';
     return '<label class="campo" for="s' + i + '-secretaria">Secretaria (no texto e na coluna Secretaria de Origem)</label><select id="s' + i + '-secretaria">' +
       opcoes.map(function (o) { return '<option value="' + o.id + '">' + esc(o.rotulo + ': ' + o.nome) + '</option>'; }).join('') + '</select>';
-  }
-
-  // Campos de cada servidor (nº do processo, requerimento…): um quadro por servidor escolhido.
-  function montarCamposServidores() {
-    var tipo = tipoAtual();
-    var porServidor = tipo.campos.filter(function (c) { return c.porServidor; });
-    var varios = estado.selecionados.length > 1;
-    $('campos-servidores').innerHTML = estado.selecionados.map(function (s, i) {
-      return '<fieldset class="servidor-campos">' + (varios ? '<legend>' + esc(s.nome) + '</legend>' : '') + campoSecretaria(s, i) +
-        porServidor.map(function (c) { return campoHTML('s' + i + '-', c); }).join('') + '</fieldset>';
-    }).join('');
-    estado.selecionados.forEach(function (s, i) {
-      var sel = $('s' + i + '-secretaria');
-      if (sel) {
-        sel.value = estado.escolhaSecretaria[s.matricula] || 'municipal';
-        sel.addEventListener('change', function () {
-          estado.escolhaSecretaria[s.matricula] = sel.value;
-          montarServidores();
-          renderizar();
-        });
-      }
-      var guardados = estado.valoresServ[s.matricula + '|' + tipo.id] = estado.valoresServ[s.matricula + '|' + tipo.id] || {};
-      porServidor.forEach(function (c) { ligarCampo($('s' + i + '-' + c.id), guardados, c.id); });
-    });
   }
 
   // Padrão de cada campo aparece como sugestão (placeholder) e vale quando o campo fica vazio.
