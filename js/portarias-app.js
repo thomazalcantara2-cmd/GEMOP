@@ -229,6 +229,26 @@
   // ---------- campos do modelo escolhido ----------
   function tipoAtual() { return R.tipoPorId($('tipo').value) || R.TIPOS[0]; }
 
+  // Campos de escolha cujas alternativas dependem dos servidores (ex.: "de quem foi" o fundamento): refaz a lista com os
+  // nomes atuais, mantém a escolha e só deixa digitar o emissor quando a escolha é "Outro".
+  function atualizarOpcoesDinamicas(servidores) {
+    tipoAtual().campos.forEach(function (c) {
+      if (c.dinamica !== 'origemFundamento') return;
+      var el = $('c-' + c.id);
+      if (!el) return;
+      var opcoes = R.opcoesOrigemFundamento(servidores, c.padraoEscolha);
+      var chave = JSON.stringify(opcoes);
+      if (el._opcoes !== chave) {
+        var atual = el.value || (estado.valores[tipoAtual().id] || {})[c.id] || '';
+        el.innerHTML = opcoes.map(function (o) { return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join('');
+        el._opcoes = chave;
+        el.value = opcoes.some(function (o) { return o[0] === atual; }) ? atual : opcoes[0][0];
+      }
+      var texto = $('c-fundamentoOrigem');
+      if (texto) texto.disabled = el.value !== 'outro';
+    });
+  }
+
   // Valor lido de um campo da tela (data vira {a,m,d}; vazio = '').
   function lerCampo(el, c) {
     var v = el.value.trim();
@@ -276,7 +296,7 @@
   function campoSecretaria(s, i) {
     var opcoes = R.opcoesSecretaria(s, estado.secretarias);
     if (opcoes.length < 2) return '';
-    return '<label class="campo" for="s' + i + '-secretaria">Secretaria no texto</label><select id="s' + i + '-secretaria">' +
+    return '<label class="campo" for="s' + i + '-secretaria">Secretaria (no texto e na coluna Secretaria de Origem)</label><select id="s' + i + '-secretaria">' +
       opcoes.map(function (o) { return '<option value="' + o.id + '">' + esc(o.rotulo + ': ' + o.nome) + '</option>'; }).join('') + '</select>';
   }
 
@@ -332,7 +352,8 @@
     tipoAtual().campos.forEach(function (c) {
       if (c.porServidor) campos[c.id] = lerCampo($('s' + i + '-' + c.id), c);
     });
-    return { nome: s.nome, matricula: s.matricula, cargo: R.capitalizar(s.cargoNome), secretaria: secretariaDe(s), sexo: s.sexo, campos: campos };
+    return { nome: s.nome, matricula: s.matricula, cargo: R.capitalizar(s.cargoNome), secretaria: secretariaDe(s), sexo: s.sexo, campos: campos,
+      opcoesSecretaria: R.opcoesSecretaria(s, estado.secretarias) };
   }
 
   function avisosDoServidor(s, varios) {
@@ -359,6 +380,7 @@
     var escolhidos = estado.selecionados;
     var dataDoc = D.paraData($('v-data').value) || D.paraData(hojeISO());
     var servidores = escolhidos.map(dadosDoServidor);
+    atualizarOpcoesDinamicas(servidores);
     sugerirPadroes(servidores.length ? servidores : [{ secretaria: '' }]);
 
     var portaria = R.gerarPortaria({

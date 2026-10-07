@@ -153,9 +153,12 @@ Regras de preenchimento:
   escola). O campo só aparece quando as duas são diferentes. A escolha vale para o texto, a tabela ("Municipal de
   Educação" / "Executiva de Gestão de Pessoas") e o fundamento padrão.
 - **Fundamentos adotados** (pedidos): escolha o **tipo de documento** (Despacho, Parecer, Parecer Jurídico, Comunicação
-  Interna, Ofício, Informação), o **número/ano** e **quem emitiu**; o texto concorda sozinho ("no despacho da…", "na
-  Comunicação Interna nº… da…"). Padrão: despacho da secretaria do servidor; no abono de permanência e na redução de
-  carga horária, parecer, com número e órgão obrigatórios.
+  Interna, Ofício, Informação), o **número/ano** e **de quem foi**: *igual à secretaria do servidor* (padrão), a
+  **Secretaria Municipal**, **onde trabalha** ou **Outro** (digitar o emissor, ex.: "Gerência de Política de Pessoal").
+  O texto concorda sozinho ("no despacho da…", "na Comunicação Interna nº… da…"). Essa escolha é **independente** da
+  "Secretaria de Origem" da tabela: a tabela pode estar na Secretaria Executiva onde o servidor trabalha e o fundamento
+  ser da Secretaria Municipal (ou o contrário). No abono de permanência e na redução de carga horária, o padrão é
+  parecer, com número e emissor digitados (obrigatórios).
 - **Cargo**: `nm_cargo` em maiúsculas e sem acento vira `Professor 2`. **Servidor/servidora** (e lotado/lotada, pelo/pela…)
   segue a coluna `tp_sexo`; se estiver vazia, sai no masculino com um aviso — o painel permite trocar.
 - **Secretaria**: os 2 primeiros dígitos de `cd_centroCusto` identificam a secretaria (15… Educação, 16… Saúde…); o

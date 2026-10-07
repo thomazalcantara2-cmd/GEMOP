@@ -256,21 +256,59 @@
     return (/^(gabinete|n[uú]cleo|conselho|escrit[oó]rio|departamento|instituto|tribunal)/i.test(nome) ? 'do ' : 'da ') + nome;
   }
 
-  // Campos do fundamento. tipoPadrao: documento que aparece primeiro na lista (e vale se nada for escolhido);
-  // origemPadrao: undefined = a secretaria dos servidores; texto = fixo; null = sem sugestão (obrigatório).
+  // Campos do fundamento: tipo de documento, número/ano e DE QUEM foi (escolha entre a secretaria do servidor, a Secretaria
+  // Municipal, onde o servidor trabalha ou outra digitada — que pode ser diferente da "Secretaria de Origem" da tabela).
+  // tipoPadrao: documento que aparece primeiro na lista; origemPadrao: undefined = igual à secretaria do servidor;
+  // texto = emissor fixo sugerido; null = emissor obrigatório (digitar).
   function camposFundamento(tipoPadrao, origemPadrao) {
     var ordem = TIPOS_FUNDAMENTO.filter(function (t) { return t.id === tipoPadrao; })
       .concat(TIPOS_FUNDAMENTO.filter(function (t) { return t.id !== tipoPadrao; }));
-    var origem = { id: 'fundamentoOrigem', rotulo: 'Fundamento: emitido por', tipo: 'texto' };
+    var digitar = origemPadrao !== undefined;
+    var origem = { id: 'fundamentoOrigem', rotulo: digitar ? 'Fundamento: emitido por' : 'Fundamento: outro emissor (digitar)', tipo: 'texto' };
     if (origemPadrao === null) origem.exemplo = 'Gerência de Política de Pessoal';
     else if (typeof origemPadrao === 'string') origem.padrao = origemPadrao;
-    else origem.padrao = function (x) { return x.n > 1 && x.secretarias.length !== 1 ? 'respectivas secretarias' : x.secretaria; };
+    else origem.exemplo = 'Assessoria Jurídica da Secretaria Municipal de Educação';
     return [
       { id: 'fundamentoTipo', rotulo: 'Fundamentos adotados: tipo de documento', tipo: 'selecao',
         opcoes: ordem.map(function (t) { return [t.id, t.rotulo]; }) },
       { id: 'fundamentoNumero', rotulo: 'Fundamento: número/ano', tipo: 'texto', exemplo: '123/2026', opcional: origemPadrao !== null },
+      { id: 'fundamentoOrigemEscolha', rotulo: 'Fundamento: de quem foi', tipo: 'selecao', dinamica: 'origemFundamento',
+        padraoEscolha: digitar ? 'outro' : 'servidor',
+        opcoes: digitar ? [['outro', 'Outro (digitar abaixo)'], ['servidor', 'Igual à secretaria do servidor']]
+          : [['servidor', 'Igual à secretaria do servidor'], ['outro', 'Outro (digitar abaixo)']] },
       origem
     ];
+  }
+
+  // Alternativas do campo "de quem foi" com os nomes reais dos servidores escolhidos (servidores: { secretaria, opcoesSecretaria }).
+  function opcoesOrigemFundamento(servidores, padrao) {
+    function nomes(id) {
+      return dedupe(servidores.map(function (x) {
+        var op = (x.opcoesSecretaria || []).filter(function (o) { return o.id === id; })[0];
+        return op ? op.nome : null;
+      }));
+    }
+    function rotulo(prefixo, lista) {
+      return lista.length === 1 ? prefixo + ': ' + lista[0] : prefixo + ' dos servidores (respectivas secretarias)';
+    }
+    var igual = dedupe(servidores.map(function (x) { return x.secretaria; }).filter(Boolean));
+    var lista = [['servidor', 'Igual à secretaria do servidor' + (igual.length === 1 ? ': ' + igual[0] : igual.length > 1 ? ' (respectivas secretarias)' : '')]];
+    var mun = nomes('municipal'), trab = nomes('trabalho');
+    if (servidores.length && mun.indexOf(null) < 0) lista.push(['municipal', rotulo('Secretaria Municipal', mun)]);
+    if (servidores.length && trab.indexOf(null) < 0) lista.push(['trabalho', rotulo('Onde trabalha', trab)]);
+    var outro = ['outro', 'Outro (digitar abaixo)'];
+    return padrao === 'outro' ? [outro].concat(lista) : lista.concat([outro]);
+  }
+
+  // Nome de quem emitiu o fundamento, conforme a escolha (vários servidores com secretarias diferentes: "respectivas secretarias").
+  function origemFundamento(c) {
+    var escolha = c.v('fundamentoOrigemEscolha');
+    if (escolha === 'outro') return c.v('fundamentoOrigem');
+    var nomes = dedupe(c.servs.map(function (x) {
+      var op = (x.opcoesSecretaria || []).filter(function (o) { return o.id === escolha; })[0];
+      return escolha === 'servidor' || !op ? x.secretaria : op.nome;
+    }));
+    return nomes.length === 1 ? nomes[0] : 'respectivas secretarias';
   }
 
   // "no despacho da Secretaria…", "na Comunicação Interna nº 12/2026 da…", "com o parecer nº…" (prep: 'em' ou 'com')
@@ -280,7 +318,7 @@
     var artigo = (plural ? (t.fem ? 'as' : 'os') : (t.fem ? 'a' : 'o'));
     var ligacao = prep === 'em' ? (plural ? (t.fem ? 'nas' : 'nos') : (t.fem ? 'na' : 'no')) : 'com ' + artigo;
     return ligacao + ' ' + (plural ? t.plur : t.sing) + (c.tem('fundamentoNumero') || numeroObrigatorio ? ' nº ' + c.v('fundamentoNumero') : '') +
-      ' ' + deOrigem(c.v('fundamentoOrigem'));
+      ' ' + deOrigem(origemFundamento(c));
   }
 
   var CAMPOS_REQUERIMENTO = [
@@ -368,6 +406,7 @@
         if (x.id === 'periodoIni') return Object.assign({}, x, { rotulo: 'Período de gozo: início', ajuda: 'obrigatório na concessão' });
         if (x.id === 'periodoFim') return Object.assign({}, x, { rotulo: 'Período de gozo: fim' });
         if (x.id === 'fundamentoTipo') return Object.assign({}, x, { rotulo: 'Fundamentos adotados (só se indeferida): tipo' });
+        if (x.id === 'fundamentoOrigemEscolha') return Object.assign({}, x, { rotulo: 'Fundamento (só se indeferida): de quem foi' });
         return x;
       }),
       gerar: function (c) {
@@ -642,7 +681,8 @@
     var servs = lista.map(function (s) {
       var x = {
         nome: s.nome || '[servidor]', matricula: formatarMatricula(s.matricula, dados.formatoMatricula) || '[matrícula]',
-        cargo: s.cargo || '[cargo]', secretaria: s.secretaria || '[secretaria]', g: genero(s.sexo, false)
+        cargo: s.cargo || '[cargo]', secretaria: s.secretaria || '[secretaria]', g: genero(s.sexo, false),
+        opcoesSecretaria: s.opcoesSecretaria || []
       };
       x.bruto = function (id) {
         var valor = s.campos && s.campos[id] != null && s.campos[id] !== '' ? s.campos[id] : (dados.campos ? dados.campos[id] : null);
@@ -700,6 +740,7 @@
     localDeTrabalho: localDeTrabalho,
     opcoesSecretaria: opcoesSecretaria,
     secretariaEscolhida: secretariaEscolhida,
+    opcoesOrigemFundamento: opcoesOrigemFundamento,
     ehCedido: ehCedido,
     locativo: locativo,
     semPalavraSecretaria: semPalavraSecretaria,

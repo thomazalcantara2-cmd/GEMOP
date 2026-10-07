@@ -128,7 +128,7 @@ test('indeferimento: tipo "Dispensa de Estágio Probatório", fundamento digitad
   const r = P.gerarPortaria({ tipo: 'dispensa-estagio', numero: '530', data: dt(27, 3, 2026),
     servidor: Object.assign({}, servidora, { sexo: 'F' }),
     campos: { indeferido: true, processo: '26.17.000006111-4',
-      fundamentoTipo: 'parecer', fundamentoOrigem: 'Assessoria Jurídica da Secretaria Municipal de Educação' } });
+      fundamentoTipo: 'parecer', fundamentoOrigemEscolha: 'outro', fundamentoOrigem: 'Assessoria Jurídica da Secretaria Municipal de Educação' } });
   assert.match(r.blocos[0].texto, /formulado pela servidora abaixo discriminada\.$/);
   assert.match(r.blocos[2].texto, /pedido de \*\*Dispensa de Estágio Probatório\*\*.*no parecer da Assessoria Jurídica da Secretaria Municipal de Educação, da servidora abaixo:$/);
 });
@@ -417,7 +417,7 @@ test('fundamentos: tipo de documento, número e quem emitiu', () => {
   const f = (campos) => P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026), campos: Object.assign({ indeferido: true }, campos), servidores: s }).blocos[2].texto;
   assert.match(f({}), /elencados no despacho da Secretaria Municipal de Educação, da servidora abaixo:$/);
   assert.match(f({ fundamentoTipo: 'ci', fundamentoNumero: '0861336' }), /elencados na Comunicação Interna nº 0861336 da Secretaria Municipal de Educação,/);
-  assert.match(f({ fundamentoTipo: 'oficio', fundamentoNumero: '12/2026', fundamentoOrigem: 'Gabinete do Prefeito' }), /elencados no ofício nº 12\/2026 do Gabinete do Prefeito,/);
+  assert.match(f({ fundamentoTipo: 'oficio', fundamentoNumero: '12/2026', fundamentoOrigemEscolha: 'outro', fundamentoOrigem: 'Gabinete do Prefeito' }), /elencados no ofício nº 12\/2026 do Gabinete do Prefeito,/);
   assert.match(f({ fundamentoTipo: 'parecer-juridico' }), /elencados no parecer jurídico da Secretaria/);
   const dois = P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026), campos: { fundamentoTipo: 'informacao', fundamentoNumero: '1' },
     servidores: [pessoa('ANA', '1', 'F', null, { processo: '1' }), pessoa('BIA', '2', 'F', 'Secretaria Municipal de Saúde', { processo: '2' })] });
@@ -444,4 +444,43 @@ test('secretaria: escolher entre a Secretaria Municipal e onde o servidor trabal
 test('acentos em nomes de escolas e santos', () => {
   assert.strictEqual(P.capitalizar('ESCOLA NOSSA SENHORA DA CONCEICAO'), 'Escola Nossa Senhora da Conceição');
   assert.strictEqual(P.capitalizar('ESCOLA JOSE CARNEIRO'), 'Escola José Carneiro');
+});
+
+test('fundamento: de quem foi pode ser diferente da Secretaria de Origem da tabela', () => {
+  const mapa = P.mapaSecretarias(base);
+  const thomaz = por('THOMAZ TESTE');
+  const opcoes = P.opcoesSecretaria(thomaz, mapa);
+  const servidor = (escolha) => ({ nome: 'THOMAZ', matricula: '11', cargo: 'Assessor', sexo: 'M', opcoesSecretaria: opcoes,
+    secretaria: P.secretariaEscolhida(thomaz, mapa, escolha), campos: { processo: '1' } });
+  const gera = (escolhaTabela, camposComuns) => P.gerarPortaria({ tipo: 'licenca-curso', numero: '1', data: dt(1, 4, 2026),
+    campos: Object.assign({ indeferido: true }, camposComuns), servidores: [servidor(escolhaTabela)] });
+  // tabela com "onde trabalha"; fundamento da Secretaria Municipal
+  const r = gera('trabalho', { fundamentoTipo: 'ci', fundamentoOrigemEscolha: 'municipal' });
+  assert.strictEqual(r.blocos[3].linhas[0][3], 'Executiva de Gestão de Pessoas');
+  assert.match(r.blocos[2].texto, /elencados na Comunicação Interna da Secretaria Municipal de Administração, Governo Digital e Inovação,/);
+  // e o inverso: tabela na Secretaria Municipal; fundamento de onde trabalha
+  const r2 = gera('municipal', { fundamentoOrigemEscolha: 'trabalho' });
+  assert.strictEqual(r2.blocos[3].linhas[0][3], 'Municipal de Administração, Governo Digital e Inovação');
+  assert.match(r2.blocos[2].texto, /elencados no despacho da Secretaria Executiva de Gestão de Pessoas,/);
+  // padrão: igual à secretaria escolhida para o servidor
+  assert.match(gera('trabalho', {}).blocos[2].texto, /elencados no despacho da Secretaria Executiva de Gestão de Pessoas,/);
+});
+
+test('opções do campo "de quem foi" mostram os nomes reais', () => {
+  const mapa = P.mapaSecretarias(base);
+  const thomaz = por('THOMAZ TESTE');
+  const s = { secretaria: P.secretariaEscolhida(thomaz, mapa, 'municipal'), opcoesSecretaria: P.opcoesSecretaria(thomaz, mapa) };
+  assert.deepStrictEqual(P.opcoesOrigemFundamento([s]), [
+    ['servidor', 'Igual à secretaria do servidor: Secretaria Municipal de Administração, Governo Digital e Inovação'],
+    ['municipal', 'Secretaria Municipal: Secretaria Municipal de Administração, Governo Digital e Inovação'],
+    ['trabalho', 'Onde trabalha: Secretaria Executiva de Gestão de Pessoas'],
+    ['outro', 'Outro (digitar abaixo)']]);
+  assert.strictEqual(P.opcoesOrigemFundamento([s], 'outro')[0][0], 'outro');
+  // servidor sem local diferente: não oferece "onde trabalha"
+  const so = { secretaria: 'Secretaria Municipal de Educação', opcoesSecretaria: [{ id: 'municipal', nome: 'Secretaria Municipal de Educação' }] };
+  assert.deepStrictEqual(P.opcoesOrigemFundamento([so]).map((o) => o[0]), ['servidor', 'municipal', 'outro']);
+  // dois servidores com secretarias diferentes: "respectivas secretarias"
+  const dois = P.opcoesOrigemFundamento([so, s]);
+  assert.match(dois[0][1], /respectivas secretarias/);
+  assert.deepStrictEqual(P.opcoesOrigemFundamento([]).map((o) => o[0]), ['servidor', 'outro']);
 });
