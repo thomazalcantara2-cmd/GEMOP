@@ -14,12 +14,25 @@ $raiz = $PSScriptRoot
 
 # Pasta das planilhas: "planilhas" ao lado deste arquivo, ou o caminho escrito em pasta.txt
 $pasta = Join-Path $raiz 'planilhas'
+$pastaConfigurada = $false
 $config = Join-Path $raiz 'pasta.txt'
 if (Test-Path -LiteralPath $config) {
     $linha = (Get-Content -LiteralPath $config -Encoding UTF8 | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') } | Select-Object -First 1)
-    if ($linha) { $pasta = [Environment]::ExpandEnvironmentVariables($linha.Trim().Trim('"')) }
+    if ($linha) { $pasta = [Environment]::ExpandEnvironmentVariables($linha.Trim().Trim('"')); $pastaConfigurada = $true }
 }
-if (-not (Test-Path -LiteralPath $pasta)) { New-Item -ItemType Directory -Path $pasta | Out-Null }
+if (-not (Test-Path -LiteralPath $pasta)) {
+    if ($pastaConfigurada) {
+        # pasta escolhida em pasta.txt: nao cria sozinha (pode ser o Google Drive, unidade J:, ainda fechado)
+        Write-Host ''
+        Write-Host "  Nao foi possivel encontrar a pasta das planilhas:" -ForegroundColor Red
+        Write-Host "  $pasta"
+        Write-Host '  Confira se o Google Drive esta aberto (unidade J:) e se o caminho escrito em pasta.txt esta certo.' -ForegroundColor Yellow
+        Write-Host ''
+        Read-Host 'Enter para sair'
+        exit 1
+    }
+    New-Item -ItemType Directory -Path $pasta | Out-Null
+}
 $pasta = (Resolve-Path -LiteralPath $pasta).Path
 
 $tipos = @{

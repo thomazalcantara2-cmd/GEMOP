@@ -13,6 +13,11 @@ exportadas do sistema de RH:
 
 ## Aplicativo local (recomendado no Windows)
 
+> **Pasta já configurada:** o `pasta.txt` que acompanha o projeto aponta para
+> `J:\Meu Drive\SECRETARIA EXECUTIVA DE GESTÃO DE PESSOAS\0. SEGEP\2026\EQUIPE_SEGEP\THOMAZ\PORTARIAS\INDICIE SERVIDORES`
+> (Google Drive). Os dois programas (`Requerimento.bat` e `Portarias.bat`) leem sempre o arquivo mais recente dessa pasta.
+> Se o Google Drive (unidade J:) estiver fechado, o programa avisa e não abre. Para outra pasta, troque a linha em `pasta.txt`.
+
 1. Salve os relatórios na pasta `planilhas` (ou escreva em `pasta.txt` o caminho da pasta onde você já os salva,
    por exemplo `C:\Users\seu.usuario\Downloads`).
 2. Dê dois cliques em **`Requerimento.bat`**. Abre uma janela preta (o aplicativo) e o navegador já com as
