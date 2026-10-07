@@ -122,7 +122,7 @@ PDFs do SEI enviados; os campos que faltam aparecem em amarelo. A lista de tipos
 
 | Assunto | Tipos (todos aceitam vários servidores, exceto onde indicado) |
 |---|---|
-| Licenças e afastamentos | **Licença Prêmio** (sem marcar "Indeferida" = concessão de gozo com decênio e período, como a Portaria 522; marcada = indeferimento); **Licença sem Vencimentos**, **Licença para Curso** (caixa **Indeferida**; desmarcada = deferida); **Licença por doença em pessoa da família**; **Retorno de licença para curso**; **Prorrogação de licença para pós-graduação** (1 servidor) |
+| Licenças e afastamentos | **Licença Prêmio** (sem marcar "Indeferida" = concessão de gozo com decênio e período de gozo, como a Portaria 522; o período é escolhido em calendário (início e fim) e sai como "dd/mm/aaaa a dd/mm/aaaa"; marcada = indeferimento); **Licença sem Vencimentos**, **Licença para Curso** (caixa **Indeferida**; desmarcada = deferida); **Licença por doença em pessoa da família**; **Retorno de licença para curso**; **Prorrogação de licença para pós-graduação** (1 servidor) |
 | Saúde e condições de trabalho | **Readaptação de função** (caixa **Definitiva**; desmarcada = temporária, com prazo em dias); **Redução de carga horária** (caixa **Indeferida**) |
 | Vínculo, lotação e carreira | **Exoneração a pedido**; **Encerramento de cessão** (1 servidor); **Enquadramento** de cargo, classe, nível e referência (1 servidor); **Dispensa de Estágio Probatório** (caixa **Indeferida**) |
 | Benefícios e pedidos | **Abono de permanência** (deferido: "de acordo com o parecer…", retroagindo à data do requerimento); **Salário família** (deferido sem fundamento; indeferido cita o despacho da SEGEP) |
