@@ -450,7 +450,8 @@
     var folha = $('folha'), area = document.querySelector('main');
     if (!folha || !area) return;
     folha.style.zoom = '';
-    var disponivel = area.clientWidth - 32, largura = folha.offsetWidth;
+    var estilo = window.getComputedStyle(area);
+    var disponivel = area.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight), largura = folha.offsetWidth;
     if (largura > 0 && disponivel > 0 && disponivel < largura) folha.style.zoom = (disponivel / largura).toFixed(3);
   }
 

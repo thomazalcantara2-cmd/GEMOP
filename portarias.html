@@ -3,96 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portarias</title>
+<title>Portarias · SEGEP</title>
 <style>
+  /* Nunito Sans (SIL Open Font License), fonte variável guardada no projeto: não precisa de internet */
+  @font-face { font-family: 'Nunito Sans'; font-style: normal; font-weight: 400 800; font-display: swap; src: url("assets/fonts/nunito-sans-latin-ext.woff2") format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Nunito Sans'; font-style: normal; font-weight: 400 800; font-display: swap; src: url("assets/fonts/nunito-sans-latin.woff2") format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   :root {
-    --bg: #eef1f5; --painel: #ffffff; --texto: #1c2430; --suave: #5b6675; --borda: #d4dae3;
-    --destaque: #1f5fa8; --destaque-texto: #ffffff; --ok: #1e7a46; --aviso-bg: #fff6dd; --aviso: #7a5600;
-    --erro-bg: #fde8e8; --erro: #9b1c1c; --sel: #e6f0fb;
+    --azul: #0a3cc2; --azul-esc: #062a8c; --verde: #00a13a; --amarelo: #fbb900; --laranja: #f7941d;
+    --bg: #f3f4f7; --painel: #ffffff; --texto: #14203a; --suave: #5a6478; --borda: #dfe3ea;
+    --destaque: var(--azul); --destaque-texto: #ffffff; --ok: var(--verde); --aviso-bg: #fff4d1; --aviso: #6e4d00;
+    --erro-bg: #fde8e8; --erro: #9b1c1c; --sel: #e9efff; --topo: 64px;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #14181e; --painel: #1d232b; --texto: #e4e8ee; --suave: #9aa5b3; --borda: #333c48;
-      --destaque: #5b9be0; --destaque-texto: #0d1117; --ok: #5cc98a; --aviso-bg: #3a3017; --aviso: #f1d27a;
-      --erro-bg: #3d1d1d; --erro: #f3a6a6; --sel: #22354b;
+      --bg: #10141c; --painel: #1a202b; --texto: #e6e9ef; --suave: #9aa4b5; --borda: #2e3644;
+      --destaque: #5c86f0; --destaque-texto: #ffffff; --ok: #2fbf68; --aviso-bg: #3a3017; --aviso: #f1d27a;
+      --erro-bg: #3d1d1d; --erro: #f3a6a6; --sel: #223055;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
-  .app { display: grid; grid-template-columns: clamp(460px, 48vw, 900px) 1fr; min-height: 100vh; }
+  body { margin: 0; font: 14px/1.45 "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); }
+
+  /* ---------- Barra superior (identidade Prefeitura do Jaboatão) ---------- */
+  .topo { position: sticky; top: 0; z-index: 30; height: var(--topo); display: flex; align-items: stretch;
+    background: linear-gradient(115deg, #fdc61f 0%, #fbb900 45%, #f7941d 100%); box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  .topo-marca { display: flex; align-items: center; gap: 14px; background: #fff; padding: 0 26px 0 18px; border-radius: 0 0 36px 0; }
+  .topo-marca img { height: 52px; width: auto; display: block; }
+  .topo-marca .sep { width: 1px; align-self: stretch; margin: 14px 0; background: var(--borda); }
+  .topo-titulo { display: flex; flex-direction: column; line-height: 1.15; }
+  .topo-titulo b { font-size: 18px; font-weight: 800; color: #0a3cc2; letter-spacing: .01em; }
+  .topo-titulo span { font-size: 12px; color: #4a5468; }
+  .topo-faixa { margin-left: auto; display: flex; align-items: center; padding: 0 22px; }
+  .topo-faixa img { height: 40px; width: auto; display: block; mix-blend-mode: multiply; }
+
+  .app { display: grid; grid-template-columns: clamp(460px, 48vw, 900px) 1fr; min-height: calc(100vh - var(--topo)); }
   .app.recolhida { grid-template-columns: 1fr; }
   .app.recolhida aside { display: none; }
-  .alternar { position: fixed; top: 14px; left: calc(clamp(460px, 48vw, 900px) - 18px); z-index: 20; width: 30px; height: 30px; padding: 0; border-radius: 50%;
-    font-size: 18px; line-height: 1; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
-  .app.recolhida .alternar { left: 10px; }
-  #det-planilhas { margin-top: 10px; }
+  .alternar { position: fixed; top: calc(var(--topo) + 14px); left: calc(clamp(460px, 48vw, 900px) - 16px); z-index: 20; width: 32px; height: 32px; padding: 0; border-radius: 50%;
+    font-size: 18px; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.18); background: var(--painel); color: var(--azul); border-color: var(--borda); }
+  .app.recolhida .alternar { left: 12px; }
+  #det-planilhas { margin-top: 0; }
   body.arrastando main { outline: 3px dashed var(--destaque); outline-offset: -8px; }
-  aside { background: var(--painel); border-right: 1px solid var(--borda); padding: 20px; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+  aside { background: var(--bg); border-right: 1px solid var(--borda); padding: 18px 18px 0; overflow-y: auto; overflow-x: hidden; max-height: calc(100vh - var(--topo)); position: sticky; top: var(--topo);
+    display: flex; flex-direction: column; gap: 12px; }
   h1 { font-size: 18px; margin: 0 0 4px; }
-  .sub { color: var(--suave); margin: 0 0 18px; font-size: 13px; }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); margin: 22px 0 8px; }
-  #zona { border: 2px dashed var(--borda); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; display: block; }
+  .sub { color: var(--suave); margin: 0; font-size: 13px; }
+
+  /* cartões de etapa */
+  .passo { background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; padding: 14px 16px 16px; }
+  .passo-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .passo-num { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; background: var(--azul); }
+  .passo-num.v { background: var(--verde); }
+  .passo-num.a { background: var(--amarelo); color: #3a2a00; }
+  .passo h2, .cartao-dados > h2 { font-size: 15px; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--texto); margin: 0; padding: 0; background: none; }
+  .passo-cab small { margin-left: auto; color: var(--suave); font-size: 12px; }
+
+  #zona { border: 2px dashed var(--borda); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; display: block; color: var(--suave); }
+  #zona:hover { border-color: var(--destaque); }
   #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
   #zona input { display: none; }
-  #zona span { color: var(--destaque); font-weight: 600; }
+  #zona span { color: var(--destaque); font-weight: 700; }
   .pasta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   .pasta button { padding: 8px 12px; font-size: 13px; }
   .pasta small { color: var(--suave); width: 100%; }
   .arquivo { font-size: 13px; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--borda); color: var(--suave); }
-  .arquivo.ok { color: var(--texto); border-color: var(--ok); }
+  .arquivo:empty { display: none; }
+  .arquivo.ok { color: var(--texto); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 7%, var(--painel)); }
   .arquivo.ok b::before { content: "✓ "; color: var(--ok); }
   .arquivo small { color: var(--suave); }
   .busca-wrap { position: relative; }
   input[type=text], input[type=search], input[type=date], input[type=number], select, textarea {
-    width: 100%; padding: 9px 10px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel); color: var(--texto); font: inherit;
+    width: 100%; padding: 9px 11px; border: 1px solid var(--borda); border-radius: 9px; background: var(--painel); color: var(--texto); font: inherit;
+    transition: border-color .15s, box-shadow .15s;
   }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px color-mix(in srgb, var(--destaque) 18%, transparent); }
   textarea { resize: vertical; min-height: 60px; font-size: 13px; }
-  #busca { font-size: 15px; padding: 11px 12px; }
+  #busca { font-size: 15px; padding: 11px 12px 11px 36px;
+    background: var(--painel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235a6478' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") no-repeat 12px center; }
   #busca:disabled { opacity: .6; }
-  #resultados { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--borda); border-radius: 8px; background: var(--painel);
-    position: absolute; left: 0; right: 0; z-index: 5; max-height: 340px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
-  #resultados li { padding: 7px 9px; border-radius: 6px; cursor: pointer; }
+  #resultados { list-style: none; margin: 4px 0 0; padding: 4px; border: 1px solid var(--borda); border-radius: 10px; background: var(--painel);
+    position: absolute; left: 0; right: 0; z-index: 5; max-height: 340px; overflow-y: auto; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+  #resultados li { padding: 8px 10px; border-radius: 7px; cursor: pointer; }
   #resultados li:hover, #resultados li.sel { background: var(--sel); }
   #resultados li small { display: block; color: var(--suave); font-size: 12px; }
   #resultados li.vazio { color: var(--suave); cursor: default; }
-  label.campo { display: block; font-size: 12px; color: var(--suave); margin: 10px 0 4px; }
+  label.campo { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin: 10px 0 4px; }
   label.campo small { font-weight: 400; }
   #opcao-tipo label { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; cursor: pointer; }
-  #opcao-tipo input { width: auto; }
-  #lista-servidores { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-  /* card de cada servidor: faixa colorida com o nome e, abaixo, os campos dele */
-  #lista-servidores li { border: 1px solid var(--destaque); border-left-width: 5px; border-radius: 10px; background: var(--painel);
-    box-shadow: 0 2px 8px rgba(31,95,168,.18); overflow: hidden; }
+  #opcao-tipo input { width: auto; accent-color: var(--azul); }
+  #opcao-tipo:empty { display: none; }
+  #lista-servidores { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  #lista-servidores:empty { display: none; }
+  #lista-servidores li { border: 1px solid var(--borda); border-radius: 12px; background: var(--painel); overflow: hidden; }
   .servidor-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px;
-    background: var(--destaque); color: var(--destaque-texto); }
-  .servidor-topo b { font-size: 15px; letter-spacing: .01em; }
-  #lista-servidores small { display: block; opacity: .88; font-size: 12px; margin-top: 2px; }
-  .servidor-topo button { padding: 2px 10px; flex: none; background: rgba(255,255,255,.18); color: inherit; border-color: rgba(255,255,255,.55); }
-  .servidor-topo button:hover { background: rgba(255,255,255,.32); }
-  .servidor-campos { padding: 2px 14px 14px; background: var(--sel); }
+    background: var(--azul); color: #fff; border-bottom: 3px solid var(--amarelo); }
+  .servidor-topo b { font-size: 14px; letter-spacing: .01em; }
+  #lista-servidores small { display: block; opacity: .9; font-size: 12px; margin-top: 2px; }
+  .servidor-topo button { padding: 3px 10px; flex: none; font-size: 12px; background: rgba(255,255,255,.16); color: inherit; border-color: rgba(255,255,255,.5); }
+  .servidor-topo button:hover { background: rgba(255,255,255,.3); }
+  .servidor-campos { padding: 2px 12px 12px; background: var(--sel); }
   .servidor-campos:empty { display: none; }
   .servidor-campos select, .servidor-campos input { background: var(--painel); }
-  /* card "3. Dados da portaria" (o que vale para a portaria inteira) */
-  .cartao-dados { margin-top: 18px; border: 1px solid var(--ok); border-left-width: 5px; border-radius: 10px; background: var(--painel);
-    box-shadow: 0 2px 8px rgba(30,122,70,.18); overflow: hidden; }
-  .cartao-dados > h2 { margin: 0; padding: 10px 14px; background: var(--ok); color: var(--destaque-texto); font-size: 13px; }
-  .cartao-corpo { padding: 2px 14px 14px; }
-  /* campos lado a lado na mesma linha */
+  .cartao-dados { }
+  .cartao-corpo { padding: 0; }
   .linha-campos { display: grid; gap: 10px; align-items: end; }
   .campo-col[hidden] { display: none; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  details { margin-top: 6px; }
-  summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 6px 0; }
-  .botoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
-  button { font: inherit; border-radius: 8px; padding: 10px 14px; border: 1px solid var(--borda); background: var(--painel); color: var(--texto); cursor: pointer; }
-  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 600; flex: 1; }
+  .dupla label.campo { margin-top: 0; }
+  details.passo { padding: 0; }
+  details.passo > summary { list-style: none; cursor: pointer; font-weight: 700; font-size: 14px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+  details.passo > summary::-webkit-details-marker { display: none; }
+  details.passo > summary::after { content: "›"; margin-left: auto; font-size: 18px; color: var(--suave); transition: transform .15s; }
+  details.passo[open] > summary::after { transform: rotate(90deg); }
+  details.passo > .det-corpo { padding: 0 16px 16px; }
+  details.passo > summary .ic { width: 8px; height: 8px; border-radius: 50%; background: var(--laranja); }
+  .botoes { position: sticky; bottom: 0; z-index: 4; display: flex; flex-wrap: wrap; gap: 8px; margin: auto -18px 0; padding: 12px 18px 14px; width: calc(100% + 36px);
+    background: var(--painel); border-top: 1px solid var(--borda); box-shadow: 0 -6px 16px rgba(0,0,0,.05); }
+  button { font: inherit; border-radius: 9px; padding: 10px 14px; border: 1px solid var(--borda); background: var(--painel); color: var(--texto); cursor: pointer; transition: background .15s, border-color .15s; }
+  button:hover:not(:disabled) { border-color: var(--destaque); }
+  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 700; flex: 1 1 100%; }
+  .botoes button { white-space: nowrap; }
+  .botoes #copiar { flex: 1; }
+  .pasta button { white-space: nowrap; }
+  button.prim:hover:not(:disabled) { background: var(--azul-esc); }
+  #copiar:not(:disabled) { border-color: var(--verde); color: var(--verde); font-weight: 700; }
+  #restaurar { background: none; border-color: transparent; color: var(--suave); font-size: 13px; padding: 10px 8px; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  #erro { background: var(--erro-bg); color: var(--erro); padding: 8px 10px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
-  #avisos { background: var(--aviso-bg); color: var(--aviso); padding: 8px 12px; border-radius: 8px; font-size: 13px; width: 210mm; max-width: 100%; margin: 0 auto 12px; }
+  #erro { background: var(--erro-bg); color: var(--erro); padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+  #avisos { background: var(--aviso-bg); color: var(--aviso); padding: 10px 14px; border-radius: 10px; font-size: 13px; width: 210mm; max-width: 100%; margin: 0 auto 14px; border: 1px solid color-mix(in srgb, var(--amarelo) 50%, transparent); }
   #avisos p { margin: 4px 0; }
-  #copiado { color: var(--ok); font-size: 12px; width: 100%; margin: 0; }
-  .nota { font-size: 12px; color: var(--suave); margin-top: 14px; }
-  main { padding: 24px 16px; overflow-x: auto; }
+  #copiado { color: var(--ok); font-size: 12px; width: 100%; margin: 0; font-weight: 600; }
+  .nota { font-size: 12px; color: var(--suave); margin: 0; }
+  main { padding: 28px 20px 40px; overflow-x: auto; }
+  main .folha { box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 12px 32px rgba(10,60,194,.08); border-radius: 2px; }
   .dica { text-align: center; color: var(--suave); font-size: 12px; margin: 10px 0 0; }
 
   /* ---------- Folha A4 (sempre em cores de papel; segue o modelo de Portaria da SEGEP) ---------- */
@@ -124,6 +167,8 @@
   @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
     aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--borda); }
+    .topo-faixa { display: none; }
+    .alternar { top: calc(var(--topo) + 10px); }
     .alternar { left: auto; right: 10px; }
     .app.recolhida .alternar { left: auto; right: 10px; }
     main { padding: 16px; }
@@ -132,7 +177,7 @@
   @media print {
     body { background: #fff; }
     .app { display: block; }
-    aside, #avisos, .dica, .alternar { display: none !important; }
+    .topo, aside, #avisos, .dica, .alternar { display: none !important; }
     main { padding: 0; overflow: visible; }
     .folha { box-shadow: none; margin: 0; padding: 0; width: auto; min-height: 0; zoom: 1 !important; }
     .folha [contenteditable] { outline: none !important; }
@@ -141,57 +186,22 @@
 </style>
 </head>
 <body>
+<header class="topo">
+  <div class="topo-marca">
+    <img src="assets/topo-marca.webp" alt="Prefeitura do Jaboatão dos Guararapes">
+    <div class="sep"></div>
+    <div class="topo-titulo"><b>Portarias</b><span>SEGEP · preenchimento automático pela FichaContabilis</span></div>
+  </div>
+  <div class="topo-faixa"><img src="assets/topo-faixa.jpg" alt=""></div>
+</header>
 <div class="app" id="app">
   <button id="alternar-painel" class="alternar" type="button" title="Recolher painel" aria-label="Recolher painel" aria-expanded="true">‹</button>
   <aside id="painel">
-    <h1>Portarias</h1>
-    <p class="sub">SEGEP — preenchimento automático a partir da FichaContabilis</p>
-
     <div id="erro" hidden></div>
 
-    <h2>1. Tipo de portaria</h2>
-    <select id="tipo" aria-label="Tipo de portaria"></select>
-    <div id="opcao-tipo"></div>
-
-    <h2>2. Servidores</h2>
-    <div class="busca-wrap">
-      <input id="busca" type="search" autocomplete="off" placeholder="Carregue a planilha primeiro" disabled>
-      <ul id="resultados" role="listbox" hidden></ul>
-    </div>
-    <p class="nota" style="margin:6px 0 0">Para incluir mais de um servidor na mesma portaria, busque e escolha um por vez.</p>
-    <ul id="lista-servidores"></ul>
-
-    <section class="cartao-dados">
-    <h2>3. Dados da portaria</h2>
-    <div class="cartao-corpo">
-    <div class="dupla">
-      <div>
-        <label class="campo" for="v-numero">Nº da portaria</label>
-        <input id="v-numero" type="text" inputmode="numeric" placeholder="ex.: 537">
-      </div>
-      <div>
-        <label class="campo" for="v-data">Data da portaria</label>
-        <input id="v-data" type="date">
-      </div>
-    </div>
-    <div id="campos-tipo"></div>
-    <label class="campo" for="v-matricula">Formato da matrícula</label>
-    <select id="v-matricula"></select>
-    </div>
-    </section>
-
-    <details>
-      <summary>Textos fixos (preâmbulo e assinatura)</summary>
-      <label class="campo" for="cfg-preambulo">Preâmbulo (**trecho** = negrito)</label>
-      <textarea id="cfg-preambulo" rows="5"></textarea>
-      <label class="campo" for="cfg-assinanteNome">Nome de quem assina</label>
-      <input id="cfg-assinanteNome" type="text">
-      <label class="campo" for="cfg-assinanteCargo">Cargo de quem assina</label>
-      <input id="cfg-assinanteCargo" type="text">
-    </details>
-
-    <details id="det-planilhas">
-      <summary>Planilha carregada</summary>
+    <details id="det-planilhas" class="passo">
+      <summary><span class="ic"></span>Planilha carregada</summary>
+      <div class="det-corpo">
       <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
         <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
         <button id="recarregar" type="button" class="prim" hidden>Recarregar da pasta</button>
@@ -199,10 +209,59 @@
       </div>
       <label id="zona">
         <input id="arquivos" type="file" accept=".xlsx,.xls" multiple>
-        ou arraste a FichaContabilis aqui / <span>clique para escolher</span>
+        Arraste a FichaContabilis aqui ou <span>clique para escolher</span>
       </label>
-      <div id="status-indice" class="arquivo"></div>
+      </div>
     </details>
+    <div id="status-indice" class="arquivo" style="margin-top:-4px"></div>
+
+    <section class="passo">
+      <div class="passo-cab"><span class="passo-num">1</span><h2>Tipo de portaria</h2></div>
+      <select id="tipo" aria-label="Tipo de portaria"></select>
+      <div id="opcao-tipo"></div>
+    </section>
+
+    <section class="passo">
+      <div class="passo-cab"><span class="passo-num v">2</span><h2>Servidores</h2><small>um por vez</small></div>
+      <div class="busca-wrap">
+        <input id="busca" type="search" autocomplete="off" placeholder="Carregue a planilha primeiro" disabled>
+        <ul id="resultados" role="listbox" hidden></ul>
+      </div>
+      <ul id="lista-servidores"></ul>
+    </section>
+
+    <section class="passo cartao-dados">
+      <div class="passo-cab"><span class="passo-num a">3</span><h2>Dados da portaria</h2></div>
+      <div class="cartao-corpo">
+      <div class="dupla">
+        <div>
+          <label class="campo" for="v-numero">Nº da portaria</label>
+          <input id="v-numero" type="text" inputmode="numeric" placeholder="ex.: 537">
+        </div>
+        <div>
+          <label class="campo" for="v-data">Data da portaria</label>
+          <input id="v-data" type="date">
+        </div>
+      </div>
+      <div id="campos-tipo"></div>
+      <label class="campo" for="v-matricula">Formato da matrícula</label>
+      <select id="v-matricula"></select>
+      </div>
+    </section>
+
+    <details class="passo">
+      <summary><span class="ic" style="background:var(--suave)"></span>Textos fixos (preâmbulo e assinatura)</summary>
+      <div class="det-corpo">
+      <label class="campo" for="cfg-preambulo" style="margin-top:0">Preâmbulo (**trecho** = negrito)</label>
+      <textarea id="cfg-preambulo" rows="5"></textarea>
+      <label class="campo" for="cfg-assinanteNome">Nome de quem assina</label>
+      <input id="cfg-assinanteNome" type="text">
+      <label class="campo" for="cfg-assinanteCargo">Cargo de quem assina</label>
+      <input id="cfg-assinanteCargo" type="text">
+      </div>
+    </details>
+
+    <p class="nota">Clique no texto da folha para ajustá-lo antes de imprimir; campos em amarelo ainda precisam ser preenchidos. A planilha é lida só neste navegador — nada é enviado para a internet. Apenas os textos fixos ficam salvos neste computador.</p>
 
     <div class="botoes">
       <button id="imprimir" class="prim" disabled>Imprimir / Salvar PDF</button>
@@ -210,7 +269,6 @@
       <button id="restaurar" title="Volta os textos fixos ao padrão">Restaurar padrão</button>
       <p id="copiado" hidden>Texto copiado.</p>
     </div>
-    <p class="nota">O texto da folha pode ser ajustado clicando sobre ele antes de imprimir; campos em amarelo ainda precisam ser preenchidos. A planilha é lida apenas neste navegador: nenhum dado é enviado para a internet. Só os textos fixos ficam salvos neste computador; os dados dos servidores, não.</p>
   </aside>
 
   <main>

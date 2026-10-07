@@ -173,11 +173,11 @@ Regras de preenchimento:
 
 - `Requerimento.bat` / `Portarias.bat` / `servidor.ps1` — aplicativos locais (servidor só para este computador, PowerShell 5.1+)
 - `pasta.txt` — caminho opcional da pasta das planilhas; `planilhas/` — pasta padrão
-- `index.html` — interface e layout da folha A4; `assets/` — logo e fonte Public Sans (SIL OFL)
+- `index.html` — interface e layout da folha A4; `assets/` — logo, fontes (Public Sans no Requerimento e Nunito Sans nas Portarias, ambas SIL OFL) e as imagens da barra superior das Portarias
 - `js/dados.js` — regras de extração (funções puras, testadas)
 - `js/planilhas.js` — leitura dos `.xlsx`, pasta e servidor local (compartilhado pelos dois programas)
 - `js/app.js` — busca e montagem da folha do Requerimento
-- `portarias.html`, `js/portarias.js` (modelos e regras, testados), `js/portarias-app.js` (tela) — Portarias
+- `portarias.html` (layout "Prefeitura": barra superior com a marca, etapas em cartões numerados 1 a 3 e botões fixos embaixo), `js/portarias.js` (modelos e regras, testados), `js/portarias-app.js` (tela) — Portarias
 - `vendor/xlsx.full.min.js` — [SheetJS](https://sheetjs.com) 0.18.5 (Apache-2.0), leitura de `.xlsx`
 - `tests/` — testes das regras: `node --test`
 

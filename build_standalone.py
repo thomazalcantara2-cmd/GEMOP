@@ -14,6 +14,9 @@ pagina = sys.argv[2] if len(sys.argv) > 2 else 'requerimento'
 html, scripts = PAGINAS[pagina]
 h = open(html, encoding='utf-8').read()
 h = re.sub(r'url\("(assets/fonts/[^"]+\.woff2)"\)', lambda m: 'url("%s")' % data_uri(m.group(1), 'font/woff2'), h)
+MIMES = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}
+h = re.sub(r'(<img src=")(assets/[^"]+\.(png|jpe?g|webp))(")',
+           lambda m: m.group(1) + data_uri(m.group(2), MIMES[m.group(3)]) + m.group(4), h)
 for src in scripts:
     codigo = open(src, encoding='utf-8').read().replace('</script', '<\\/script')
     codigo = codigo.replace('assets/logo-jaboatao.png', data_uri('assets/logo-jaboatao.png', 'image/png'))
