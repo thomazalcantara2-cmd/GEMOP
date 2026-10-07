@@ -117,6 +117,16 @@
   .decenio-caixas { display: flex; align-items: center; gap: 6px; }
   .decenio-caixas input.ano { width: 74px; text-align: center; letter-spacing: .06em; }
   .decenio-caixas .barra { font-weight: 700; color: var(--suave); }
+  /* cartões 1, 2 e 3 retráteis: clique no título para recolher; fechado, mostra um resumo */
+  details.passo-sec { padding: 0; }
+  details.passo-sec > summary.passo-cab { margin: 0; padding: 9px 11px; cursor: pointer; font-size: inherit; }
+  details.passo-sec > summary.passo-cab:hover h2 { color: var(--azul); }
+  details.passo-sec > summary.passo-cab h2 { flex: 1; min-width: 0; }
+  details.passo-sec > summary.passo-cab::after { margin-left: 4px; }
+  details.passo-sec > summary.passo-cab small { margin-left: 0; }
+  details.passo-sec > .passo-corpo { padding: 0 11px 11px; }
+  details.passo-sec .resumo-fechado { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--suave); font-size: 11px; }
+  details.passo-sec[open] .resumo-fechado, details.passo-sec:not([open]) .dica-passo { display: none; }
   .linha-campos { display: grid; gap: 8px; align-items: end; }
   .campo-col[hidden] { display: none; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -227,24 +237,28 @@
       </div>
     </details>
 
-    <section class="passo">
-      <div class="passo-cab"><span class="passo-num">1</span><h2>Tipo de portaria</h2></div>
+    <details class="passo passo-sec" id="passo-tipo" open>
+      <summary class="passo-cab"><span class="passo-num">1</span><h2>Tipo de portaria</h2><small class="resumo-fechado" id="res-tipo"></small></summary>
+      <div class="passo-corpo">
       <select id="tipo" aria-label="Tipo de portaria"></select>
       <div id="opcao-tipo"></div>
-    </section>
+      </div>
+    </details>
 
-    <section class="passo">
-      <div class="passo-cab"><span class="passo-num v">2</span><h2>Servidores</h2><small>um por vez</small></div>
+    <details class="passo passo-sec" id="passo-servidores" open>
+      <summary class="passo-cab"><span class="passo-num v">2</span><h2>Servidores</h2><small class="dica-passo">um por vez</small><small class="resumo-fechado" id="res-servidores"></small></summary>
+      <div class="passo-corpo">
       <div class="busca-wrap">
         <input id="busca" type="search" autocomplete="off" placeholder="Carregue a planilha primeiro" disabled>
         <ul id="resultados" role="listbox" hidden></ul>
       </div>
       <ul id="lista-servidores"></ul>
-    </section>
+      </div>
+    </details>
 
-    <section class="passo cartao-dados">
-      <div class="passo-cab"><span class="passo-num a">3</span><h2>Dados da portaria</h2></div>
-      <div class="cartao-corpo">
+    <details class="passo passo-sec cartao-dados" id="passo-dados" open>
+      <summary class="passo-cab"><span class="passo-num a">3</span><h2>Dados da portaria</h2><small class="resumo-fechado" id="res-dados"></small></summary>
+      <div class="passo-corpo cartao-corpo">
       <div class="dupla">
         <div>
           <label class="campo" for="v-numero">Nº da portaria</label>
@@ -259,7 +273,7 @@
       <label class="campo" for="v-matricula">Formato da matrícula</label>
       <select id="v-matricula"></select>
       </div>
-    </section>
+    </details>
 
     <details class="passo">
       <summary><span class="ic" style="background:var(--suave)"></span>Textos fixos (preâmbulo e assinatura)</summary>

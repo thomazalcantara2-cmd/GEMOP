@@ -115,6 +115,8 @@ e assinatura do Secretário Executivo de Gestão de Pessoas) com os dados do ser
 mesmo tempo que ele). Sem o aplicativo, abra `portarias.html` no Chrome/Edge e escolha a pasta ou arraste a
 FichaContabilis, como no Requerimento.
 
+Os cartões **1 Tipo de portaria**, **2 Servidores** e **3 Dados da portaria** se recolhem ao clicar no título (fechados, mostram um resumo ao lado, como o tipo escolhido, os nomes e o nº da portaria); o programa lembra neste computador quais ficaram fechados.
+
 **A planilha** é lida sozinha da pasta configurada no `pasta.txt`, sem tela para isso: a barra superior informa "Dados extraídos do mês setembro/2026 - Contabilis de 06/10/2026" (mês de referência da planilha e data do arquivo), e o botão **Recarregar planilha** (também lá em cima) relê a pasta depois que você salvar uma planilha nova. Só se a planilha não for encontrada é que aparece um quadro para escolher a pasta ou arrastar o arquivo (arrastar para qualquer lugar da página também funciona).
 
 **Como usar:** 1) escolha o **tipo de portaria**; 2) busque o servidor (nome, matrícula ou CPF) — para **mais de um servidor

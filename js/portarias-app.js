@@ -483,6 +483,7 @@
         '<p class="assina" contenteditable>' + esc(portaria.assinatura.cargo) + '</p>' +
       '</div>';
 
+    atualizarResumos(escolhidos, dataDoc);
     ajustarEscala();
     $('imprimir').disabled = !escolhidos.length;
     $('copiar').disabled = !escolhidos.length;
@@ -559,6 +560,35 @@
     } else plano();
   }
 
+  // ---------- cartões 1, 2 e 3 retráteis ----------
+  var CHAVE_PASSOS = 'gemop-portarias-passos-fechados';
+  var PASSOS = ['passo-tipo', 'passo-servidores', 'passo-dados'];
+
+  // Resumo que aparece ao lado do título quando o cartão está fechado.
+  function atualizarResumos(escolhidos, dataDoc) {
+    var indeferida = $('c-indeferido') && $('c-indeferido').checked;
+    $('res-tipo').textContent = tipoAtual().nome + (indeferida ? ' · indeferida' : '');
+    $('res-servidores').textContent = escolhidos.length
+      ? escolhidos.length + (escolhidos.length === 1 ? ' servidor: ' : ' servidores: ') + escolhidos.map(function (s) { return s.nome; }).join(', ')
+      : 'nenhum servidor';
+    var numero = $('v-numero').value.trim();
+    $('res-dados').textContent = (numero ? 'Nº ' + numero + ' · ' : 'sem número · ') + D.dataBR(dataDoc);
+  }
+
+  // Lembra neste computador quais cartões ficaram fechados (só a aparência; nada de servidor).
+  function iniciarPassos() {
+    var fechados = [];
+    try { fechados = JSON.parse(localStorage.getItem(CHAVE_PASSOS) || '[]') || []; } catch (e) { fechados = []; }
+    PASSOS.forEach(function (id) {
+      var el = $(id);
+      if (fechados.indexOf(id) >= 0) el.open = false;
+      el.addEventListener('toggle', function () {
+        var f = PASSOS.filter(function (x) { return !$(x).open; });
+        try { localStorage.setItem(CHAVE_PASSOS, JSON.stringify(f)); } catch (e) { /* ignora */ }
+      });
+    });
+  }
+
   // ---------- painel lateral retrátil ----------
   function definirPainel(recolhido) {
     $('app').classList.toggle('recolhida', recolhido);
@@ -596,6 +626,7 @@
     iniciarPasta();
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
     iniciarPainel();
+    iniciarPassos();
 
     // arrastar a planilha para qualquer lugar da página
     ['dragenter', 'dragover'].forEach(function (ev) {
