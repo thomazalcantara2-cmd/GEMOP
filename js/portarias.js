@@ -206,6 +206,13 @@
       ' através do ' + doc + ' nº ' + x.v('requerimento') + ', datado de ' + x.v('dataRequerimento') + '.';
   }
 
+  // "dd/mm/aaaa a dd/mm/aaaa" a partir dos campos início e fim do período de gozo.
+  function periodoGozo(x, obrigatorio) {
+    var ini = x.bruto('periodoIni'), fim = x.bruto('periodoFim');
+    if (!ini && !fim && !obrigatorio) return '';
+    return (ini ? D.dataBR(ini) : x.v('periodoIni', true)) + ' a ' + (fim ? D.dataBR(fim) : x.v('periodoFim', true));
+  }
+
   var CAMPOS_REQUERIMENTO = [
     { id: 'requerimento', rotulo: 'Nº do requerimento', tipo: 'texto', exemplo: '26.17.000004682-4', porServidor: true },
     { id: 'dataRequerimento', rotulo: 'Data do requerimento', tipo: 'data', porServidor: true }
@@ -239,8 +246,11 @@
     if (opts.efeitos) campos.push({ id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true });
     campos.push(
       { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio', porServidor: true },
-      { id: 'periodo', rotulo: 'Período de gozo (opcional)', tipo: 'texto', opcional: true, exemplo: '01.04.2026 a 30.04.2026', ajuda: 'cria a coluna Período de Gozo', porServidor: true });
-    if (opts.semDecenio) campos = campos.filter(function (x) { return x.id !== 'decenio' && x.id !== 'periodo'; });
+      { id: 'periodoIni', rotulo: 'Período de gozo: início', tipo: 'data', opcional: true, ajuda: 'opcional; cria a coluna Período de Gozo', porServidor: true },
+      { id: 'periodoFim', rotulo: 'Período de gozo: fim', tipo: 'data', opcional: true, porServidor: true });
+    if (opts.semDecenio) {
+      campos = campos.filter(function (x) { return ['decenio', 'periodoIni', 'periodoFim'].indexOf(x.id) < 0; });
+    }
     return {
       id: id,
       nome: nome,
@@ -251,14 +261,14 @@
         var colunas = ['Nº Processo', opts.colunaNome, 'Matrícula', opts.colunaSecretaria];
         if (opts.dataRequerimento) colunas.push('Data do Requerimento');
         var temDecenio = !opts.semDecenio && c.servs.some(function (x) { return x.tem('decenio'); });
-        var temPeriodo = !opts.semDecenio && c.servs.some(function (x) { return x.tem('periodo'); });
+        var temPeriodo = !opts.semDecenio && c.servs.some(function (x) { return x.tem('periodoIni') || x.tem('periodoFim'); });
         if (temDecenio) colunas.push('Decênio');
         if (temPeriodo) colunas.push('Período de Gozo');
         var linhas = c.servs.map(function (x) {
           var l = [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria)];
           if (opts.dataRequerimento) l.push(x.v('dataReq'));
           if (temDecenio) l.push(x.tem('decenio') ? x.v('decenio') : '');
-          if (temPeriodo) l.push(x.tem('periodo') ? x.v('periodo') : '');
+          if (temPeriodo) l.push(periodoGozo(x, false));
           return l;
         });
         var objeto = (plural ? 'os pedidos' : 'o pedido') + ' de **' + (pedidoFixo || c.v('pedido')) + '**';
@@ -293,7 +303,8 @@
       campos: geral.campos.filter(function (x) { return x.id !== 'fundamento'; }).map(function (x) {
         // na concessão o decênio e o período são obrigatórios (na tabela do indeferimento, opcionais)
         if (x.id === 'decenio') return Object.assign({}, x, { rotulo: 'Decênio', ajuda: 'obrigatório na concessão' });
-        if (x.id === 'periodo') return Object.assign({}, x, { rotulo: 'Período de gozo', ajuda: 'obrigatório na concessão' });
+        if (x.id === 'periodoIni') return Object.assign({}, x, { rotulo: 'Período de gozo: início', ajuda: 'obrigatório na concessão' });
+        if (x.id === 'periodoFim') return Object.assign({}, x, { rotulo: 'Período de gozo: fim' });
         return x;
       }).concat([
         { id: 'fundamento', rotulo: 'Fundamentos adotados (só se indeferida)', tipo: 'texto', opcional: true,
@@ -310,7 +321,7 @@
             ' abaixo, ' + (plural ? 'nos períodos especificados' : 'no período especificado') + ':' },
           { t: 'tabela', colunas: ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem', 'Decênio', 'Período de Gozo'],
             linhas: c.servs.map(function (x) {
-              return [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria), x.v('decenio', true), x.v('periodo', true)];
+              return [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria), x.v('decenio', true), periodoGozo(x, true)];
             }), semQuebra: [0, 2] },
           { t: 'p', texto: '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação.' }
         ];

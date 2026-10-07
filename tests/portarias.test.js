@@ -141,10 +141,10 @@ test('sem marcar "Indeferida" a portaria é deferida; colunas opcionais Decênio
     '**Art. 1º. DEFERIR** o pedido de **Licença para Curso**, adotando integralmente os fundamentos elencados no ' +
     'despacho da Secretaria Municipal de Saúde, da servidora abaixo:');
   assert.deepStrictEqual(simples.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem']);
-  dados.campos.decenio = '96/06 e 06/16'; dados.campos.periodo = '01.04.2026 a 29.06.2026';
+  dados.campos.decenio = '96/06 e 06/16'; dados.campos.periodoIni = dt(1, 4, 2026); dados.campos.periodoFim = dt(29, 6, 2026);
   const completo = P.gerarPortaria(dados);
   assert.deepStrictEqual(completo.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
-  assert.deepStrictEqual(completo.blocos[3].linhas[0], ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
+  assert.deepStrictEqual(completo.blocos[3].linhas[0], ['26.18.000004305-9', 'FULANA DE TAL', '0.0092703.1', 'Municipal de Saúde', '96/06 e 06/16', '01/04/2026 a 29/06/2026']);
   dados.campos.indeferido = true;
   assert.match(P.gerarPortaria(dados).blocos[2].texto, /^\*\*Art\. 1º\. INDEFERIR\*\* o pedido de \*\*Licença para Curso\*\*/);
 });
@@ -219,7 +219,7 @@ test('vários servidores: só mulheres vai para o feminino; processo faltando ci
 
 test('vários servidores: colunas Decênio e Período só aparecem se alguém tiver', () => {
   const r = P.gerarPortaria({ tipo: 'licenca-curso', numero: '522', data: dt(25, 3, 2026), campos: {}, servidores: [
-    pessoa('ANA', '9270', 'F', null, { processo: '1', decenio: '96/06 e 06/16', periodo: '01.04.2026 a 29.06.2026' }),
+    pessoa('ANA', '9270', 'F', null, { processo: '1', decenio: '96/06 e 06/16', periodoIni: dt(1, 4, 2026), periodoFim: dt(29, 6, 2026) }),
     pessoa('BIA', '149276', 'F', null, { processo: '2' })] });
   assert.deepStrictEqual(r.blocos[3].colunas.slice(4), ['Decênio', 'Período de Gozo']);
   assert.deepStrictEqual(r.blocos[3].linhas[1].slice(4), ['', '']);
@@ -256,16 +256,16 @@ const textos = (r) => r.blocos.map((b) => b.texto || b);
 
 test('licença prêmio deferida: concessão de gozo com decênio e período (Portaria 522)', () => {
   const r = base1('licenca-premio', {}, [
-    pessoa('ANA', '9270', 'F', 'Secretaria Municipal de Saúde', { processo: '26.18.000004305-9', decenio: '96/06 e 06/16', periodo: '01.04.2026 a 29.06.2026' }),
-    pessoa('BIA', '149276', 'F', null, { processo: '25.17.000018988-3', decenio: '2003/2013', periodo: '01.04.2026 a 30.04.2026' })], { formatoMatricula: 'pontos' });
+    pessoa('ANA', '9270', 'F', 'Secretaria Municipal de Saúde', { processo: '26.18.000004305-9', decenio: '96/06 e 06/16', periodoIni: dt(1, 4, 2026), periodoFim: dt(29, 6, 2026) }),
+    pessoa('BIA', '149276', 'F', null, { processo: '25.17.000018988-3', decenio: '2003/2013', periodoIni: dt(1, 4, 2026), periodoFim: dt(30, 4, 2026) })], { formatoMatricula: 'pontos' });
   assert.deepStrictEqual(r.faltando, []);
   assert.strictEqual(r.blocos[2].texto,
     '**Art. 1º. CONCEDER** o gozo de licença prêmio, de acordo com as Informações funcionais emitida pela Unidade de Gestão de Pessoas - UGEP, ' +
     'às servidoras relacionadas abaixo, nos períodos especificados:');
   assert.deepStrictEqual(r.blocos[3].colunas, ['Nº Processo', 'Nome do Servidor', 'Matrícula', 'Secretaria de Origem', 'Decênio', 'Período de Gozo']);
-  assert.deepStrictEqual(r.blocos[3].linhas[0], ['26.18.000004305-9', 'ANA', '0.0000927.0', 'Municipal de Saúde', '96/06 e 06/16', '01.04.2026 a 29.06.2026']);
+  assert.deepStrictEqual(r.blocos[3].linhas[0], ['26.18.000004305-9', 'ANA', '0.0000927.0', 'Municipal de Saúde', '96/06 e 06/16', '01/04/2026 a 29/06/2026']);
   const sem = base1('licenca-premio', {}, [pessoa('CARLOS', '1', 'M', null, { processo: '1' })]);
-  assert.deepStrictEqual(sem.faltando, ['Decênio', 'Período de gozo']);
+  assert.deepStrictEqual(sem.faltando, ['Decênio', 'Período de gozo: início', 'Período de gozo: fim']);
   assert.match(sem.blocos[2].texto, /ao servidor relacionado abaixo, no período especificado:$/);
   const ind = base1('licenca-premio', { indeferido: true }, [pessoa('CARLOS', '1', 'M', null, { processo: '1' })]);
   assert.deepStrictEqual(ind.faltando, []);
@@ -400,4 +400,12 @@ test('FGS e FAS: o tipo (símbolo) é escolhido numa lista, começando em branco
   assert.deepStrictEqual(op('fgs').opcoes.map((o) => o[1]), ['Escolha…', 'FGS-1', 'FGS-2', 'FGS-3', 'FGS-4', 'FGS-5']);
   assert.deepStrictEqual(op('fas').opcoes.map((o) => o[1]), ['Escolha…', 'FAS-1', 'FAS-2', 'FAS-3']);
   assert.strictEqual(op('fgs').opcoes[0][0], '');
+});
+
+test('período de gozo sai em dd/mm/aaaa a dd/mm/aaaa; só uma data preenchida é cobrada', () => {
+  const r = base1('licenca-curso', { indeferido: true }, [pessoa('ANA', '1', 'F', null, { processo: '1', periodoIni: dt(1, 4, 2026), periodoFim: dt(30, 4, 2026) })]);
+  assert.strictEqual(r.blocos[3].linhas[0][4], '01/04/2026 a 30/04/2026');
+  const meio = base1('licenca-curso', {}, [pessoa('ANA', '1', 'F', null, { processo: '1', periodoIni: dt(1, 4, 2026) })]);
+  assert.deepStrictEqual(meio.faltando, ['Período de gozo: fim']);
+  assert.strictEqual(meio.blocos[3].linhas[0][4], '01/04/2026 a [período de gozo: fim]');
 });
