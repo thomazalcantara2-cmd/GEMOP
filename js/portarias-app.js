@@ -175,14 +175,22 @@
     if (sim) $('det-planilhas').open = true;
   }
 
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+  // "Dados extraídos do mês setembro/2026 - Contabilis de 06/10/2026" (mês de referência da planilha e data do arquivo)
+  function textoDaPlanilha(i) {
+    var anoMes = i.anoMes ? String(Math.round(i.anoMes)) : '';
+    var mes = /^\d{6}$/.test(anoMes) && +anoMes.slice(4) >= 1 && +anoMes.slice(4) <= 12 ? MESES[+anoMes.slice(4) - 1] + '/' + anoMes.slice(0, 4) : '';
+    var data = i.modificado ? i.modificado.toLocaleDateString('pt-BR') : '';
+    return 'Dados extraídos do ' + (mes ? 'mês ' + mes : 'mês da planilha') + (data ? ' - Contabilis de ' + data : '');
+  }
+
   function atualizarStatus() {
     var i = estado.indice;
-    var anoMes = i && i.anoMes ? String(Math.round(i.anoMes)) : '';
-    var resumo = i ? i.nome + ' · ' + i.linhas.length + ' servidores' + (anoMes ? ' · competência ' + anoMes.slice(4) + '/' + anoMes.slice(0, 4) : '') : '';
-    $('topo-sub').textContent = i ? 'SEGEP · ' + resumo : 'SEGEP · preenchimento automático pela FichaContabilis';
-    $('topo-sub').title = i && i.modificado ? 'Arquivo de ' + i.modificado.toLocaleDateString('pt-BR') : '';
+    $('topo-sub').textContent = i ? textoDaPlanilha(i) : 'SEGEP · preenchimento automático pela FichaContabilis';
+    $('topo-sub').title = i ? 'Arquivo: ' + i.nome + ' · ' + i.linhas.length + ' servidores' : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
-    $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(resumo) : '<b>Ficha Contabilis</b> — aguardando arquivo';
+    $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) : '<b>Ficha Contabilis</b> — aguardando arquivo';
     clearTimeout(estado.esperaCarga);
     if (i) mostrarCarregamento(false);
     // dá um tempo para a leitura automática da pasta antes de mostrar o quadro de carregar
@@ -284,8 +292,16 @@
 
   function campoHTML(prefixo, c) {
     var entrada = c.tipo === 'data' ? 'date' : (c.tipo === 'numero' ? 'number' : 'text');
-    var rotulo = '<label class="campo" for="' + prefixo + c.id + '">' + esc(c.rotulo) +
+    var rotulo = '<label class="campo" for="' + prefixo + c.id + (c.tipo === 'decenio' ? '-a' : '') + '">' + esc(c.rotulo) +
       (c.ajuda ? ' <small>(' + esc(c.ajuda) + ')</small>' : '') + '</label>';
+    if (c.tipo === 'decenio') {
+      // dois anos (só números); a barra entre eles é automática. O valor junto (AAAA/AAAA) fica no campo escondido.
+      var caixa = function (lado, dica) {
+        return '<input id="' + prefixo + c.id + '-' + lado + '" class="ano" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="' + dica + '" aria-label="' + esc(c.rotulo) + ' (' + (lado === 'a' ? 'ano inicial' : 'ano final') + ')">';
+      };
+      return rotulo + '<div class="decenio-caixas">' + caixa('a', 'aaaa') + '<span class="barra">/</span>' + caixa('b', 'aaaa') +
+        '</div><input id="' + prefixo + c.id + '" type="hidden" data-decenio="1">';
+    }
     if (c.tipo === 'selecao') {
       return rotulo + '<select id="' + prefixo + c.id + '">' + c.opcoes.map(function (o) {
         return '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>';
@@ -309,7 +325,26 @@
     return saida;
   }
 
+  // Decênio: duas caixas só com números (4 dígitos cada); a barra é automática e o foco passa sozinho para o segundo ano.
+  function ligarDecenio(el, guardados, id) {
+    var A = $(el.id + '-a'), B = $(el.id + '-b');
+    var partes = (guardados[id] || '').split('/');
+    A.value = /^\d{4}$/.test(partes[0]) ? partes[0] : '';
+    B.value = /^\d{4}$/.test(partes[1]) ? partes[1] : '';
+    function atualizar() {
+      A.value = A.value.replace(/\D/g, '').slice(0, 4);
+      B.value = B.value.replace(/\D/g, '').slice(0, 4);
+      B.placeholder = A.value.length === 4 ? String(+A.value + 10) : 'aaaa';   // sugestão (cinza); não vira valor sozinha
+      el.value = guardados[id] = (A.value || B.value) ? (A.value || '____') + '/' + (B.value || '____') : '';
+      renderizar();
+    }
+    A.addEventListener('input', function () { atualizar(); if (A.value.length === 4) B.focus(); });
+    B.addEventListener('input', atualizar);
+    el.value = guardados[id] || '';
+  }
+
   function ligarCampo(el, guardados, id) {
+    if (el.dataset.decenio) { ligarDecenio(el, guardados, id); return; }
     el.value = guardados[id] || (el.tagName === 'SELECT' ? el.options[0].value : '');
     el.addEventListener('input', function () { guardados[id] = el.value; renderizar(); });
   }

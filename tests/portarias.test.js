@@ -484,3 +484,15 @@ test('opções do campo "de quem foi" mostram os nomes reais', () => {
   assert.match(dois[0][1], /respectivas secretarias/);
   assert.deepStrictEqual(P.opcoesOrigemFundamento([]).map((o) => o[0]), ['servidor', 'outro']);
 });
+
+test('decênio: campo de anos (AAAA/AAAA); só um ano preenchido conta como faltando', () => {
+  assert.strictEqual(P.tipoPorId('licenca-premio').campos.find((c) => c.id === 'decenio').tipo, 'decenio');
+  const gera = (decenio) => P.gerarPortaria({ tipo: 'licenca-premio', numero: '1', data: dt(1, 4, 2026), campos: {},
+    servidores: [pessoa('ANA', '1', 'F', null, { processo: '1', decenio, periodoIni: dt(1, 4, 2026), periodoFim: dt(30, 4, 2026) })] });
+  const completo = gera('2013/2023');
+  assert.deepStrictEqual(completo.faltando, []);
+  assert.strictEqual(completo.blocos[3].linhas[0][4], '2013/2023');
+  const parcial = gera('2013/____');
+  assert.deepStrictEqual(parcial.faltando, ['Decênio']);
+  assert.strictEqual(parcial.blocos[3].linhas[0][4], '[decênio]');
+});

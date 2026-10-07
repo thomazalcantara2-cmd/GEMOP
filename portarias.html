@@ -113,6 +113,10 @@
   .servidor-campos select, .servidor-campos input { background: var(--painel); }
   .cartao-dados { }
   .cartao-corpo { padding: 0; }
+  /* decênio: duas caixas de ano com a barra no meio */
+  .decenio-caixas { display: flex; align-items: center; gap: 6px; }
+  .decenio-caixas input.ano { width: 74px; text-align: center; letter-spacing: .06em; }
+  .decenio-caixas .barra { font-weight: 700; color: var(--suave); }
   .linha-campos { display: grid; gap: 8px; align-items: end; }
   .campo-col[hidden] { display: none; }
   .dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

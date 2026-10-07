@@ -345,7 +345,7 @@
     campos = campos.concat(camposFundamento(opts.fundamentoTipoPadrao || 'despacho', opts.fundamentoOrigemPadrao));
     if (opts.efeitos) campos.push({ id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true });
     campos.push(
-      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'texto', opcional: true, exemplo: '2013/2023', ajuda: 'cria a coluna Decênio', porServidor: true },
+      { id: 'decenio', rotulo: 'Decênio (opcional)', tipo: 'decenio', opcional: true, ajuda: 'cria a coluna Decênio', porServidor: true },
       { id: 'periodoIni', rotulo: 'Período de gozo: início', tipo: 'data', opcional: true, linha: 'periodo', ajuda: 'opcional; cria a coluna Período de Gozo', porServidor: true },
       { id: 'periodoFim', rotulo: 'Período de gozo: fim', tipo: 'data', opcional: true, linha: 'periodo', porServidor: true });
     if (opts.semDecenio) {
@@ -690,6 +690,8 @@
         valor = String(valor == null ? '' : valor).trim();
         var c = campo(id);
         if (!valor && c && c.padrao != null) valor = valorPadrao(c, lista.map(function (y) { return { secretaria: y.secretaria }; }));
+        // decênio com só um dos anos preenchido (ex.: 2013/____) conta como não preenchido
+        if (typeof valor === 'string' && /_{4}/.test(valor)) valor = '';
         // campo de escolha sem valor: vale a primeira opção da lista, como na tela
         if (!valor && c && c.tipo === 'selecao' && c.opcoes.length) valor = c.opcoes[0][0];
         return valor;
