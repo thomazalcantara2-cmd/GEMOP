@@ -5,7 +5,7 @@
  * Em branco, a versão online fica desligada e o programa funciona só como o aplicativo local (.bat).
  */
 window.GOOGLE_CONFIG = {
-  clientId: '',   // "ID do cliente OAuth", termina com .apps.googleusercontent.com
+  clientId: '439077798764-hkl5b1ec0esulfcn2u5d9oqlbngp8gic.apps.googleusercontent.com',   // "ID do cliente OAuth", termina com .apps.googleusercontent.com
   apiKey: '',     // "Chave de API" (usada só na janela de escolher o arquivo)
-  appId: ''       // "Número do projeto" do Google Cloud (só números)
+  appId: '439077798764'       // "Número do projeto" do Google Cloud (só números)
 };
