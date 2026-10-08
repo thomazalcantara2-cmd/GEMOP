@@ -1,7 +1,7 @@
 /*
  * Versão online: lê a FichaContabilis direto do Google Drive da pessoa que está usando a página.
  * A pessoa entra com a conta Google e escolhe o arquivo numa janela do próprio Drive; a página só enxerga
- * esse arquivo (permissão "drive.file") e só se a conta tiver acesso a ele. Nada é enviado nem guardado em servidor.
+ * esse arquivo (permissão "drive.file"; com planilha fixa, "drive.readonly", só leitura) e só se a conta tiver acesso a ele. Nada é enviado nem guardado em servidor.
  * Funciona com o .xlsx como está no Drive ou com uma Planilha Google.
  * Depende de js/google-config.js (window.GOOGLE_CONFIG).
  */
@@ -9,15 +9,17 @@
   'use strict';
 
   var cfg = global.GOOGLE_CONFIG || {};
-  var ESCOPO = 'https://www.googleapis.com/auth/drive.file';
+  // Com planilha fixa (arquivoId) a página abre direto essa planilha, só para leitura; sem ela, a pessoa escolhe o arquivo no Drive.
+  var ESCOPO = cfg.arquivoId ? 'https://www.googleapis.com/auth/drive.readonly' : 'https://www.googleapis.com/auth/drive.file';
   var CHAVE = 'gemop-google-arquivo';  // só o código e o nome do arquivo escolhido; nenhum dado de servidor
+  var CHAVE_ENTROU = 'gemop-google-entrou';  // só "já entrei antes", para tentar entrar sozinho da próxima vez
   var XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   var SHEETS_MIME = 'application/vnd.google-apps.spreadsheet';
   var scripts = {};
   var cliente = null;
   var token = null;   // { valor, vence }
 
-  function disponivel() { return !!(cfg.clientId && cfg.apiKey && cfg.appId); }
+  function disponivel() { return !!(cfg.clientId && (cfg.arquivoId || (cfg.apiKey && cfg.appId))); }
 
   function carregarScript(src) {
     if (!scripts[src]) {
@@ -39,7 +41,7 @@
   }
 
   // Pede a permissão ao Google (abre a janela de login na primeira vez) e devolve a autorização temporária.
-  function autorizacao() {
+  function autorizacao(silencioso) {
     if (token && token.vence > Date.now() + 60000) return Promise.resolve(token.valor);
     return carregarScript('https://accounts.google.com/gsi/client').then(function () {
       return new Promise(function (resolve, reject) {
@@ -51,7 +53,7 @@
         });
         cliente.callback = function (r) {
           if (r.error || !r.access_token) {
-            reject(erro('O Google não liberou o acesso (' + (r.error_description || r.error || 'sem resposta') + ').', { cancelado: r.error === 'access_denied' }));
+            reject(erro('O Google não liberou o acesso (' + (r.error_description || r.error || 'sem resposta') + ').', { cancelado: silencioso || r.error === 'access_denied' }));
             return;
           }
           token = { valor: r.access_token, vence: Date.now() + (r.expires_in || 3600) * 1000 };
@@ -60,7 +62,7 @@
         cliente.error_callback = function (e) {
           reject(erro(e && e.type === 'popup_closed' ? 'A janela de login foi fechada.' : 'Não foi possível entrar com o Google.', { cancelado: true }));
         };
-        cliente.requestAccessToken({});
+        cliente.requestAccessToken(silencioso ? { prompt: 'none' } : {});
       });
     });
   }
@@ -102,6 +104,7 @@
   function chamar(url, tk, tipo) {
     return fetch(url, { headers: { Authorization: 'Bearer ' + tk } }).then(function (r) {
       if (!r.ok) {
+        if (r.status === 401) token = null;
         var msg = r.status === 404 || r.status === 403
           ? 'Sua conta Google não tem acesso a esta planilha. Peça para ser incluída no compartilhamento e escolha o arquivo de novo.'
           : r.status === 401 ? 'O acesso ao Google expirou. Clique em "Recarregar planilha" para entrar de novo.'
@@ -137,8 +140,14 @@
    * Entra com o Google e devolve a planilha como File. Usa a que foi escolhida da última vez;
    * se isso falhar ou se pedirem outra (escolherOutra), abre a janela do Drive.
    */
-  function abrir(escolherOutra) {
-    return autorizacao().then(function (tk) {
+  function abrir(escolherOutra, silencioso) {
+    return autorizacao(silencioso).then(function (tk) {
+      if (cfg.arquivoId) {
+        return baixar(tk, cfg.arquivoId).then(function (f) {
+          try { localStorage.setItem(CHAVE_ENTROU, '1'); } catch (e) { /* ignora */ }
+          return f;
+        });
+      }
       var antigo = escolherOutra ? null : lembrado();
       var escolhendo = function () { return escolher(tk).then(function (x) { return baixar(tk, x.id); }); };
       if (!antigo) return escolhendo();
@@ -149,5 +158,7 @@
     });
   }
 
-  global.GoogleDrive = { disponivel: disponivel, abrir: abrir, lembrado: lembrado };
+  function jaEntrou() { try { return localStorage.getItem(CHAVE_ENTROU) === '1'; } catch (e) { return false; } }
+
+  global.GoogleDrive = { disponivel: disponivel, abrir: abrir, lembrado: lembrado, fixo: !!cfg.arquivoId, jaEntrou: jaEntrou };
 })(this);

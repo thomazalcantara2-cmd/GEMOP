@@ -59,3 +59,11 @@ Endereço atual: `https://portarias-segep.vercel.app`. No Vercel, a branch de pr
 - São dados pessoais de servidores (LGPD): quem pode ver é quem tem acesso à planilha. Combine com a TI quem entra no compartilhamento.
 - O aplicativo local (`Portarias.bat`) continua funcionando como sempre; com `google-config.js` em branco a versão online fica desligada.
 - O arquivo único (`Portarias (arquivo unico).html`) não usa o Google: ele é só para abrir do disco.
+
+## Planilha fixa (abre sozinha depois do login)
+
+Se o campo `arquivoId` de `js/google-config.js` estiver preenchido (é o trecho do link do Google Planilhas entre `/d/` e `/edit`), a página não pede para escolher arquivo:
+a pessoa só entra com o Google e essa planilha é carregada sozinha. Quem já entrou antes é reconhecido e a planilha carrega sem clicar em nada.
+Nesse modo o programa pede ao Google a permissão **somente leitura do Drive** (`drive.readonly`), porque precisa baixar um arquivo que a pessoa não escolheu na hora.
+Quem não tiver acesso à planilha no Google recebe a mensagem de que a conta não tem acesso. Com `arquivoId` vazio, volta o modo de escolher o arquivo no Drive.
+Se o Google reclamar do escopo, em **Google Auth Platform → Acesso a dados** adicione `https://www.googleapis.com/auth/drive.readonly`.

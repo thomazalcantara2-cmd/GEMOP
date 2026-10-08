@@ -7,5 +7,6 @@
 window.GOOGLE_CONFIG = {
   clientId: '439077798764-hkl5b1ec0esulfcn2u5d9oqlbngp8gic.apps.googleusercontent.com',   // "ID do cliente OAuth", termina com .apps.googleusercontent.com
   apiKey: 'AIzaSyDgflYPUCjZ94SIlORUxaoAP0NXGiv_XxM',     // "Chave de API" (usada só na janela de escolher o arquivo)
-  appId: '439077798764'       // "Número do projeto" do Google Cloud (só números)
+  appId: '439077798764',      // "Número do projeto" do Google Cloud (só números)
+  arquivoId: '18AlqU8uf7L47M9LES9bkVg_tXPRAewA05nu-rEaZSic'  // planilha fixa: código que fica no link do Google Planilhas (entre /d/ e /edit). Vazio = a pessoa escolhe o arquivo no Drive
 };

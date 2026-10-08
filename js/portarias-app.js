@@ -134,21 +134,23 @@
   }
 
   // ---------- versão online: planilha lida do Google Drive de quem entra (js/google.js) ----------
-  function abrirGoogle(escolherOutra) {
+  function abrirGoogle(escolherOutra, silencioso) {
     estado.carregando = true;
     mostrarErro('');
     ['entrar-google', 'trocar-google', 'recarregar'].forEach(function (id) { $(id).disabled = true; });
     atualizarStatus();
-    return G.abrir(escolherOutra).then(function (arquivo) {
+    return G.abrir(escolherOutra, silencioso).then(function (arquivo) {
       return carregarArquivos([arquivo]);
     }).catch(function (e) {
-      if (!e || !e.cancelado) mostrarErro(e && e.message ? e.message : 'Não foi possível abrir a planilha do Google Drive.');
+      if (!silencioso && (!e || !e.cancelado)) mostrarErro(e && e.message ? e.message : 'Não foi possível abrir a planilha do Google Drive.');
     }).then(function () {
       estado.carregando = false;
       ['entrar-google', 'trocar-google', 'recarregar'].forEach(function (id) { $(id).disabled = false; });
       var l = G.lembrado();
-      $('google-nome').textContent = l ? 'Planilha: ' + l.nome : '';
-      $('trocar-google').hidden = !l;
+      if (!G.fixo) {
+        $('google-nome').textContent = l ? 'Planilha: ' + l.nome : '';
+        $('trocar-google').hidden = !l;
+      }
       $('recarregar').hidden = !estado.indice;
       $('recarregar').textContent = 'Recarregar planilha';
       atualizarStatus();
@@ -160,10 +162,17 @@
     estado.modoGoogle = true;
     $('bloco-pasta').hidden = true;
     $('bloco-google').hidden = false;
-    var l = G.lembrado();
-    if (l) { $('google-nome').textContent = 'Planilha: ' + l.nome; $('trocar-google').hidden = false; }
     $('entrar-google').addEventListener('click', function () { abrirGoogle(false); });
     $('trocar-google').addEventListener('click', function () { abrirGoogle(true); });
+    if (G.fixo) {
+      // planilha fixa: só o login; quem já entrou antes é reconhecido e a planilha carrega sem mostrar o quadro
+      $('entrar-google').textContent = 'Entrar com Google';
+      $('google-nome').textContent = 'Entre com a conta Google que tem acesso à planilha da SEGEP. Ela é aberta sozinha depois do login e os dados ficam só neste navegador.';
+      if (G.jaEntrou()) { abrirGoogle(false, true); return; }
+    } else {
+      var l = G.lembrado();
+      if (l) { $('google-nome').textContent = 'Planilha: ' + l.nome; $('trocar-google').hidden = false; }
+    }
     mostrarCarregamento(true);
   }
 
