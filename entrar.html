@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar · Portarias SEGEP</title>
+<style>
+  @font-face { font-family: 'Nunito Sans'; font-style: normal; font-weight: 400 800; font-display: swap; src: url("assets/fonts/nunito-sans-latin-ext.woff2") format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  @font-face { font-family: 'Nunito Sans'; font-style: normal; font-weight: 400 800; font-display: swap; src: url("assets/fonts/nunito-sans-latin.woff2") format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+:root {
+    --azul: #0a3cc2; --azul-esc: #062a8c; --verde: #00a13a; --amarelo: #fbb900; --laranja: #f7941d;
+    --bg: #f3f4f7; --painel: #ffffff; --texto: #14203a; --suave: #5a6478; --borda: #dfe3ea;
+    --destaque: var(--azul); --destaque-texto: #ffffff; --ok: var(--verde); --aviso-bg: #fff4d1; --aviso: #6e4d00;
+    --erro-bg: #fde8e8; --erro: #9b1c1c; --sel: #e9efff; --topo: 50px; --lateral: clamp(440px, 46vw, 780px); --cartao: 580px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141c; --painel: #1a202b; --texto: #e6e9ef; --suave: #9aa4b5; --borda: #2e3644;
+      --destaque: #5c86f0; --destaque-texto: #ffffff; --ok: #2fbf68; --aviso-bg: #3a3017; --aviso: #f1d27a;
+      --erro-bg: #3d1d1d; --erro: #f3a6a6; --sel: #223055;
+    }
+  }
+  
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 "Nunito Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--texto); min-height: 100vh; }
+  /* ---------- Barra superior (identidade Prefeitura do Jaboatão) ---------- */
+  .topo { position: sticky; top: 0; z-index: 30; height: var(--topo); display: flex; align-items: stretch;
+    background: linear-gradient(115deg, #fdc61f 0%, #fbb900 45%, #f7941d 100%); box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  .topo-marca { display: flex; align-items: center; gap: 10px; background: #fff; padding: 0 22px 0 12px; border-radius: 0 0 28px 0; }
+  .topo-marca img { height: 40px; width: auto; display: block; }
+  .topo-marca .sep { width: 1px; align-self: stretch; margin: 11px 0; background: var(--borda); }
+  .topo-titulo { display: flex; flex-direction: column; line-height: 1.15; }
+  .topo-titulo b { font-size: 15px; font-weight: 800; color: #0a3cc2; letter-spacing: .01em; }
+  .topo-titulo span { font-size: 11px; color: #4a5468; }
+  .topo-acoes { margin-left: auto; display: flex; align-items: center; padding: 0 6px; }
+  .topo-acoes button { background: rgba(255,255,255,.92); color: var(--azul); border: none; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .topo-acoes button::before { content: "↻ "; }
+  #sair-google { margin-left: 6px; }
+  #sair-google::before { content: ""; }
+  .topo-acoes button:hover:not(:disabled) { background: #fff; }
+  .topo-faixa { display: flex; align-items: center; padding: 0 16px; }
+  .topo-faixa img { height: 30px; width: auto; display: block; mix-blend-mode: multiply; }
+
+  main { display: grid; place-items: center; padding: 48px 16px; }
+  .cartao { background: var(--painel); border: 1px solid var(--borda); border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.08); width: min(460px, 100%); padding: 28px 28px 24px; border-top: 5px solid var(--amarelo); }
+  h1 { margin: 0 0 6px; font-size: 22px; color: var(--azul); }
+  p { margin: 6px 0; color: var(--suave); }
+  button { font: inherit; cursor: pointer; }
+  #entrar { width: 100%; margin-top: 18px; padding: 12px 16px; font-size: 15px; font-weight: 800; background: var(--azul); color: #fff; border: none; border-radius: 10px; }
+  #entrar:hover:not(:disabled) { background: var(--azul-esc); }
+  #entrar:disabled { opacity: .6; cursor: default; }
+  #erro { margin-top: 14px; background: var(--erro-bg); color: var(--erro); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+  #aviso { margin-top: 14px; background: var(--aviso-bg); color: var(--aviso); padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+  .nota { margin-top: 16px; font-size: 12px; }
+  @media (max-width: 700px) { .topo-faixa { display: none; } }
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="topo-marca">
+    <img src="assets/topo-marca.webp" alt="Prefeitura do Jaboatão dos Guararapes">
+    <div class="sep"></div>
+    <div class="topo-titulo"><b>Portarias</b><span>SEGEP · preenchimento automático pela FichaContabilis</span></div>
+  </div>
+  <div class="topo-faixa" style="margin-left:auto"><img src="assets/topo-faixa.jpg" alt=""></div>
+</header>
+<main>
+  <section class="cartao">
+    <h1>Entrar</h1>
+    <p>Entre com a conta Google que tem acesso à planilha da SEGEP. Depois do login você vai direto para as Portarias e a planilha é aberta sozinha.</p>
+    <button id="entrar" type="button">Entrar com Google</button>
+    <div id="erro" hidden></div>
+    <div id="aviso" hidden></div>
+    <p class="nota">Os dados da planilha ficam só neste navegador: nada é guardado em servidor. Quem não tem acesso à planilha no Google não consegue abrir.</p>
+  </section>
+</main>
+<script src="js/google-config.js"></script>
+<script src="js/google.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var G = window.GoogleDrive;
+  if (!G || !G.disponivel() || !G.fixo || location.protocol !== 'https:') {
+    $('aviso').hidden = false;
+    $('aviso').innerHTML = 'A entrada com Google não está ligada neste endereço. <a href="portarias.html">Abrir as Portarias</a>.';
+    $('entrar').hidden = true;
+    return;
+  }
+  // já entrou há pouco nesta aba: segue direto
+  if (G.temSessao()) { location.replace('portarias.html'); return; }
+  $('entrar').addEventListener('click', function () {
+    $('erro').hidden = true;
+    $('entrar').disabled = true;
+    $('entrar').textContent = 'Entrando…';
+    // abre o login e confere se a conta consegue ler a planilha antes de ir para as Portarias
+    G.abrir(false).then(function () {
+      location.replace('portarias.html');
+    }, function (e) {
+      $('entrar').disabled = false;
+      $('entrar').textContent = 'Entrar com Google';
+      if (e && e.cancelado) return;
+      $('erro').hidden = false;
+      $('erro').textContent = e && e.message ? e.message : 'Não foi possível entrar com o Google.';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -67,3 +67,9 @@ a pessoa só entra com o Google e essa planilha é carregada sozinha. Quem já e
 Nesse modo o programa pede ao Google a permissão **somente leitura do Drive** (`drive.readonly`), porque precisa baixar um arquivo que a pessoa não escolheu na hora.
 Quem não tiver acesso à planilha no Google recebe a mensagem de que a conta não tem acesso. Com `arquivoId` vazio, volta o modo de escolher o arquivo no Drive.
 Se o Google reclamar do escopo, em **Google Auth Platform → Acesso a dados** adicione `https://www.googleapis.com/auth/drive.readonly`.
+
+### Tela de entrada
+
+Com a planilha fixa, o endereço do site abre primeiro a tela **Entrar** (`entrar.html`). Depois do login a pessoa vai direto para as Portarias, sem o quadro "Carregar a planilha".
+Quem já entrou antes e abre as Portarias de novo é reconhecido sozinho; se o Google não reconhecer, volta para a tela Entrar. O botão **Sair** (barra amarela) encerra a conta neste navegador.
+Se o Google recusar a leitura (conta sem acesso ou "Google Drive API" desligada), a mensagem na tela traz o detalhe do Google.

@@ -18,7 +18,7 @@ Dois programas usam as mesmas planilhas e o mesmo `js/dados.js`: o Requerimento 
 - **Leitura de planilhas** compartilhada: `js/planilhas.js` (`.xlsx`, pasta, servidor local).
 - **Aplicativo local**: `Requerimento.bat` → `servidor.ps1` (Windows PowerShell 5.1, sem instalação; atende só
   127.0.0.1, entrega a página e as planilhas da pasta `planilhas/` ou do caminho em `pasta.txt`).
-- **Versão online das Portarias** (opcional): `js/google.js` + `js/google-config.js` (3 códigos públicos; em branco = desligada). Só em `https`: entrar com Google, escolher a planilha no Drive (Picker, escopo `drive.file`) e ler com a conta da pessoa; nada fica em servidor. Com `arquivoId` preenchido a planilha é fixa (escopo `drive.readonly`, entra sozinho quem já logou antes); vazio = escolhe no Drive. Passo a passo em `COMO-PUBLICAR-ONLINE.md`; `.vercelignore`/`vercel.json` para publicar. Não testável aqui com o Google de verdade (testes usam um Google simulado).
+- **Versão online das Portarias** (opcional): `js/google.js` + `js/google-config.js` (3 códigos públicos; em branco = desligada). Só em `https`: entrar com Google, escolher a planilha no Drive (Picker, escopo `drive.file`) e ler com a conta da pessoa; nada fica em servidor. Com `arquivoId` preenchido a planilha é fixa (escopo `drive.readonly`; o site abre em `entrar.html`, o login leva às Portarias sem o quadro de carregar; `vercel.json` aponta `/` para `entrar.html`); vazio = escolhe no Drive. Passo a passo em `COMO-PUBLICAR-ONLINE.md`; `.vercelignore`/`vercel.json` para publicar. Não testável aqui com o Google de verdade (testes usam um Google simulado).
 - **Versão em arquivo único**: `python3 build_standalone.py saida.html [requerimento|portarias]` embute scripts, logo e fontes.
 
 ## Planilhas (exportadas do sistema de RH; contêm dados pessoais — nunca versionar)
@@ -38,5 +38,5 @@ Dois programas usam as mesmas planilhas e o mesmo `js/dados.js`: o Requerimento 
   disponíveis) e confira que a folha cabe em **uma página A4** para todos os servidores.
 - Nunca commitar `.xlsx`, `.pdf` ou dados de servidores (o `.gitignore` já bloqueia).
 - Ao terminar uma mudança: gerar o zip do app local
-  (`git archive --format=zip --prefix="Requerimento do Servidor/" HEAD Requerimento.bat Portarias.bat servidor.ps1 pasta.txt index.html portarias.html js vendor assets planilhas README.md COMO-PUBLICAR-ONLINE.md vercel.json .vercelignore`)
+  (`git archive --format=zip --prefix="Requerimento do Servidor/" HEAD Requerimento.bat Portarias.bat servidor.ps1 pasta.txt index.html portarias.html entrar.html js vendor assets planilhas README.md COMO-PUBLICAR-ONLINE.md vercel.json .vercelignore`)
   e os arquivos únicos (`requerimento` e `portarias`), e enviar ao usuário.

@@ -36,6 +36,8 @@
   .topo-acoes { margin-left: auto; display: flex; align-items: center; padding: 0 6px; }
   .topo-acoes button { background: rgba(255,255,255,.92); color: var(--azul); border: none; border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
   .topo-acoes button::before { content: "↻ "; }
+  #sair-google { margin-left: 6px; }
+  #sair-google::before { content: ""; }
   .topo-acoes button:hover:not(:disabled) { background: #fff; }
   .topo-faixa { display: flex; align-items: center; padding: 0 16px; }
   .topo-faixa img { height: 30px; width: auto; display: block; mix-blend-mode: multiply; }
@@ -214,7 +216,7 @@
     <div class="sep"></div>
     <div class="topo-titulo"><b>Portarias</b><span id="topo-sub">SEGEP · preenchimento automático pela FichaContabilis</span></div>
   </div>
-  <div class="topo-acoes"><button id="recarregar" type="button" hidden title="Lê de novo a planilha da pasta (use depois de salvar uma planilha nova)">Recarregar planilha</button></div>
+  <div class="topo-acoes"><button id="recarregar" type="button" hidden title="Lê de novo a planilha da pasta (use depois de salvar uma planilha nova)">Recarregar planilha</button><button id="sair-google" type="button" hidden title="Sai desta conta Google neste navegador">Sair</button></div>
   <div class="topo-faixa"><img src="assets/topo-faixa.jpg" alt=""></div>
 </header>
 <div class="app" id="app">

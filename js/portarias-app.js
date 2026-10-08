@@ -60,7 +60,7 @@
   function mostrarErro(msg) {
     $('erro').textContent = msg;
     $('erro').hidden = !msg;
-    if (msg && !estado.indice) mostrarCarregamento(true);
+    if (msg && !estado.indice && !estado.modoGoogle) mostrarCarregamento(true);
   }
 
   // Só a FichaContabilis é usada; outras planilhas (Ficha Cadastral) são ignoradas.
@@ -147,10 +147,8 @@
       estado.carregando = false;
       ['entrar-google', 'trocar-google', 'recarregar'].forEach(function (id) { $(id).disabled = false; });
       var l = G.lembrado();
-      if (!G.fixo) {
-        $('google-nome').textContent = l ? 'Planilha: ' + l.nome : '';
-        $('trocar-google').hidden = !l;
-      }
+      $('google-nome').textContent = l ? 'Planilha: ' + l.nome : '';
+      $('trocar-google').hidden = !l;
       $('recarregar').hidden = !estado.indice;
       $('recarregar').textContent = 'Recarregar planilha';
       atualizarStatus();
@@ -164,27 +162,55 @@
     $('bloco-google').hidden = false;
     $('entrar-google').addEventListener('click', function () { abrirGoogle(false); });
     $('trocar-google').addEventListener('click', function () { abrirGoogle(true); });
-    if (G.fixo) {
-      // planilha fixa: só o login; quem já entrou antes é reconhecido e a planilha carrega sem mostrar o quadro
-      $('entrar-google').textContent = 'Entrar com Google';
-      $('google-nome').textContent = 'Entre com a conta Google que tem acesso à planilha da SEGEP. Ela é aberta sozinha depois do login e os dados ficam só neste navegador.';
-      if (G.jaEntrou()) { abrirGoogle(false, true); return; }
-    } else {
-      var l = G.lembrado();
-      if (l) { $('google-nome').textContent = 'Planilha: ' + l.nome; $('trocar-google').hidden = false; }
-    }
+    var l = G.lembrado();
+    if (l) { $('google-nome').textContent = 'Planilha: ' + l.nome; $('trocar-google').hidden = false; }
     mostrarCarregamento(true);
+  }
+
+  // Planilha fixa: o login é feito na página anterior (entrar.html). Aqui a planilha carrega sozinha, sem o quadro de carregar.
+  // Sem entrada válida (nem login recente nesta aba, nem entrada anterior para reconhecer), volta para a tela de entrada.
+  function carregarGoogleFixo(silencioso) {
+    estado.carregando = true;
+    mostrarErro('');
+    $('recarregar').disabled = true;
+    atualizarStatus();
+    G.abrir(false, silencioso).then(function (arquivo) {
+      return carregarArquivos([arquivo]);
+    }).then(function () {
+      estado.carregando = false;
+      $('recarregar').disabled = false;
+      atualizarStatus();
+    }, function (e) {
+      if (e && e.cancelado && silencioso) { location.replace('entrar.html'); return; }
+      estado.carregando = false;
+      $('recarregar').disabled = false;
+      atualizarStatus();
+      if (!e || !e.cancelado) mostrarErro(e && e.message ? e.message : 'Não foi possível abrir a planilha do Google.');
+    });
+  }
+
+  function iniciarGoogleFixo() {
+    estado.modoGoogle = true;
+    estado.googleFixo = true;
+    $('bloco-pasta').hidden = true;
+    $('recarregar').hidden = false;
+    $('sair-google').hidden = false;
+    $('sair-google').addEventListener('click', function () { G.sair(); location.href = 'entrar.html'; });
+    if (!G.temSessao() && !G.jaEntrou()) { location.replace('entrar.html'); return; }
+    carregarGoogleFixo(true);
   }
 
   function iniciarPasta() {
     $('recarregar').addEventListener('click', function () {
-      if (estado.modoGoogle) {
+      if (estado.googleFixo) {
+        carregarGoogleFixo(false);
+      } else if (estado.modoGoogle) {
         abrirGoogle(false);
       } else if (estado.modoLocal) {
         carregarDoServidorLocal().catch(function (e) { mostrarErro('Não foi possível ler a planilha: ' + e.message); });
       } else if (estado.pasta) carregarDaPasta(estado.pasta, true);
     });
-    if (G && G.disponivel() && location.protocol === 'https:') { iniciarGoogle(); return; }
+    if (G && G.disponivel() && location.protocol === 'https:') { if (G.fixo) iniciarGoogleFixo(); else iniciarGoogle(); return; }
     if (/^https?:$/.test(location.protocol)) {
       // leitura automática da pasta: enquanto carrega, a barra amarela avisa e nada de "inserir planilha" aparece na tela;
       // o quadro de carregar só aparece se a planilha não for encontrada

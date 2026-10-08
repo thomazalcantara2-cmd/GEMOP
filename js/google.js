@@ -17,6 +17,7 @@
   var SHEETS_MIME = 'application/vnd.google-apps.spreadsheet';
   var scripts = {};
   var cliente = null;
+  var CHAVE_TOKEN = 'gemop-google-token';  // acesso temporário (1 hora) guardado só nesta aba, para passar da tela de entrada para as Portarias
   var token = null;   // { valor, vence }
 
   function disponivel() { return !!(cfg.clientId && (cfg.arquivoId || (cfg.apiKey && cfg.appId))); }
@@ -41,8 +42,13 @@
   }
 
   // Pede a permissão ao Google (abre a janela de login na primeira vez) e devolve a autorização temporária.
+  function sessao() {
+    if (!token) { try { token = JSON.parse(sessionStorage.getItem(CHAVE_TOKEN) || 'null'); } catch (e) { token = null; } }
+    return token && token.valor && token.vence > Date.now() + 60000 ? token : null;
+  }
+
   function autorizacao(silencioso) {
-    if (token && token.vence > Date.now() + 60000) return Promise.resolve(token.valor);
+    if (sessao()) return Promise.resolve(token.valor);
     return carregarScript('https://accounts.google.com/gsi/client').then(function () {
       return new Promise(function (resolve, reject) {
         cliente = cliente || global.google.accounts.oauth2.initTokenClient({
@@ -57,6 +63,7 @@
             return;
           }
           token = { valor: r.access_token, vence: Date.now() + (r.expires_in || 3600) * 1000 };
+          try { sessionStorage.setItem(CHAVE_TOKEN, JSON.stringify(token)); } catch (e) { /* ignora */ }
           resolve(token.valor);
         };
         cliente.error_callback = function (e) {
@@ -103,15 +110,17 @@
 
   function chamar(url, tk, tipo) {
     return fetch(url, { headers: { Authorization: 'Bearer ' + tk } }).then(function (r) {
-      if (!r.ok) {
-        if (r.status === 401) token = null;
+      if (r.ok) return tipo === 'json' ? r.json() : r.blob();
+      return r.text().then(function (corpo) {
+        var detalhe = '';
+        try { detalhe = JSON.parse(corpo).error.message || ''; } catch (e) { /* sem detalhe */ }
+        if (r.status === 401) { token = null; try { sessionStorage.removeItem(CHAVE_TOKEN); } catch (e) { /* ignora */ } }
         var msg = r.status === 404 || r.status === 403
-          ? 'Sua conta Google não tem acesso a esta planilha. Peça para ser incluída no compartilhamento e escolha o arquivo de novo.'
+          ? 'O Google não deixou abrir a planilha. Confira se a sua conta tem acesso a ela e se a "Google Drive API" está ativada no projeto.'
           : r.status === 401 ? 'O acesso ao Google expirou. Clique em "Recarregar planilha" para entrar de novo.'
           : 'O Google não entregou a planilha (erro ' + r.status + ').';
-        throw erro(msg, { status: r.status });
-      }
-      return tipo === 'json' ? r.json() : r.blob();
+        throw erro(msg + (detalhe ? ' (Detalhe do Google: ' + detalhe + ')' : ''), { status: r.status });
+      });
     });
   }
 
@@ -158,7 +167,12 @@
     });
   }
 
+  function sair() {
+    token = null;
+    try { sessionStorage.removeItem(CHAVE_TOKEN); localStorage.removeItem(CHAVE_ENTROU); } catch (e) { /* ignora */ }
+  }
+
   function jaEntrou() { try { return localStorage.getItem(CHAVE_ENTROU) === '1'; } catch (e) { return false; } }
 
-  global.GoogleDrive = { disponivel: disponivel, abrir: abrir, lembrado: lembrado, fixo: !!cfg.arquivoId, jaEntrou: jaEntrou };
+  global.GoogleDrive = { disponivel: disponivel, abrir: abrir, lembrado: lembrado, fixo: !!cfg.arquivoId, jaEntrou: jaEntrou, temSessao: function () { return !!sessao(); }, sair: sair };
 })(this);
