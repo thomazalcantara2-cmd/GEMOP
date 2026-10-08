@@ -45,6 +45,8 @@ Sirva os arquivos da pasta do projeto num endereço `https` (por exemplo na Verc
 O arquivo `.vercelignore` já deixa de fora planilhas, testes e os `.bat`. A página inicial abre direto as Portarias.
 **Nunca coloque planilhas na pasta publicada.**
 
+Endereço atual: `https://portarias-segep.vercel.app`. No Vercel, a branch de produção (Settings → Environments → Production → Branch Tracking) deve ser `claude/ecstatic-keller-izldna`.
+
 ## No dia a dia
 
 1. A pessoa abre o endereço e clica em **Entrar com Google e abrir a planilha**.
