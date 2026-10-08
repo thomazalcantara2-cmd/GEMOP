@@ -1,0 +1,12 @@
+planilhas
+tests
+*.xlsx
+*.xls
+*.pdf
+*.bat
+servidor.ps1
+pasta.txt
+build_standalone.py
+index.html
+CLAUDE.md
+.git

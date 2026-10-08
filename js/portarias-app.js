@@ -5,6 +5,7 @@
   var D = window.Dados;
   var P = window.Planilhas;
   var R = window.Portarias;
+  var G = window.GoogleDrive;
   var CHAVE_CONFIG = 'gemop-portarias-config-v1';
   var CHAVE_PAINEL = 'gemop-portarias-painel-recolhido';
   var BANCO = 'gemop-portarias';
@@ -132,12 +133,49 @@
     }).catch(function (e) { if (e.name !== 'AbortError') mostrarErro('Não foi possível abrir a pasta: ' + e.message); });
   }
 
+  // ---------- versão online: planilha lida do Google Drive de quem entra (js/google.js) ----------
+  function abrirGoogle(escolherOutra) {
+    estado.carregando = true;
+    mostrarErro('');
+    ['entrar-google', 'trocar-google', 'recarregar'].forEach(function (id) { $(id).disabled = true; });
+    atualizarStatus();
+    return G.abrir(escolherOutra).then(function (arquivo) {
+      return carregarArquivos([arquivo]);
+    }).catch(function (e) {
+      if (!e || !e.cancelado) mostrarErro(e && e.message ? e.message : 'Não foi possível abrir a planilha do Google Drive.');
+    }).then(function () {
+      estado.carregando = false;
+      ['entrar-google', 'trocar-google', 'recarregar'].forEach(function (id) { $(id).disabled = false; });
+      var l = G.lembrado();
+      $('google-nome').textContent = l ? 'Planilha: ' + l.nome : '';
+      $('trocar-google').hidden = !l;
+      $('recarregar').hidden = !estado.indice;
+      $('recarregar').textContent = 'Recarregar planilha';
+      atualizarStatus();
+      if (!estado.indice) mostrarCarregamento(true);
+    });
+  }
+
+  function iniciarGoogle() {
+    estado.modoGoogle = true;
+    $('bloco-pasta').hidden = true;
+    $('bloco-google').hidden = false;
+    var l = G.lembrado();
+    if (l) { $('google-nome').textContent = 'Planilha: ' + l.nome; $('trocar-google').hidden = false; }
+    $('entrar-google').addEventListener('click', function () { abrirGoogle(false); });
+    $('trocar-google').addEventListener('click', function () { abrirGoogle(true); });
+    mostrarCarregamento(true);
+  }
+
   function iniciarPasta() {
     $('recarregar').addEventListener('click', function () {
-      if (estado.modoLocal) {
+      if (estado.modoGoogle) {
+        abrirGoogle(false);
+      } else if (estado.modoLocal) {
         carregarDoServidorLocal().catch(function (e) { mostrarErro('Não foi possível ler a planilha: ' + e.message); });
       } else if (estado.pasta) carregarDaPasta(estado.pasta, true);
     });
+    if (G && G.disponivel() && location.protocol === 'https:') { iniciarGoogle(); return; }
     if (/^https?:$/.test(location.protocol)) {
       // leitura automática da pasta: enquanto carrega, a barra amarela avisa e nada de "inserir planilha" aparece na tela;
       // o quadro de carregar só aparece se a planilha não for encontrada

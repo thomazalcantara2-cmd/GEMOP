@@ -70,6 +70,7 @@
   #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
   #zona input { display: none; }
   #zona span { color: var(--destaque); font-weight: 700; }
+  .pasta[hidden], .pasta button[hidden] { display: none; }
   .pasta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   .pasta button { padding: 8px 12px; font-size: 13px; }
   .pasta small { color: var(--suave); width: 100%; }
@@ -225,6 +226,11 @@
     <details id="det-planilhas" class="passo" open hidden>
       <summary><span class="ic"></span>Carregar a planilha (FichaContabilis)</summary>
       <div class="det-corpo">
+      <div id="bloco-google" class="pasta" style="margin:0 0 8px" hidden>
+        <button id="entrar-google" type="button">Entrar com Google e abrir a planilha</button>
+        <button id="trocar-google" type="button" hidden>Escolher outra planilha</button>
+        <small id="google-nome">Entre com a conta Google que tem acesso à FichaContabilis e escolha o arquivo no seu Drive. Os dados ficam só neste navegador.</small>
+      </div>
       <div id="bloco-pasta" class="pasta" style="margin:0 0 8px">
         <button id="escolher-pasta" type="button">Escolher pasta das planilhas</button>
         <small id="pasta-nome"></small>
@@ -305,6 +311,8 @@
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="js/dados.js"></script>
 <script src="js/planilhas.js"></script>
+<script src="js/google-config.js"></script>
+<script src="js/google.js"></script>
 <script src="js/portarias.js"></script>
 <script src="js/portarias-app.js"></script>
 </body>

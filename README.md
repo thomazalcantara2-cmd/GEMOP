@@ -187,3 +187,7 @@ Regras de preenchimento:
 
 > As planilhas contêm dados pessoais (CPF, endereço etc.). O `.gitignore` impede que arquivos
 > `.xlsx`/`.pdf` sejam enviados ao repositório — mantenha-as fora dele.
+
+## Versão online (Google Drive)
+
+Veja `COMO-PUBLICAR-ONLINE.md`: a página publicada na internet lê a FichaContabilis do Google Drive da pessoa que entra com a conta Google (só quem tem acesso à planilha consegue abrir). Fica desligada enquanto `js/google-config.js` estiver em branco.
