@@ -6,6 +6,8 @@
   var P = window.Planilhas;
   var R = window.Portarias;
   var G = window.GoogleDrive;
+  var SEI = window.SeiProcesso;
+  var ZIP = window.ZipLeitura;
   var CHAVE_CONFIG = 'gemop-portarias-config-v1';
   var CHAVE_PAINEL = 'gemop-portarias-painel-recolhido';
   var BANCO = 'gemop-portarias';
@@ -19,6 +21,7 @@
     selecionados: [],   // servidores da portaria, na ordem escolhida
     valores: {},        // campos comuns, por tipo de portaria: { idDoCampo: texto }
     escolhaSecretaria: {}, // matrícula -> 'municipal' | 'trabalho'
+    sei: [],            // processos do SEI lidos (um cartão cada)
     valoresServ: {}     // campos de cada servidor: 'matrícula|tipo' -> { idDoCampo: texto }. Só nesta sessão; nada é gravado
   };
 
@@ -241,6 +244,7 @@
     estado.base = D.montarBase(estado.indice.linhas, { servidores: [], lotacoes: [] });
     estado.secretarias = R.mapaSecretarias(estado.base);
     $('busca').disabled = false;
+    $('arquivos-sei').disabled = false;
     $('busca').placeholder = 'Digite o nome, matrícula ou CPF (' + estado.base.length + ' servidores)';
     estado.selecionados = estado.selecionados.map(function (x) {
       return estado.base.filter(function (s) { return s.matricula === x.matricula; })[0] || x;
@@ -731,7 +735,7 @@
 
   // ---------- cartões 1, 2 e 3 retráteis ----------
   var CHAVE_PASSOS = 'gemop-portarias-passos-fechados';
-  var PASSOS = ['passo-tipo', 'passo-servidores', 'passo-dados'];
+  var PASSOS = ['passo-sei', 'passo-tipo', 'passo-servidores', 'passo-dados'];
 
   // Resumo que aparece ao lado do título quando o cartão está fechado.
   function atualizarResumos(escolhidos, dataDoc) {
@@ -779,6 +783,217 @@
     });
   }
 
+  // ---------- importar do processo SEI (js/sei.js e js/zip.js) ----------
+  // Lê os documentos .html do processo (Ficha Funcional, despachos…), sugere decisão, decênio, período e fundamento e mostra
+  // um cartão por processo para o usuário conferir. Só depois de "Montar portaria" os campos são preenchidos.
+  var FUND_TIPOS = [['despacho', 'Despacho'], ['parecer', 'Parecer'], ['parecer-juridico', 'Parecer Jurídico'],
+    ['ci', 'Comunicação Interna (CI)'], ['oficio', 'Ofício'], ['informacao', 'Informação']];
+
+  function erroSei(msg) { $('sei-erro').textContent = msg; $('sei-erro').hidden = !msg; }
+
+  // Os documentos do SEI vêm em ISO-8859-1 (com entidades); só usa UTF-8 se o próprio arquivo disser.
+  function decodificarHtml(bytes) {
+    var inicio = new TextDecoder('windows-1252').decode(bytes.subarray(0, 2000));
+    return new TextDecoder(/charset=["']?utf-8/i.test(inicio) ? 'utf-8' : 'windows-1252').decode(bytes);
+  }
+
+  function arquivosDoSei(lista) {
+    return Promise.all(Array.prototype.map.call(lista, function (f) {
+      var ler = f.arrayBuffer ? f.arrayBuffer() : new Promise(function (ok, no) {
+        var r = new FileReader(); r.onload = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; r.readAsArrayBuffer(f);
+      });
+      return ler.then(function (buf) {
+        var bytes = new Uint8Array(buf);
+        if (/\.zip$/i.test(f.name)) {
+          return ZIP.lerZip(bytes).then(function (entradas) {
+            return entradas.filter(function (e) { return /\.html?$/i.test(e.nome); })
+              .map(function (e) { return { nome: e.nome, html: decodificarHtml(e.dados) }; });
+          });
+        }
+        return /\.html?$/i.test(f.name) ? [{ nome: f.name, html: decodificarHtml(bytes) }] : [];
+      });
+    })).then(function (listas) { return [].concat.apply([], listas); });
+  }
+
+  function iniciais(p) {
+    var achado = p.servidor ? SEI.acharServidor(estado.base, p.servidor) : { servidor: null, aviso: 'Sem Ficha Funcional.' };
+    var forasteiro = !p.assuntoLP;
+    return {
+      p: p, servidor: achado.servidor, aviso: achado.aviso,
+      incluir: !!achado.servidor && !forasteiro && !p.bloqueio && !!p.decisao,
+      decisao: p.decisao || 'deferida',
+      decenio: p.decenioSugerido,
+      inicio: p.periodo ? SEI.iso(p.periodo.inicio) : '',
+      meses: p.periodo && p.periodo.meses != null ? p.periodo.meses : '',
+      fundTipo: p.fundamento ? p.fundamento.tipo : 'despacho',
+      fundNumero: p.fundamento ? p.fundamento.id : '',
+      fundSecretaria: p.fundamento ? R.capitalizar(p.fundamento.secretaria) : ''
+    };
+  }
+
+  function fimDoItem(it) {
+    var ini = it.inicio ? D.paraData(it.inicio) : null;
+    return ini && +it.meses > 0 ? SEI.iso(SEI.fimDoGozo(ini, +it.meses)) : '';
+  }
+
+  function importarSei(lista) {
+    erroSei('');
+    if (!estado.base.length) { erroSei('Carregue a planilha primeiro: o programa precisa dela para achar os servidores.'); return Promise.resolve(); }
+    return arquivosDoSei(lista).then(function (arquivos) {
+      var procs = SEI.lerProcessos(arquivos);
+      if (!procs.length) { erroSei('Não achei documentos do SEI (.html) nos arquivos enviados. Envie o .zip exportado do processo.'); return; }
+      procs.forEach(function (p) {
+        var novo = iniciais(p);
+        var i = estado.sei.map(function (x) { return x.p.processo; }).indexOf(p.processo);
+        if (i >= 0) estado.sei[i] = novo; else estado.sei.push(novo);
+      });
+      desenharSei();
+    }).catch(function (e) { erroSei('Não foi possível ler os arquivos: ' + e.message); });
+  }
+
+  function opcoesSei(lista, atual) {
+    return lista.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === atual ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
+  }
+
+  function cartaoSei(it, i) {
+    var p = it.p, nome = it.servidor ? it.servidor.nome : (p.servidor ? p.servidor.nome : 'Servidor não identificado');
+    var indef = it.decisao === 'indeferida';
+    var campos;
+    if (indef) {
+      campos = '<div><label>Documento do indeferimento</label><select data-c="fundTipo">' + opcoesSei(FUND_TIPOS, it.fundTipo) + '</select></div>' +
+        '<div><label>Nº (SEI)</label><input data-c="fundNumero" type="text" value="' + esc(it.fundNumero) + '"></div>' +
+        '<div style="grid-column:span 2"><label>Secretaria do documento</label><input data-c="fundSecretaria" type="text" value="' + esc(it.fundSecretaria) + '"></div>';
+    } else {
+      var decs = p.decenios.map(function (d) { return [d.ini + '/' + d.fim, d.ini + '/' + d.fim + ' (gozou ' + d.gozou + ')']; });
+      var campoDec = decs.length
+        ? '<select data-c="decenio">' + opcoesSei(decs, it.decenio) + '</select>'
+        : '<input data-c="decenio" type="text" placeholder="aaaa/aaaa" value="' + esc(it.decenio) + '">';
+      campos = '<div><label>Decênio</label>' + campoDec + '</div>' +
+        '<div><label>Início</label><input data-c="inicio" type="date" value="' + esc(it.inicio) + '"></div>' +
+        '<div><label>Meses (30 dias cada)</label><input data-c="meses" type="number" min="1" max="12" value="' + esc(it.meses) + '"></div>' +
+        '<div><label>Fim</label><div class="sei-fim" data-fim="' + i + '">' + esc(fimDoItem(it) ? SEI.br(D.paraData(fimDoItem(it))) : '—') + '</div></div>';
+    }
+    var avisos = (p.bloqueio ? ['Não incluir: ' + p.bloqueio + '.'] : []).map(function (t) { return '<li class="bloq">' + esc(t) + '</li>'; });
+    if (it.aviso) avisos.push('<li>' + esc(it.aviso) + '</li>');
+    p.alertas.forEach(function (t) { avisos.push('<li>' + esc(t) + '</li>'); });
+    var busca = it.servidor ? '' : '<div class="sei-sub"><input data-busca="' + i + '" type="search" placeholder="Buscar o servidor na planilha (nome ou matrícula)"></div><ul class="sei-busca-res" id="sei-res-' + i + '"></ul>';
+    return '<li class="sei-item' + (indef ? ' indef' : '') + (p.bloqueio ? ' bloq' : '') + (it.incluir ? '' : ' fora') + '" data-i="' + i + '">' +
+      '<div class="sei-topo"><label><input type="checkbox" data-c="incluir"' + (it.incluir ? ' checked' : '') + (it.servidor ? '' : ' disabled') + '> ' + esc(nome) + '</label>' +
+      '<select data-c="decisao" aria-label="Decisão"><option value="deferida"' + (indef ? '' : ' selected') + '>Deferida</option><option value="indeferida"' + (indef ? ' selected' : '') + '>Indeferida</option></select>' +
+      '<button type="button" data-tirar="' + i + '" title="Tirar da lista" aria-label="Tirar da lista">✕</button></div>' +
+      '<div class="sei-sub">Processo ' + esc(p.processo) + (it.servidor ? ' · Mat. ' + esc(it.servidor.matriculaFormatada) : '') + (p.saldo != null ? ' · saldo na Ficha: ' + p.saldo + ' mês(es)' : '') + '</div>' +
+      busca + '<div class="sei-campos">' + campos + '</div>' +
+      (avisos.length ? '<ul class="sei-avisos">' + avisos.join('') + '</ul>' : '') + '</li>';
+  }
+
+  function resumoSei() {
+    var marcados = estado.sei.filter(function (x) { return x.incluir && x.servidor; });
+    $('sei-resumo').textContent = marcados.length + ' de ' + estado.sei.length + ' marcado(s)';
+    $('res-sei').textContent = estado.sei.length ? estado.sei.length + (estado.sei.length === 1 ? ' processo lido' : ' processos lidos') : '';
+    $('sei-montar').disabled = !marcados.length;
+  }
+
+  function desenharSei() {
+    $('sei-lista').innerHTML = estado.sei.map(cartaoSei).join('');
+    $('sei-acoes').hidden = !estado.sei.length;
+    resumoSei();
+  }
+
+  function ligarSei() {
+    var lista = $('sei-lista');
+    lista.addEventListener('change', function (e) {
+      var li = e.target.closest('.sei-item'); if (!li) return;
+      var it = estado.sei[+li.dataset.i], c = e.target.dataset.c;
+      if (!c) return;
+      if (c === 'incluir') { it.incluir = e.target.checked; li.classList.toggle('fora', !it.incluir); resumoSei(); return; }
+      it[c] = e.target.value;
+      if (c === 'decisao') desenharSei();
+    });
+    lista.addEventListener('input', function (e) {
+      var li = e.target.closest('.sei-item');
+      if (li && e.target.dataset.c && ['inicio', 'meses', 'fundNumero', 'fundSecretaria', 'decenio'].indexOf(e.target.dataset.c) >= 0) {
+        var it = estado.sei[+li.dataset.i];
+        it[e.target.dataset.c] = e.target.value;
+        var fim = li.querySelector('[data-fim]');
+        if (fim) fim.textContent = fimDoItem(it) ? SEI.br(D.paraData(fimDoItem(it))) : '—';
+      }
+      if (e.target.dataset.busca != null) {
+        var i = +e.target.dataset.busca, termo = e.target.value;
+        var achados = termo.trim() ? D.buscar(estado.base, termo).slice(0, 6) : [];
+        $('sei-res-' + i).innerHTML = achados.map(function (s, k) {
+          return '<li><button type="button" data-escolher="' + i + ':' + k + '">' + esc(s.nome) + ' · Mat. ' + esc(s.matriculaFormatada) + '</button></li>';
+        }).join('');
+        $('sei-res-' + i)._achados = achados;
+      }
+    });
+    lista.addEventListener('click', function (e) {
+      var t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.tirar != null) { estado.sei.splice(+t.dataset.tirar, 1); desenharSei(); return; }
+      if (t.dataset.escolher != null) {
+        var par = t.dataset.escolher.split(':'), it = estado.sei[+par[0]];
+        it.servidor = $('sei-res-' + par[0])._achados[+par[1]];
+        it.aviso = ''; it.incluir = !!it.p.decisao && it.p.assuntoLP && !it.p.bloqueio;
+        desenharSei();
+      }
+    });
+    $('arquivos-sei').addEventListener('change', function (e) { importarSei(e.target.files); e.target.value = ''; });
+    var zona = $('zona-sei');
+    ['dragenter', 'dragover'].forEach(function (ev) { zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('arrastando'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.remove('arrastando'); }); });
+    zona.addEventListener('drop', function (e) { importarSei(e.dataTransfer.files); });
+    $('sei-montar').addEventListener('click', montarDoSei);
+  }
+
+  function juntarLista(itens) {
+    return itens.length < 2 ? (itens[0] || '') : itens.slice(0, -1).join(', ') + ' e ' + itens[itens.length - 1];
+  }
+  function unicos(lista) { return lista.filter(function (x, i) { return lista.indexOf(x) === i; }); }
+
+  // Preenche a portaria de licença prêmio com os processos marcados (um servidor por processo).
+  function montarDoSei() {
+    var itens = estado.sei.filter(function (x) { return x.incluir && x.servidor; });
+    if (!itens.length) return;
+    var decisoes = unicos(itens.map(function (x) { return x.decisao; }));
+    if (decisoes.length > 1) { erroSei('Marque só deferimentos ou só indeferimentos: cada portaria tem um verbo só (conceder ou indeferir). Monte uma de cada vez.'); return; }
+    var matriculas = itens.map(function (x) { return x.servidor.matricula; });
+    if (unicos(matriculas).length < matriculas.length) { erroSei('Há dois processos do mesmo servidor marcados: deixe só um.'); return; }
+    erroSei('');
+    var id = 'licenca-premio', indef = decisoes[0] === 'indeferida';
+    var comuns = estado.valores[id] = estado.valores[id] || {};
+    comuns.indeferido = indef;
+    var avisoFinal = '';
+    if (indef) {
+      var tipos = unicos(itens.map(function (x) { return x.fundTipo; }));
+      if (tipos.length > 1) avisoFinal = ' Os documentos são de tipos diferentes: conferi só o primeiro tipo em "Fundamentos".';
+      comuns.fundamentoTipo = itens[0].fundTipo;
+      comuns.fundamentoNumero = juntarLista(unicos(itens.map(function (x) { return x.fundNumero; }).filter(Boolean)));
+      var iguais = itens.every(function (x) {
+        return x.fundSecretaria && D.normalizar(x.fundSecretaria) === D.normalizar(R.capitalizar(secretariaDe(x.servidor)));
+      });
+      if (iguais) comuns.fundamentoOrigemEscolha = 'servidor';
+      else {
+        var secs = unicos(itens.map(function (x) { return x.fundSecretaria; }).filter(Boolean));
+        comuns.fundamentoOrigemEscolha = 'outro';
+        comuns.fundamentoOrigem = secs.length === 1 ? secs[0] : (secs.length ? 'respectivas secretarias' : '');
+      }
+    }
+    estado.selecionados = itens.map(function (x) { return x.servidor; });
+    itens.forEach(function (x) {
+      var v = { processo: x.p.processo };
+      if (!indef) {
+        v.decenio = x.decenio || '';
+        v.periodoIni = x.inicio || '';
+        v.periodoFim = fimDoItem(x);
+      }
+      estado.valoresServ[x.servidor.matricula + '|' + id] = v;
+    });
+    $('tipo').value = id;
+    salvarConfig();
+    montarCamposDoTipo();
+    renderizar();
+    $('sei-resumo').textContent = 'Portaria montada com ' + itens.length + (itens.length === 1 ? ' servidor' : ' servidores') + '. Confira os campos e o texto.' + avisoFinal;
+  }
+
   // ---------- eventos ----------
   function iniciar() {
     // tipos agrupados por assunto
@@ -794,6 +1009,7 @@
 
     iniciarPasta();
     $('arquivos').addEventListener('change', function (e) { carregarArquivos(e.target.files); e.target.value = ''; });
+    ligarSei();
     iniciarPainel();
     iniciarPassos();
 
@@ -808,7 +1024,12 @@
       });
     });
     document.addEventListener('drop', function (e) {
-      if (e.dataTransfer && e.dataTransfer.files.length && !e.target.closest('#zona')) carregarArquivos(e.dataTransfer.files);
+      if (!e.dataTransfer || !e.dataTransfer.files.length || e.target.closest('#zona') || e.target.closest('#zona-sei')) return;
+      var todos = Array.prototype.slice.call(e.dataTransfer.files);
+      var doSei = todos.filter(function (f) { return /\.(zip|html?)$/i.test(f.name); });
+      var planilhas = todos.filter(function (f) { return !/\.(zip|html?)$/i.test(f.name); });
+      if (planilhas.length) carregarArquivos(planilhas);
+      if (doSei.length) importarSei(doSei);
     });
     var zona = $('zona');
     ['dragenter', 'dragover'].forEach(function (ev) {

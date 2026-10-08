@@ -67,11 +67,36 @@
   .passo h2, .cartao-dados > h2 { font-size: 13.5px; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--texto); margin: 0; padding: 0; background: none; }
   .passo-cab small { margin-left: auto; color: var(--suave); font-size: 11px; }
 
-  #zona { border: 2px dashed var(--borda); border-radius: 9px; padding: 9px; text-align: center; cursor: pointer; display: block; color: var(--suave); }
-  #zona:hover { border-color: var(--destaque); }
-  #zona.arrastando { border-color: var(--destaque); background: var(--sel); }
-  #zona input { display: none; }
-  #zona span { color: var(--destaque); font-weight: 700; }
+  #zona, #zona-sei { border: 2px dashed var(--borda); border-radius: 9px; padding: 9px; text-align: center; cursor: pointer; display: block; color: var(--suave); }
+  #zona:hover, #zona-sei:hover { border-color: var(--destaque); }
+  #zona.arrastando, #zona-sei.arrastando { border-color: var(--destaque); background: var(--sel); }
+  #zona input, #zona-sei input { display: none; }
+  #zona span, #zona-sei span { color: var(--destaque); font-weight: 700; }
+  .passo-num.s { width: auto; padding: 0 6px; font-size: 10px; background: var(--laranja); }
+  .nota-sei { margin: 6px 0; font-size: 11.5px; color: var(--suave); }
+  #sei-erro { margin: 6px 0; background: var(--erro-bg); color: var(--erro); padding: 6px 10px; border-radius: 8px; font-size: 12px; }
+  #sei-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+  .sei-item { border: 1px solid var(--borda); border-left: 4px solid var(--verde); border-radius: 9px; padding: 8px 10px; background: var(--painel); }
+  .sei-item.indef { border-left-color: var(--laranja); }
+  .sei-item.fora { opacity: .75; border-left-color: var(--borda); }
+  .sei-item.bloq { border-left-color: var(--erro); }
+  .sei-topo { display: flex; align-items: center; gap: 8px; }
+  .sei-topo label { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; font-weight: 700; margin: 0; }
+  .sei-topo input[type=checkbox] { width: auto; accent-color: var(--azul); }
+  .sei-topo select { width: auto; padding: 2px 6px; font-size: 12px; }
+  .sei-sub { color: var(--suave); font-size: 11.5px; margin: 2px 0 6px 24px; }
+  .sei-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 8px; margin-left: 24px; align-items: end; }
+  .sei-campos label { font-size: 11px; color: var(--suave); display: block; margin: 0 0 2px; }
+  .sei-campos input, .sei-campos select { width: 100%; }
+  .sei-fim { font-weight: 700; padding: 6px 0; }
+  .sei-avisos { margin: 6px 0 0 24px; padding: 0; list-style: none; font-size: 11.5px; color: var(--aviso); }
+  .sei-avisos li { margin: 2px 0; }
+  .sei-avisos li.bloq { color: var(--erro); font-weight: 700; }
+  .sei-busca-res { list-style: none; margin: 4px 0 0 24px; padding: 0; font-size: 12px; }
+  .sei-busca-res button { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 4px 8px; }
+  #sei-acoes { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  #sei-acoes button.prim { flex: none; }
+  #sei-resumo { color: var(--suave); }
   .pasta[hidden], .pasta button[hidden] { display: none; }
   .pasta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
   .pasta button { padding: 8px 12px; font-size: 13px; }
@@ -246,6 +271,23 @@
       </div>
     </details>
 
+    <details class="passo passo-sec" id="passo-sei" open>
+      <summary class="passo-cab"><span class="passo-num s">SEI</span><h2>Importar do processo SEI</h2><small class="dica-passo">licença prêmio · opcional</small><small class="resumo-fechado" id="res-sei"></small></summary>
+      <div class="passo-corpo">
+      <label id="zona-sei">
+        <input id="arquivos-sei" type="file" accept=".zip,.html,.htm" multiple disabled>
+        Solte aqui os processos (.zip do SEI) ou <span>clique para escolher</span>
+      </label>
+      <p class="nota-sei">Cada processo vira um servidor da portaria. A leitura é feita só neste navegador; confira tudo antes de montar.</p>
+      <div id="sei-erro" hidden></div>
+      <ul id="sei-lista"></ul>
+      <div id="sei-acoes" hidden>
+        <button id="sei-montar" class="prim" type="button">Montar portaria com os marcados</button>
+        <small id="sei-resumo"></small>
+      </div>
+      </div>
+    </details>
+
     <details class="passo passo-sec" id="passo-tipo" open>
       <summary class="passo-cab"><span class="passo-num">1</span><h2>Tipo de portaria</h2><small class="resumo-fechado" id="res-tipo"></small></summary>
       <div class="passo-corpo">
@@ -316,6 +358,8 @@
 <script src="js/dados.js"></script>
 <script src="js/planilhas.js"></script>
 <script src="js/docx.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/sei.js"></script>
 <script src="js/google-config.js"></script>
 <script src="js/google.js"></script>
 <script src="js/portarias.js"></script>

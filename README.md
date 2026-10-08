@@ -191,3 +191,10 @@ Regras de preenchimento:
 ## Versão online (Google Drive)
 
 Veja `COMO-PUBLICAR-ONLINE.md`: a página publicada na internet lê a FichaContabilis do Google Drive da pessoa que entra com a conta Google (só quem tem acesso à planilha consegue abrir). Fica desligada enquanto `js/google-config.js` estiver em branco.
+
+## Importar do processo SEI (licença prêmio)
+
+No cartão **Importar do processo SEI** (Portarias) solte um ou vários `.zip` exportados do SEI. Cada processo vira um cartão com o servidor achado na planilha (pelo nome),
+a decisão (deferida/indeferida), o decênio sugerido, o início, os meses e o fim calculado (30 dias por mês). No indeferimento, o fundamento é o despacho que indeferiu
+(tipo, número SEI e secretaria do cabeçalho). Alertas avisam de cancelamentos, portaria já feita, saldo menor que o pedido e divergências. Depois de conferir,
+**Montar portaria com os marcados** preenche o modelo de licença prêmio. Só são lidos os documentos `.html`; os PDFs são ignorados. Tudo é lido só no navegador.
