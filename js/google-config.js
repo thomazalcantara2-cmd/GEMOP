@@ -6,6 +6,6 @@
  */
 window.GOOGLE_CONFIG = {
   clientId: '439077798764-hkl5b1ec0esulfcn2u5d9oqlbngp8gic.apps.googleusercontent.com',   // "ID do cliente OAuth", termina com .apps.googleusercontent.com
-  apiKey: '',     // "Chave de API" (usada só na janela de escolher o arquivo)
+  apiKey: 'AIzaSyDgflYPUCjZ94SIlORUxaoAP0NXGiv_XxM',     // "Chave de API" (usada só na janela de escolher o arquivo)
   appId: '439077798764'       // "Número do projeto" do Google Cloud (só números)
 };
