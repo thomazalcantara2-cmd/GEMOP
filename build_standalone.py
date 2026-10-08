@@ -4,7 +4,7 @@ import base64, re, sys
 
 PAGINAS = {
     'requerimento': ('index.html', ['vendor/xlsx.full.min.js', 'js/dados.js', 'js/planilhas.js', 'js/app.js']),
-    'portarias': ('portarias.html', ['vendor/xlsx.full.min.js', 'js/dados.js', 'js/planilhas.js', 'js/portarias.js', 'js/portarias-app.js']),
+    'portarias': ('portarias.html', ['vendor/xlsx.full.min.js', 'js/dados.js', 'js/planilhas.js', 'js/docx.js', 'js/portarias.js', 'js/portarias-app.js']),
 }
 
 def data_uri(caminho, mime):

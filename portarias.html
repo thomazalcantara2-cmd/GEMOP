@@ -145,12 +145,13 @@
     background: var(--painel); border-top: 1px solid var(--borda); box-shadow: 0 -6px 16px rgba(0,0,0,.05); }
   button { font: inherit; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--borda); background: var(--painel); color: var(--texto); cursor: pointer; transition: background .15s, border-color .15s; }
   button:hover:not(:disabled) { border-color: var(--destaque); }
-  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 700; flex: 1 1 100%; }
-  .botoes button { white-space: nowrap; }
-  .botoes #copiar { flex: 1; }
+  button.prim { background: var(--destaque); color: var(--destaque-texto); border-color: var(--destaque); font-weight: 700; }
+  .botoes button { white-space: nowrap; flex: 1 1 0; min-width: 0; padding: 6px 8px; font-size: 12.5px; }
+  .botoes #restaurar { flex: 0 0 auto; }
   .pasta button { white-space: nowrap; }
   button.prim:hover:not(:disabled) { background: var(--azul-esc); }
   #copiar:not(:disabled) { border-color: var(--verde); color: var(--verde); font-weight: 700; }
+  #baixar-word:not(:disabled) { border-color: var(--azul); color: var(--azul); font-weight: 700; }
   #restaurar { background: none; border-color: transparent; color: var(--suave); font-size: 12px; padding: 6px 6px; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   #erro { background: var(--erro-bg); color: var(--erro); padding: 7px 10px; border-radius: 8px; font-size: 12px; }
@@ -298,8 +299,9 @@
     <p class="nota">Clique no texto da folha para ajustá-lo antes de imprimir; campos em amarelo ainda precisam ser preenchidos. A planilha é lida só neste navegador — nada é enviado para a internet. Apenas os textos fixos ficam salvos neste computador.</p>
 
     <div class="botoes">
-      <button id="imprimir" class="prim" disabled>Imprimir / Salvar PDF</button>
-      <button id="copiar" disabled title="Copia o texto da portaria para colar no SEI">Copiar texto</button>
+      <button id="imprimir" class="prim" disabled title="Abre a impressão; escolha &quot;Salvar como PDF&quot; para gerar o arquivo">Imprimir / PDF</button>
+      <button id="copiar" disabled title="Copia o texto e as tabelas da portaria para colar no SEI ou no Word">Copiar texto</button>
+      <button id="baixar-word" disabled title="Baixa a portaria como arquivo do Word (.docx), com a tabela">Baixar Word</button>
       <button id="restaurar" title="Volta os textos fixos ao padrão">Restaurar padrão</button>
       <p id="copiado" hidden>Texto copiado.</p>
     </div>
@@ -313,6 +315,7 @@
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="js/dados.js"></script>
 <script src="js/planilhas.js"></script>
+<script src="js/docx.js"></script>
 <script src="js/google-config.js"></script>
 <script src="js/google.js"></script>
 <script src="js/portarias.js"></script>

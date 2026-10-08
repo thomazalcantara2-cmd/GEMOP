@@ -15,6 +15,7 @@ Dois programas usam as mesmas planilhas e o mesmo `js/dados.js`: o Requerimento 
   `atoIndividual` (considerandos + um artigo por servidor); `unico: true` = usa só o 1º servidor; `funcaoGratificada` (FGS/FAS, campo `selecao` Conceder/Dispensar por servidor; tipo com `preambulo` próprio). Lista completa no README.
   Vários servidores por portaria (`servidores[]`; campos `porServidor`); a folha das Portarias cresce e quebra em várias páginas.
 - Visual das Portarias (`portarias.html`): redesign "Prefeitura" vindo do Claude Design (barra superior amarela com marca, cartões de etapa, fonte Nunito Sans em `assets/fonts`, imagens `assets/topo-*`). Para mudar o visual, edite o CSS dessa página; os ids dos elementos são usados por `js/portarias-app.js`.
+- Saídas da folha das Portarias: imprimir/PDF, **Copiar texto** (HTML com tabelas simples + texto) e **Baixar Word** (`js/docx.js` monta o .docx e o zip à mão, sem bibliotecas; a tela lê o texto da folha, inclusive as edições).
 - **Leitura de planilhas** compartilhada: `js/planilhas.js` (`.xlsx`, pasta, servidor local).
 - **Aplicativo local**: `Requerimento.bat` → `servidor.ps1` (Windows PowerShell 5.1, sem instalação; atende só
   127.0.0.1, entrega a página e as planilhas da pasta `planilhas/` ou do caminho em `pasta.txt`).

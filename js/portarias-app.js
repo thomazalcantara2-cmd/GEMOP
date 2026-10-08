@@ -566,6 +566,7 @@
     ajustarEscala();
     $('imprimir').disabled = !escolhidos.length;
     $('copiar').disabled = !escolhidos.length;
+    $('baixar-word').disabled = !escolhidos.length;
     document.title = escolhidos.length ? 'Portaria - ' + escolhidos.map(function (x) { return x.nome; }).join(', ') : 'Portarias';
   }
 
@@ -591,8 +592,18 @@
     copia.querySelectorAll('h1').forEach(function (h) { h.setAttribute('style', 'text-align:center;font-family:"Times New Roman",serif;font-size:12.5pt'); });
     copia.querySelectorAll('.texto').forEach(function (t) { t.setAttribute('style', 'text-align:justify;font-family:Calibri,Arial,sans-serif;font-size:11pt'); });
     copia.querySelectorAll('p.local, p.assina').forEach(function (t) { t.setAttribute('style', 'text-align:center;margin:0'); });
-    copia.querySelectorAll('table').forEach(function (t) { t.setAttribute('style', 'width:100%;border-collapse:collapse'); });
-    copia.querySelectorAll('th, td').forEach(function (c) { c.setAttribute('style', 'border:1px solid #000;padding:4px;text-align:center'); });
+    // tabelas no formato mais simples (atributos antigos + estilo), que o editor do SEI e o Word mantêm ao colar
+    copia.querySelectorAll('table').forEach(function (t) {
+      t.setAttribute('border', '1'); t.setAttribute('cellspacing', '0'); t.setAttribute('cellpadding', '4'); t.setAttribute('width', '100%');
+      t.setAttribute('style', 'width:100%;border-collapse:collapse;border:1px solid #000;font-family:"Times New Roman",serif;font-size:10.5pt');
+    });
+    copia.querySelectorAll('th, td').forEach(function (c) {
+      var esq = c.classList.contains('e');
+      c.removeAttribute('class');
+      c.setAttribute('align', esq ? 'left' : 'center');
+      c.setAttribute('valign', 'middle');
+      c.setAttribute('style', 'border:1px solid #000;padding:4px;text-align:' + (esq ? 'left' : 'center') + (c.tagName === 'TH' ? ';font-weight:bold' : ''));
+    });
     copia.querySelectorAll('.falta').forEach(function (f) { f.setAttribute('style', 'background:#fff1a8'); });
     var texto = $('portaria-texto').innerText.replace(/\n{3,}/g, '\n\n').trim();
     return { html: copia.outerHTML, texto: texto };
@@ -621,12 +632,15 @@
   }
 
   function avisoDeCopia(ok) {
-    $('copiado').textContent = ok ? 'Texto copiado. No SEI, cole com Ctrl+V.'
-      : 'Não foi possível copiar sozinho. Clique no texto da folha, use Ctrl+A e depois Ctrl+C.';
+    avisoDeCopia.mensagem(ok ? 'Texto e tabelas copiados. No SEI ou no Word, cole com Ctrl+V.'
+      : 'Não foi possível copiar sozinho. Clique no texto da folha, use Ctrl+A e depois Ctrl+C.');
+  }
+  avisoDeCopia.mensagem = function (texto) {
+    $('copiado').textContent = texto;
     $('copiado').hidden = false;
     clearTimeout(avisoDeCopia._t);
     avisoDeCopia._t = setTimeout(function () { $('copiado').hidden = true; }, 5000);
-  }
+  };
 
   function copiarTexto() {
     var c = conteudoParaCopiar();
@@ -637,6 +651,71 @@
         'text/plain': new Blob([c.texto], { type: 'text/plain' })
       })]).then(function () { avisoDeCopia(true); }, plano);
     } else plano();
+  }
+
+  // ---------- baixar em Word (.docx) ----------
+  // Lê o texto da folha (com as edições feitas nela) e entrega à js/docx.js.
+  function trechos(no, base, saida) {
+    Array.prototype.forEach.call(no.childNodes, function (n) {
+      if (n.nodeType === 3) {
+        var t = n.nodeValue.replace(/\s+/g, ' ');
+        if (t) saida.push({ texto: t, negrito: base.negrito, italico: base.italico, destaque: base.destaque });
+      } else if (n.nodeType === 1) {
+        if (n.tagName === 'BR') { saida.push({ texto: '\n' }); return; }
+        trechos(n, {
+          negrito: base.negrito || n.tagName === 'B' || n.tagName === 'STRONG',
+          italico: base.italico || n.tagName === 'I' || n.tagName === 'EM',
+          destaque: base.destaque || n.classList.contains('falta')
+        }, saida);
+      }
+    });
+    return saida;
+  }
+
+  function estruturaDaFolha() {
+    var raiz = $('portaria-texto');
+    var blocos = [];
+    Array.prototype.forEach.call(raiz.querySelector('.texto').children, function (el) {
+      if (el.tagName === 'TABLE') {
+        blocos.push({ t: 'tabela', linhas: Array.prototype.map.call(el.rows, function (tr) {
+          return Array.prototype.map.call(tr.cells, function (c) {
+            return { runs: trechos(c, {}, []), alinhar: c.classList.contains('e') ? 'left' : 'center', negrito: c.tagName === 'TH' };
+          });
+        }) });
+      } else blocos.push({ t: 'p', runs: trechos(el, {}, []) });
+    });
+    var cab = document.querySelector('#folha .cab');
+    var texto = function (sel) { var e = raiz.querySelector(sel); return e ? e.textContent.trim() : ''; };
+    return {
+      cabecalho: cab ? { org: cab.querySelector('.org').textContent.trim(),
+        enderecos: Array.prototype.map.call(cab.querySelectorAll('.end'), function (e) { return e.textContent.trim(); }), logo: null } : null,
+      titulo: texto('h1'), blocos: blocos, local: texto('p.local'), assinaNome: texto('p.assina.nome'),
+      assinaCargo: texto('p.assina:not(.nome)')
+    };
+  }
+
+  function nomeDoArquivo() {
+    var n = document.title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return (n || 'Portaria') + '.docx';
+  }
+
+  function baixarWord() {
+    var est = estruturaDaFolha();
+    var img = document.querySelector('#folha .cab img');
+    var logo = img ? fetch(img.src).then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+      var bytes = new Uint8Array(buf), t = window.DocxPortaria.tamanhoPNG(bytes);
+      return t ? { bytes: bytes, largura: t.largura, altura: t.altura } : null;
+    }).catch(function () { return null; }) : Promise.resolve(null);
+    logo.then(function (l) {
+      if (est.cabecalho) est.cabecalho.logo = l;
+      var bytes = window.DocxPortaria.construirDocx(est);
+      var url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = nomeDoArquivo();
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      avisoDeCopia.mensagem('Arquivo do Word baixado: ' + a.download);
+    }).catch(function (e) { avisoDeCopia.mensagem('Não foi possível gerar o arquivo do Word: ' + e.message); });
   }
 
   // ---------- cartões 1, 2 e 3 retráteis ----------
@@ -760,6 +839,7 @@
     });
     $('imprimir').addEventListener('click', function () { window.print(); });
     $('copiar').addEventListener('click', copiarTexto);
+    $('baixar-word').addEventListener('click', baixarWord);
 
     window.addEventListener('resize', ajustarEscala);
     atualizarStatus();
