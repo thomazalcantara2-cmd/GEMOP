@@ -588,14 +588,25 @@
     var copia = $('portaria-texto').cloneNode(true);
     copia.removeAttribute('id');
     copia.querySelectorAll('[contenteditable]').forEach(function (el) { el.removeAttribute('contenteditable'); });
-    // fonte e alinhamento ficam no próprio texto, pois o editor de destino não tem o CSS da página
-    copia.querySelectorAll('h1').forEach(function (h) { h.setAttribute('style', 'text-align:center;font-family:"Times New Roman",serif;font-size:12.5pt'); });
-    copia.querySelectorAll('.texto').forEach(function (t) { t.setAttribute('style', 'text-align:justify;font-family:Calibri,Arial,sans-serif;font-size:11pt'); });
-    copia.querySelectorAll('p.local, p.assina').forEach(function (t) { t.setAttribute('style', 'text-align:center;margin:0'); });
+    // fonte, alinhamento e espaçamentos ficam no próprio texto (em pt), pois o editor de destino (SEI, Word) não tem o CSS da página
+    var CALIBRI = 'font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:150%;';
+    var TIMES = 'font-family:\'Times New Roman\',Times,serif;';
+    copia.querySelectorAll('h1').forEach(function (h) { h.setAttribute('style', 'text-align:center;margin:25pt 0;' + TIMES + 'font-size:12.5pt;font-weight:bold'); });
+    copia.querySelectorAll('.texto').forEach(function (t) { t.setAttribute('style', 'text-align:justify;' + CALIBRI); });
+    copia.querySelectorAll('.texto > p').forEach(function (t) { t.setAttribute('style', 'text-align:justify;margin:0 0 14pt;' + CALIBRI); });
+    copia.querySelectorAll('p.local').forEach(function (t) { t.setAttribute('style', 'text-align:center;margin:34pt 0 0;' + CALIBRI); });
+    copia.querySelectorAll('p.assina').forEach(function (t) {
+      t.setAttribute('style', t.classList.contains('nome')
+        ? 'text-align:center;margin:23pt 0 0;' + TIMES + 'font-size:11pt;line-height:150%;font-weight:bold'
+        : 'text-align:center;margin:0;' + CALIBRI);
+    });
     // tabelas no formato mais simples (atributos antigos + estilo), que o editor do SEI e o Word mantêm ao colar
     copia.querySelectorAll('table').forEach(function (t) {
       t.setAttribute('border', '1'); t.setAttribute('cellspacing', '0'); t.setAttribute('cellpadding', '4'); t.setAttribute('width', '100%');
       t.setAttribute('style', 'width:100%;border-collapse:collapse;border:1px solid #000;font-family:"Times New Roman",serif;font-size:10.5pt');
+      // o Word ignora a margem da tabela: o espaço depois dela vai no parágrafo seguinte
+      var seguinte = t.nextElementSibling;
+      if (seguinte && seguinte.tagName === 'P') seguinte.style.marginTop = '17pt';
     });
     copia.querySelectorAll('th, td').forEach(function (c) {
       var esq = c.classList.contains('e');
