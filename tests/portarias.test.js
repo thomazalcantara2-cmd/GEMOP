@@ -496,3 +496,33 @@ test('decênio: campo de anos (AAAA/AAAA); só um ano preenchido conta como falt
   assert.deepStrictEqual(parcial.faltando, ['Decênio']);
   assert.strictEqual(parcial.blocos[3].linhas[0][4], '[decênio]');
 });
+
+test('majoração de jornada: ementa, preâmbulo próprio, tabela numerada e artigos no plural', () => {
+  const sv = (nome, mat, sexo) => ({ nome, matricula: mat, cargo: 'Fiscal', secretaria: 'Secretaria Municipal de Teste', sexo, campos: {} });
+  const r = P.gerarPortaria({ tipo: 'majoracao-jornada', numero: '1198', data: dt(18, 8, 2026), formatoMatricula: 'nove', config: {},
+    campos: { efeitos: dt(1, 8, 2026) }, servidores: [sv('ALEFF TESTE', '091893511', 'M'), sv('FELIPE TESTE', '091893521', 'M')] });
+  assert.strictEqual(r.ementa, 'Dispõe sobre a majoração da jornada de trabalho de servidores ocupantes do cargo de Fiscal de Defesa do Consumidor, ' +
+    'de 30 (trinta) para 40 (quarenta) horas semanais, nos termos da Lei Municipal nº 1.597/2024.');
+  assert.ok(r.preambulo.includes('no uso das atribuições que lhe são conferidas pela legislação municipal vigente;'));
+  const textos = r.blocos.filter((b) => b.t === 'p').map((b) => b.texto);
+  assert.ok(textos.includes('**CONSIDERANDO** os requerimentos apresentados pelos servidores e as manifestações favoráveis dos respectivos órgãos de lotação quanto à necessidade do serviço.'));
+  assert.ok(textos.some((x) => x.startsWith('**Art. 1º** DEFERIR a majoração da jornada de trabalho dos servidores abaixo relacionados, ocupantes do cargo efetivo de **Fiscal de Defesa do Consumidor**')));
+  const tab = r.blocos.find((b) => b.t === 'tabela');
+  assert.deepStrictEqual(tab.colunas, ['Nº', 'NOME DO SERVIDOR', 'MATRÍCULA']);
+  assert.deepStrictEqual(tab.linhas, [['1', 'ALEFF TESTE', '091893511'], ['2', 'FELIPE TESTE', '091893521']]);
+  assert.ok(textos.some((x) => x.startsWith('**Art. 2º**') && x.includes('passarão a perceber') && x.includes('de cada servidor na carreira')));
+  assert.ok(textos.some((x) => x.startsWith('**Art. 3º**') && x.includes('se encontram') && x.includes('fizerem jus')));
+  assert.strictEqual(textos[textos.length - 1], '**Art. 5º** Esta Portaria entra em vigor na data de sua publicação, retroagindo seus efeitos a **1º de agosto de 2026**.');
+  assert.deepStrictEqual(r.faltando, []);
+});
+
+test('majoração de jornada: singular feminino e sem retroação', () => {
+  const r = P.gerarPortaria({ tipo: 'majoracao-jornada', numero: '1', data: dt(18, 8, 2026), formatoMatricula: 'nove', config: {}, campos: {},
+    servidores: [{ nome: 'MARIA TESTE', matricula: '091895091', cargo: 'Fiscal', secretaria: 'Secretaria Municipal de Teste', sexo: 'F', campos: {} }] });
+  assert.ok(r.ementa.includes('de servidora ocupante do cargo'));
+  const textos = r.blocos.filter((b) => b.t === 'p').map((b) => b.texto);
+  assert.ok(textos.includes('**CONSIDERANDO** o requerimento apresentado pela servidora e a manifestação favorável do respectivo órgão de lotação quanto à necessidade do serviço.'));
+  assert.ok(textos.some((x) => x.includes('a servidora relacionada no art. 1º passará a perceber') && x.includes('mantida a posição atual da servidora na carreira')));
+  assert.ok(textos.some((x) => x.includes('se encontra') && x.includes('fizer jus')));
+  assert.strictEqual(textos[textos.length - 1], '**Art. 5º** Esta Portaria entra em vigor na data de sua publicação.');
+});

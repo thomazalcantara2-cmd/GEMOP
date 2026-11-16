@@ -209,7 +209,7 @@
    */
   function atoIndividual(o) {
     return {
-      id: o.id, nome: o.nome, grupo: o.grupo, unico: !!o.unico, campos: o.campos,
+      id: o.id, nome: o.nome, grupo: o.grupo, unico: !!o.unico, campos: o.campos, preambulo: o.preambulo, ementa: o.ementa,
       gerar: function (c) {
         var blocos = o.considerandos(c).map(function (t) { return { t: 'p', texto: t }; });
         blocos.push({ t: 'p', texto: '**RESOLVE:**' });
@@ -481,6 +481,58 @@
     };
   }
 
+  // "1º de agosto de 2026" (o dia 1 leva ordinal, como nos textos oficiais).
+  function dataExtensoOrdinal(dt) { return D.dataExtenso(dt).replace(/^1 de /, '1º de '); }
+
+  // Majoração de jornada de trabalho (Fiscal de Defesa do Consumidor: de 30 para 40 horas semanais, Lei Municipal nº 1.597/2024).
+  // Portaria com ementa ("Dispõe sobre…"), preâmbulo próprio, considerandos fixos, tabela dos servidores e cinco artigos.
+  var PREAMBULO_MAJORACAO = 'O **SECRETÁRIO EXECUTIVO DE GESTÃO DE PESSOAS**, no uso das atribuições que lhe são conferidas pela legislação municipal vigente;';
+  function majoracaoJornada() {
+    return {
+      id: 'majoracao-jornada', nome: 'Majoração de jornada de trabalho (30 para 40 horas)', grupo: 'Vínculo, lotação e carreira',
+      preambulo: PREAMBULO_MAJORACAO,
+      campos: [
+        { id: 'cargo', rotulo: 'Cargo', tipo: 'texto', padrao: 'Fiscal de Defesa do Consumidor' },
+        { id: 'efeitos', rotulo: 'Retroagir efeitos a (opcional)', tipo: 'data', opcional: true }],
+      ementa: function (c) {
+        return 'Dispõe sobre a majoração da jornada de trabalho de ' + c.g.servidor + ' ocupante' + (c.n > 1 ? 's' : '') + ' do cargo de ' + c.v('cargo') +
+          ', de 30 (trinta) para 40 (quarenta) horas semanais, nos termos da Lei Municipal nº 1.597/2024.';
+      },
+      gerar: function (c) {
+        var plural = c.n > 1, cargo = c.v('cargo'), g = c.g;
+        var singular = g.servidor.replace(/es$/, '').replace(/ras$/, 'ra');   // servidores -> servidor, servidoras -> servidora
+        var ef = c.servs[0].bruto('efeitos');
+        return [
+          { t: 'p', texto: '**CONSIDERANDO** o disposto no art. 29 da Lei Municipal nº 430, de 18 de junho de 2010, que estabelece, como regra geral, a jornada de ' +
+            'trabalho de 30 (trinta) horas semanais para os servidores abrangidos pelo Plano de Cargos, Carreiras e Vencimentos – PCCV;' },
+          { t: 'p', texto: '**CONSIDERANDO** o disposto no inciso I e no § 4º do art. 1º da Lei Municipal nº 1.597, de 05 de abril de 2024, que estabelece para o cargo de ' +
+            cargo + ' a jornada de 30 (trinta) horas semanais, com possibilidade de opção por jornada de 8 (oito) horas diárias e 40 (quarenta) horas semanais, ' +
+            'mediante solicitação do servidor e observada a discricionariedade da Administração Pública;' },
+          { t: 'p', texto: '**CONSIDERANDO** que o deferimento da majoração da jornada constitui ato discricionário da Administração Pública Municipal, condicionado à ' +
+            'análise do interesse e da necessidade do serviço público, bem como da disponibilidade orçamentária e financeira;' },
+          { t: 'p', texto: plural
+            ? '**CONSIDERANDO** os requerimentos apresentados pelos servidores e as manifestações favoráveis dos respectivos órgãos de lotação quanto à necessidade do serviço.'
+            : '**CONSIDERANDO** o requerimento apresentado ' + g.pelo + ' ' + g.servidor + ' e a manifestação favorável do respectivo órgão de lotação quanto à necessidade do serviço.' },
+          { t: 'p', texto: '**RESOLVE:**' },
+          { t: 'p', texto: '**Art. 1º** DEFERIR a majoração da jornada de trabalho ' + g.do_ + ' ' + g.servidor + ' abaixo relacionad' + g.o + ', ocupante' + (plural ? 's' : '') +
+            ' do cargo efetivo de **' + cargo + '**, passando de **30 (trinta) horas semanais para 40 (quarenta) horas semanais**:' },
+          { t: 'tabela', colunas: ['Nº', 'NOME DO SERVIDOR', 'MATRÍCULA'], esquerda: [1], semQuebra: [0, 2],
+            linhas: c.servs.map(function (x, i) { return [String(i + 1), x.nome, x.matricula]; }) },
+          { t: 'p', texto: '**Art. 2º** Em decorrência da majoração da jornada de trabalho, ' + g.o + ' ' + g.servidor + ' relacionad' + g.o + ' no art. 1º passar' + (plural ? 'ão' : 'á') +
+            ' a perceber os vencimentos correspondentes à **Tabela de Vencimentos de 40 (quarenta) horas semanais**, prevista no Anexo V da Lei Municipal nº 430/2010, com as ' +
+            'alterações promovidas pela Lei Municipal nº 1.597/2024, mantida a posição atual ' + (plural ? 'de cada ' : g.do_ + ' ') + singular + ' na carreira.' },
+          { t: 'p', texto: '**Art. 3º** A majoração da jornada de trabalho de que trata esta Portaria não implica alteração da posição ' + g.do_ + ' ' + g.servidor +
+            ' na carreira, permanecendo preservados o nível e o padrão de vencimento em que atualmente se ' + (plural ? 'encontram' : 'encontra') +
+            ', ressalvadas as eventuais evoluções funcionais a que ' + (plural ? 'fizerem' : 'fizer') + ' jus nos termos da legislação aplicável.' },
+          { t: 'p', texto: '**Art. 4º** Nos termos do inciso IV do § 4º do art. 1º da Lei Municipal nº 1.597/2024, a jornada de **40 (quarenta) horas semanais** passará a constituir a jornada ' +
+            g.do_ + ' ' + g.servidor + ' na carreira, não sendo admitido o retorno à jornada de **30 (trinta) horas semanais**.' },
+          { t: 'p', texto: '**Art. 5º** Esta Portaria entra em vigor na data de sua publicação' +
+            (ef && typeof ef === 'object' ? ', retroagindo seus efeitos a **' + dataExtensoOrdinal(ef) + '**' : '') + '.' }
+        ];
+      }
+    };
+  }
+
   // ---------- modelos ----------
   var TIPOS = [
     licencaPremio(),
@@ -562,6 +614,7 @@
     pedidoSobre('reducao-ch', 'Redução de carga horária', 'Redução de Carga Horária', { grupo: 'Saúde e condições de trabalho',
       colunaSecretaria: 'Secretaria', colunaNome: 'Nome', dataRequerimento: true, sufixoServidor: false, fundamentoTipoPadrao: 'parecer', fundamentoOrigemPadrao: null,
       efeitos: true, semDecenio: true }),
+    majoracaoJornada(),
     atoIndividual({
       id: 'exoneracao', nome: 'Exoneração a pedido', grupo: 'Vínculo, lotação e carreira',
       campos: CAMPOS_REQUERIMENTO.concat([
@@ -666,7 +719,7 @@
    *          formatoMatricula, campos: { id: texto | {a,m,d} | true }, config: { preambulo, assinanteNome, assinanteCargo } }
    *   - campos de cada servidor (campos do servidor) valem para ele; os de dados.campos valem para todos e servem de
    *     reserva. Também aceita um só servidor em dados.servidor.
-   * Devolve { titulo, preambulo, blocos, local, assinatura: { nome, cargo }, faltando: [rótulos dos campos vazios] }.
+   * Devolve { titulo, ementa (só alguns modelos), preambulo, blocos, local, assinatura: { nome, cargo }, faltando: [rótulos dos campos vazios] }.
    * Campo obrigatório vazio aparece no texto como "[rótulo]" e entra em "faltando".
    */
   function gerarPortaria(dados) {
@@ -719,9 +772,11 @@
     // dados de um servidor só (modelos antigos): c.nome, c.matricula…
     ['nome', 'matricula', 'cargo', 'secretaria'].forEach(function (k) { c[k] = servs[0][k]; });
     var blocos = tipo.gerar(c);
+    var ementa = tipo.ementa ? tipo.ementa(c) : '';
     if (!dados.numero) faltando.unshift('Número da portaria');
     return {
       titulo: tituloPortaria(dados.numero ? String(dados.numero).trim() : '', dados.data),
+      ementa: ementa,
       preambulo: tipo.preambulo || config.preambulo,
       blocos: blocos,
       local: 'Jaboatão dos Guararapes, ' + D.dataExtenso(dados.data),

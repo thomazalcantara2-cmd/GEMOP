@@ -560,7 +560,7 @@
       '</header>' +
       '<div id="portaria-texto">' +
         '<h1>' + esc(portaria.titulo) + '</h1>' +
-        '<div class="texto" contenteditable><p>' + textoFormatado(portaria.preambulo) + '</p>' + blocos + '</div>' +
+        '<div class="texto" contenteditable>' + (portaria.ementa ? '<p>' + textoFormatado(portaria.ementa) + '</p>' : '') + '<p>' + textoFormatado(portaria.preambulo) + '</p>' + blocos + '</div>' +
         '<p class="local" contenteditable>' + esc(portaria.local) + '</p>' +
         '<p class="assina nome" contenteditable>' + esc(portaria.assinatura.nome) + '</p>' +
         '<p class="assina" contenteditable>' + esc(portaria.assinatura.cargo) + '</p>' +
