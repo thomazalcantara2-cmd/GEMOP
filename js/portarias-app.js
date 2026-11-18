@@ -816,18 +816,19 @@
   }
 
   function iniciais(p) {
-    var achado = p.servidor ? SEI.acharServidor(estado.base, p.servidor) : { servidor: null, aviso: 'Sem Ficha Funcional.' };
-    var forasteiro = !p.assuntoLP;
+    var achado = p.servidor ? SEI.acharServidor(estado.base, p.servidor) : { servidor: null, aviso: 'Sem os dados do servidor no processo.' };
+    var suportado = !!(p.assunto && p.assunto.suportado), exo = p.exoneracao || {};
     return {
       p: p, servidor: achado.servidor, aviso: achado.aviso,
-      incluir: !!achado.servidor && !forasteiro && !p.bloqueio && !!p.decisao,
+      incluir: !!achado.servidor && suportado && !p.bloqueio && !!p.decisao,
       decisao: p.decisao || 'deferida',
       decenio: p.decenioSugerido,
       inicio: p.periodo ? SEI.iso(p.periodo.inicio) : '',
       meses: p.periodo && p.periodo.meses != null ? p.periodo.meses : '',
       fundTipo: p.fundamento ? p.fundamento.tipo : 'despacho',
       fundNumero: p.fundamento ? p.fundamento.id : '',
-      fundSecretaria: p.fundamento ? R.capitalizar(p.fundamento.secretaria) : ''
+      fundSecretaria: p.fundamento ? R.capitalizar(p.fundamento.secretaria) : '',
+      exoReq: p.processo || '', exoData: SEI.iso(exo.dataRequerimento), exoEfeitos: SEI.iso(exo.efeitos), exoCargo: exo.tipoCargo || 'efetivo'
     };
   }
 
@@ -857,9 +858,16 @@
 
   function cartaoSei(it, i) {
     var p = it.p, nome = it.servidor ? it.servidor.nome : (p.servidor ? p.servidor.nome : 'Servidor não identificado');
-    var indef = it.decisao === 'indeferida';
+    var indef = it.decisao === 'indeferida', exo = p.assunto && p.assunto.id === 'exoneracao', suportado = !!(p.assunto && p.assunto.suportado);
     var campos;
-    if (indef) {
+    if (!suportado) {
+      campos = '';
+    } else if (exo) {
+      campos = '<div><label>Nº do requerimento</label><input data-c="exoReq" type="text" value="' + esc(it.exoReq) + '"></div>' +
+        '<div><label>Data do requerimento</label><input data-c="exoData" type="date" value="' + esc(it.exoData) + '"></div>' +
+        '<div><label>Exoneração a partir de</label><input data-c="exoEfeitos" type="date" value="' + esc(it.exoEfeitos) + '"></div>' +
+        '<div><label>Tipo do cargo</label><input data-c="exoCargo" type="text" value="' + esc(it.exoCargo) + '"></div>';
+    } else if (indef) {
       campos = '<div><label>Documento do indeferimento</label><select data-c="fundTipo">' + opcoesSei(FUND_TIPOS, it.fundTipo) + '</select></div>' +
         '<div><label>Nº (SEI)</label><input data-c="fundNumero" type="text" value="' + esc(it.fundNumero) + '"></div>' +
         '<div style="grid-column:span 2"><label>Secretaria do documento</label><input data-c="fundSecretaria" type="text" value="' + esc(it.fundSecretaria) + '"></div>';
@@ -878,10 +886,10 @@
     p.alertas.forEach(function (t) { avisos.push('<li>' + esc(t) + '</li>'); });
     var busca = it.servidor ? '' : '<div class="sei-sub"><input data-busca="' + i + '" type="search" placeholder="Buscar o servidor na planilha (nome ou matrícula)"></div><ul class="sei-busca-res" id="sei-res-' + i + '"></ul>';
     return '<li class="sei-item' + (indef ? ' indef' : '') + (p.bloqueio ? ' bloq' : '') + (it.incluir ? '' : ' fora') + '" data-i="' + i + '">' +
-      '<div class="sei-topo"><label><input type="checkbox" data-c="incluir"' + (it.incluir ? ' checked' : '') + (it.servidor ? '' : ' disabled') + '> ' + esc(nome) + '</label>' +
-      '<select data-c="decisao" aria-label="Decisão"><option value="deferida"' + (indef ? '' : ' selected') + '>Deferida</option><option value="indeferida"' + (indef ? ' selected' : '') + '>Indeferida</option></select>' +
+      '<div class="sei-topo"><label><input type="checkbox" data-c="incluir"' + (it.incluir ? ' checked' : '') + (it.servidor && suportado ? '' : ' disabled') + '> ' + esc(nome) + '</label>' +
+      (suportado && !exo ? '<select data-c="decisao" aria-label="Decisão"><option value="deferida"' + (indef ? '' : ' selected') + '>Deferida</option><option value="indeferida"' + (indef ? ' selected' : '') + '>Indeferida</option></select>' : '') +
       '<button type="button" data-tirar="' + i + '" title="Tirar da lista" aria-label="Tirar da lista">✕</button></div>' +
-      '<div class="sei-sub">Processo ' + esc(p.processo) + (it.servidor ? ' · Mat. ' + esc(it.servidor.matriculaFormatada) : '') + (p.saldo != null ? ' · saldo na Ficha: ' + p.saldo + ' mês(es)' : '') + '</div>' +
+      '<div class="sei-sub"><b>' + esc(suportado ? p.assunto.rotulo : 'Assunto não reconhecido' + (p.assunto && p.assunto.rotulo ? ': ' + p.assunto.rotulo : '')) + '</b> · Processo ' + esc(p.processo) + (it.servidor ? ' · Mat. ' + esc(it.servidor.matriculaFormatada) : '') + (p.saldo != null ? ' · saldo na Ficha: ' + p.saldo + ' mês(es)' : '') + '</div>' +
       busca + '<div class="sei-campos">' + campos + '</div>' +
       (avisos.length ? '<ul class="sei-avisos">' + avisos.join('') + '</ul>' : '') + '</li>';
   }
@@ -911,7 +919,7 @@
     });
     lista.addEventListener('input', function (e) {
       var li = e.target.closest('.sei-item');
-      if (li && e.target.dataset.c && ['inicio', 'meses', 'fundNumero', 'fundSecretaria', 'decenio'].indexOf(e.target.dataset.c) >= 0) {
+      if (li && e.target.dataset.c && ['incluir', 'decisao'].indexOf(e.target.dataset.c) < 0) {
         var it = estado.sei[+li.dataset.i];
         it[e.target.dataset.c] = e.target.value;
         var fim = li.querySelector('[data-fim]');
@@ -932,7 +940,7 @@
       if (t.dataset.escolher != null) {
         var par = t.dataset.escolher.split(':'), it = estado.sei[+par[0]];
         it.servidor = $('sei-res-' + par[0])._achados[+par[1]];
-        it.aviso = ''; it.incluir = !!it.p.decisao && it.p.assuntoLP && !it.p.bloqueio;
+        it.aviso = ''; it.incluir = !!it.p.decisao && !!(it.p.assunto && it.p.assunto.suportado) && !it.p.bloqueio;
         desenharSei();
       }
     });
@@ -949,15 +957,36 @@
   }
   function unicos(lista) { return lista.filter(function (x, i) { return lista.indexOf(x) === i; }); }
 
+  // Exoneração a pedido: o modelo é escolhido pelo assunto do processo; cada processo vira um servidor.
+  function montarExoneracaoDoSei(itens) {
+    var id = 'exoneracao';
+    var comuns = estado.valores[id] = estado.valores[id] || {};
+    var cargos = unicos(itens.map(function (x) { return x.exoCargo; }).filter(Boolean));
+    if (cargos.length) comuns.tipoCargo = cargos[0];
+    estado.selecionados = itens.map(function (x) { return x.servidor; });
+    itens.forEach(function (x) {
+      estado.valoresServ[x.servidor.matricula + '|' + id] = { requerimento: x.exoReq, dataRequerimento: x.exoData || '', efeitos: x.exoEfeitos || '' };
+    });
+    $('tipo').value = id;
+    salvarConfig();
+    montarCamposDoTipo();
+    renderizar();
+    $('sei-resumo').textContent = 'Portaria de Exoneração a pedido montada com ' + itens.length + (itens.length === 1 ? ' servidor' : ' servidores') + '. Confira os campos e o texto.' +
+      (cargos.length > 1 ? ' Os tipos de cargo são diferentes: conferi só o primeiro.' : '');
+  }
+
   // Preenche a portaria de licença prêmio com os processos marcados (um servidor por processo).
   function montarDoSei() {
     var itens = estado.sei.filter(function (x) { return x.incluir && x.servidor; });
     if (!itens.length) return;
-    var decisoes = unicos(itens.map(function (x) { return x.decisao; }));
+    var decisoes = unicos(itens.filter(function (x) { return x.p.assunto.id !== 'exoneracao'; }).map(function (x) { return x.decisao; }));
     if (decisoes.length > 1) { erroSei('Marque só deferimentos ou só indeferimentos: cada portaria tem um verbo só (conceder ou indeferir). Monte uma de cada vez.'); return; }
     var matriculas = itens.map(function (x) { return x.servidor.matricula; });
     if (unicos(matriculas).length < matriculas.length) { erroSei('Há dois processos do mesmo servidor marcados: deixe só um.'); return; }
+    var assuntos = unicos(itens.map(function (x) { return x.p.assunto.id; }));
+    if (assuntos.length > 1) { erroSei('Os processos marcados são de assuntos diferentes (' + unicos(itens.map(function (x) { return x.p.assunto.rotulo; })).join(' e ') + '): monte uma portaria de cada assunto.'); return; }
     erroSei('');
+    if (assuntos[0] === 'exoneracao') { montarExoneracaoDoSei(itens); return; }
     var id = 'licenca-premio', indef = decisoes[0] === 'indeferida';
     var comuns = estado.valores[id] = estado.valores[id] || {};
     comuns.indeferido = indef;

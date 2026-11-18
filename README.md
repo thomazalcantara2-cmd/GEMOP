@@ -192,9 +192,11 @@ Regras de preenchimento:
 
 Veja `COMO-PUBLICAR-ONLINE.md`: a página publicada na internet lê a FichaContabilis do Google Drive da pessoa que entra com a conta Google (só quem tem acesso à planilha consegue abrir). Fica desligada enquanto `js/google-config.js` estiver em branco.
 
-## Importar do processo SEI (licença prêmio)
+## Importar do processo SEI (licença prêmio e exoneração a pedido)
 
 No cartão **Importar do processo SEI** (Portarias) solte um ou vários `.zip` exportados do SEI. Cada processo vira um cartão com o servidor achado na planilha (pelo nome),
 a decisão (deferida/indeferida), o decênio sugerido, o início, os meses e o fim calculado (30 dias por mês). No indeferimento, o fundamento é o despacho que indeferiu
 (tipo, número SEI e secretaria do cabeçalho). Alertas avisam de cancelamentos, portaria já feita, saldo menor que o pedido e divergências. Depois de conferir,
 **Montar portaria com os marcados** preenche o modelo de licença prêmio. Só são lidos os documentos `.html`; os PDFs são ignorados. Tudo é lido só no navegador.
+
+O programa reconhece o **assunto** do processo sozinho (licença prêmio pela Ficha Funcional; exoneração a pedido pela Informação da UGEP) e escolhe o modelo de portaria ao montar. Processos de outros assuntos aparecem como "assunto não reconhecido" e não entram. Num mesmo lote, só dá para montar um assunto por vez.

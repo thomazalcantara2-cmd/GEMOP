@@ -175,3 +175,44 @@ test('lê um .zip sem compressão e comprimido', async () => {
   const lido2 = await Zip.lerZip(Uint8Array.from(Buffer.concat([local, central, fim])));
   assert.strictEqual(Buffer.from(lido2[0].dados).toString(), '<p>ola</p>');
 });
+
+// Informação de exoneração: cada rótulo vem numa linha e o valor na linha seguinte
+const informacaoExoneracao = (extra) => doc(['SEI/PMJG - 3000001 - Informação', 'SECRETARIA MUNICIPAL DE ADMINISTRAÇÃO',
+  'INFORMAÇÕES FUNCIONAIS - EXONERAÇÃO A PEDIDO DE EFETIVOS', 'Protocolo nº 26.17.000000003-3', 'Ref.: Requerimento do Servidor Data: 11/11/2026',
+  'ASSUNTO: EXONERAÇÃO A PEDIDO DE SERVIDORES EFETIVOS', 'Nome:', 'BELTRANO DE TESTE DA SILVA', 'Matrícula:', '001234561', 'Admissão:', '24/07/2017',
+  'Cargo:', 'Professor 1', 'Órgão de Origem:', 'Secretaria Municipal de Educação', 'Lotação:', 'Escola Teste', 'INFORMAÇÕES COMPLEMENTARES:'].concat(extra || [
+  '1) Servidor solicita exoneração a partir de 09/11/2026;', '2) Não se encontra em período de Estágio Probatório;',
+  '3) Não responde a Inquérito Administrativo atualmente;', '26.17.000000003-3']));
+
+test('assunto exoneração a pedido: o modelo é reconhecido e os dados saem da Informação', () => {
+  const r = S.lerProcesso([
+    { nome: '[5]-3000001_Informacao.html', html: informacaoExoneracao() },
+    despacho('3000002', 'SECRETARIA MUNICIPAL DE EDUCAÇÃO', ['Para encaminhamentos necessários.']),
+    { nome: '[6]-3000003_Ficha_Funcional.pdf', html: '' }
+  ]);
+  assert.strictEqual(r.assunto.id, 'exoneracao');
+  assert.ok(r.assunto.suportado);
+  assert.strictEqual(r.servidor.nome, 'BELTRANO DE TESTE DA SILVA');
+  assert.strictEqual(r.servidor.matricula, '001234561');
+  assert.deepStrictEqual(r.exoneracao.efeitos, dt(9, 11, 2026));
+  assert.deepStrictEqual(r.exoneracao.dataRequerimento, dt(11, 11, 2026));
+  assert.strictEqual(r.exoneracao.tipoCargo, 'efetivo');
+  assert.deepStrictEqual(r.alertas, []);
+  assert.strictEqual(r.bloqueio, '');
+});
+
+test('exoneração: avisa quando a Informação não diz que não há estágio probatório ou inquérito', () => {
+  const r = S.lerProcesso([{ nome: '[5]-3000001_Informacao.html', html: informacaoExoneracao(['1) Servidor solicita exoneração a partir de 09/11/2026;',
+    '2) Encontra-se em Estágio Probatório;', '3) Responde a Inquérito Administrativo;', '26.17.000000003-3']) }]);
+  assert.ok(r.alertas.some((a) => /Estágio Probatório/.test(a)));
+  assert.ok(r.alertas.some((a) => /inquérito/i.test(a)));
+});
+
+test('assunto desconhecido não vira portaria e licença prêmio continua sendo reconhecida', () => {
+  const sf = S.lerProcesso([{ nome: '[10]-4000001_Despacho.html', html: doc(['SEI/PMJG - 4000001 - Despacho', 'INFORMAÇÕES FUNCIONAIS E FINANCEIRAS',
+    'ASSUNTO: SALÁRIO FAMÍLIA', '26.9.000000004-4']) }]);
+  assert.strictEqual(sf.assunto.suportado, false);
+  assert.ok(/SALÁRIO FAMÍLIA/.test(sf.assunto.rotulo));
+  assert.ok(sf.alertas[0].includes('só sei montar licença prêmio e exoneração'));
+  assert.strictEqual(S.lerProcesso([{ nome: '[03]-1000001_Ficha_Funcional.html', html: ficha() }]).assunto.id, 'licenca-premio');
+});

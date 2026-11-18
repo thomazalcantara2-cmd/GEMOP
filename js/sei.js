@@ -207,6 +207,59 @@
     return { despacho: 'despacho', oficio: 'oficio', parecer: 'parecer', informacao: 'informacao', ci: 'ci' }[tipo] || null;
   }
 
+
+  // ---------- assunto do processo e exoneração a pedido ----------
+  var ASSUNTOS = {
+    'licenca-premio': { id: 'licenca-premio', rotulo: 'Licença prêmio', suportado: true },
+    'exoneracao': { id: 'exoneracao', rotulo: 'Exoneração a pedido', suportado: true }
+  };
+  var RE_EXONERACAO = /EXONERA[ÇC][ÃA]O A PEDIDO/i;
+
+  function assuntoDoProcesso(docs, ficha) {
+    var docExo = docs.filter(function (d) { return RE_EXONERACAO.test(d.texto) && /INFORMA[ÇC][ÕO]ES FUNCIONAIS/i.test(d.texto); }).pop();
+    var fichaLP = ficha && /PREMIO/.test(D.normalizar(ficha.assunto));
+    var mencionaLP = docs.some(function (d) { return TIPOS_DECISAO.indexOf(d.tipo) >= 0 && /licen[çc]a[- ]pr[êe]mio/i.test(d.texto); });
+    if (fichaLP || (mencionaLP && !docExo)) return ASSUNTOS['licenca-premio'];
+    if (docExo) return Object.assign({ doc: docExo }, ASSUNTOS['exoneracao']);
+    var outro = ficha && ficha.assunto ? ficha.assunto : '';
+    if (!outro) {
+      var m = docs.map(function (d) { return d.texto.match(/^\s*ASSUNTO\s*:\s*(.+)$/mi); }).filter(Boolean)[0];
+      outro = m ? m[1].trim() : '';
+    }
+    return { id: 'outro', rotulo: outro, suportado: false };
+  }
+
+  function semModelo(processo, ficha, assunto, ignorados, total, alerta) {
+    return { assunto: assunto, bloqueio: '', processo: processo, servidor: ficha, decenios: [], saldo: null, decenioSugerido: '', decisao: null,
+      fundamento: null, periodo: null, portarias: [], alertas: [alerta], ignorados: ignorados, assuntoLP: false, documentos: total };
+  }
+
+  // Exoneração a pedido: a "Informação" da UGEP traz tudo (nome, matrícula, admissão, a data pedida e as condições).
+  function lerExoneracao(docs, processo, ignorados) {
+    var doc = docs.filter(function (d) { return RE_EXONERACAO.test(d.texto) && /INFORMA[ÇC][ÕO]ES FUNCIONAIS/i.test(d.texto); }).pop();
+    var t = doc.texto, alertas = [];
+    var servidor = lerFicha(t);
+    if (!servidor) alertas.push('Não consegui ler o nome do servidor na Informação ' + doc.id + '.');
+    var dataEm = function (re) { var m = t.match(re); return m ? dataDoTexto(m[1]) : null; };
+    var efeitos = dataEm(/exonera[çc][ãa]o a partir (?:de|do dia)\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    var dataRequerimento = dataEm(/Requerimento do Servidor\s*Data:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    var tipoCargo = /EM COMISS[ÃA]O|COMISSIONAD/i.test(t.match(/ASSUNTO\s*:\s*(.+)/i) ? t.match(/ASSUNTO\s*:\s*(.+)/i)[1] : '') ? 'em comissão' : 'efetivo';
+    if (!efeitos) alertas.push('Não achei a data a partir da qual o servidor pede a exoneração: preencha "Retroagir efeitos a".');
+    if (!dataRequerimento) alertas.push('Não achei a data do requerimento na Informação: preencha a data.');
+    if (/Est[áa]gio Probat[óo]rio/i.test(t) && !/N[ãa]o se encontra em per[íi]odo de Est[áa]gio Probat[óo]rio/i.test(t)) {
+      alertas.push('A Informação fala em Estágio Probatório sem dizer que o servidor NÃO está nele: leia antes de exonerar.');
+    }
+    if (/Inqu[ée]rito/i.test(t) && !/N[ãa]o responde a Inqu[ée]rito/i.test(t)) {
+      alertas.push('A Informação indica inquérito administrativo: leia antes de exonerar.');
+    }
+    var canc = docs.filter(function (d) { return d !== doc && RE_CANCELA.test(d.texto); });
+    canc.forEach(function (d) { alertas.push('O documento ' + d.id + ' fala em cancelar ou desconsiderar algo: leia antes de usar este processo.'); });
+    return { assunto: ASSUNTOS.exoneracao, bloqueio: canc.length ? 'há despacho pedindo para cancelar ou desconsiderar' : '', processo: processo, servidor: servidor,
+      decenios: [], saldo: null, decenioSugerido: '', decisao: 'deferida', fundamento: null, periodo: null, portarias: [],
+      exoneracao: { efeitos: efeitos, dataRequerimento: dataRequerimento, tipoCargo: tipoCargo },
+      alertas: alertas, ignorados: ignorados, assuntoLP: false, documentos: docs.length };
+  }
+
   // ---------- um processo ----------
   /*
    * docs: [{ nome, html }] (só os .html; os outros arquivos entram em "ignorados").
@@ -229,9 +282,15 @@
     docs.forEach(function (d) {
       if (d.tipo === 'ficha funcional' || d.tipo === 'licenca premio') { var f = lerFicha(d.texto); if (f) { ficha = f; docFicha = d; } }
     });
+    // assunto do processo: decide o modelo de portaria
+    var assunto = assuntoDoProcesso(docs, ficha);
+    if (assunto.id === 'exoneracao') return lerExoneracao(docs, processo, ignorados);
+    if (!assunto.suportado) {
+      return semModelo(processo, ficha, assunto, ignorados, docs.length,
+        'Não reconheci o assunto deste processo' + (assunto.rotulo ? ' (' + assunto.rotulo + ')' : '') + ': por enquanto só sei montar licença prêmio e exoneração a pedido.');
+    }
     if (!ficha) alertas.push('Não achei a Ficha Funcional neste processo (nome, decênios e saldo ficam por sua conta).');
-    var assuntoLP = !ficha || /LICEN[ÇC]A[- ]*PR[ÊE]MIO/i.test(D.normalizar(ficha.assunto).replace(/-/g, ' ')) || /PREMIO/.test(D.normalizar(ficha.assunto));
-    if (ficha && !assuntoLP) alertas.push('O assunto da Ficha é "' + ficha.assunto + '", e não licença prêmio: este processo não deve entrar nesta portaria.');
+    var assuntoLP = true;
 
     // decisão e período nos despachos
     var decisoes = [], periodos = [], cancelamentos = [];
@@ -319,7 +378,7 @@
     if (portarias.some(function (p) { return p.semEfeito; })) bloqueio = 'já existe portaria tornando a licença sem efeito';
     else if (cancelamentos.length) bloqueio = 'há despacho pedindo para cancelar ou desconsiderar';
     return {
-      bloqueio: bloqueio, processo: processo, servidor: ficha, decenios: ficha ? ficha.decenios : [], saldo: ficha ? ficha.saldo : null,
+      assunto: assunto, bloqueio: bloqueio, processo: processo, servidor: ficha, decenios: ficha ? ficha.decenios : [], saldo: ficha ? ficha.saldo : null,
       decenioSugerido: textoDecenio(decSug), decisao: decisao, fundamento: fundamento, periodo: periodo, portarias: portarias,
       alertas: alertas, ignorados: ignorados, assuntoLP: assuntoLP, documentos: docs.length
     };
