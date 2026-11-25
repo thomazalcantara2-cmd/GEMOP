@@ -200,3 +200,9 @@ a decisão (deferida/indeferida), o decênio sugerido, o início, os meses e o f
 **Montar portaria com os marcados** preenche o modelo de licença prêmio. Só são lidos os documentos `.html`; os PDFs são ignorados. Tudo é lido só no navegador.
 
 O programa reconhece o **assunto** do processo sozinho (licença prêmio pela Ficha Funcional; exoneração a pedido pela Informação da UGEP) e escolhe o modelo de portaria ao montar. Processos de outros assuntos aparecem como "assunto não reconhecido" e não entram. Num mesmo lote, só dá para montar um assunto por vez.
+
+## Portarias dentro do SEI (script do Tampermonkey)
+
+O script `sei/portarias-sei.user.js` abre a página de Portarias num painel do SEI, lê o processo (sem abri-lo na tela) e cria o documento
+**Portaria** no processo, sem assinatura. É independente do Archivist e de servidores. Instalação e uso em `sei/LEIA-ME.md`.
+

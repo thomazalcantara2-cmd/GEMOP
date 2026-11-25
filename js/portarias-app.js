@@ -26,6 +26,7 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
+  var aoCarregarBase = null;   // dentro do SEI: lê de novo o processo quando a planilha chega depois
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -252,6 +253,7 @@
     atualizarBusca();
     montarServidores();
     renderizar();
+    if (aoCarregarBase) aoCarregarBase();
   }
 
   // O quadro de carregar a planilha fica escondido: a planilha é lida sozinha da pasta. Ele só aparece se ela não for achada
@@ -570,6 +572,7 @@
     ajustarEscala();
     $('imprimir').disabled = !escolhidos.length;
     $('copiar').disabled = !escolhidos.length;
+    $('criar-sei').disabled = !escolhidos.length;
     $('baixar-word').disabled = !escolhidos.length;
     document.title = escolhidos.length ? 'Portaria - ' + escolhidos.map(function (x) { return x.nome; }).join(', ') : 'Portarias';
   }
@@ -837,18 +840,24 @@
     return ini && +it.meses > 0 ? SEI.iso(SEI.fimDoGozo(ini, +it.meses)) : '';
   }
 
+  // Recebe documentos já lidos ([{ nome, html }]) — do zip exportado ou, dentro do SEI, do próprio processo — e cria um cartão por processo.
+  function importarArquivos(arquivos) {
+    var procs = SEI.lerProcessos(arquivos);
+    procs.forEach(function (p) {
+      var novo = iniciais(p);
+      var i = estado.sei.map(function (x) { return x.p.processo; }).indexOf(p.processo);
+      if (i >= 0) estado.sei[i] = novo; else estado.sei.push(novo);
+    });
+    if (procs.length) desenharSei();
+    return procs;
+  }
+
   function importarSei(lista) {
     erroSei('');
     if (!estado.base.length) { erroSei('Carregue a planilha primeiro: o programa precisa dela para achar os servidores.'); return Promise.resolve(); }
     return arquivosDoSei(lista).then(function (arquivos) {
-      var procs = SEI.lerProcessos(arquivos);
+      var procs = importarArquivos(arquivos);
       if (!procs.length) { erroSei('Não achei documentos do SEI (.html) nos arquivos enviados. Envie o .zip exportado do processo.'); return; }
-      procs.forEach(function (p) {
-        var novo = iniciais(p);
-        var i = estado.sei.map(function (x) { return x.p.processo; }).indexOf(p.processo);
-        if (i >= 0) estado.sei[i] = novo; else estado.sei.push(novo);
-      });
-      desenharSei();
     }).catch(function (e) { erroSei('Não foi possível ler os arquivos: ' + e.message); });
   }
 
@@ -1023,6 +1032,41 @@
     $('sei-resumo').textContent = 'Portaria montada com ' + itens.length + (itens.length === 1 ? ' servidor' : ' servidores') + '. Confira os campos e o texto.' + avisoFinal;
   }
 
+
+  // ---------- dentro do SEI (painel do script do Tampermonkey) ----------
+  // A página roda num iframe do painel: o script lê o processo no SEI e manda os documentos para cá; daqui sai a portaria pronta
+  // (texto formatado) para ele criar o documento "Portaria" no processo. Fora do SEI nada disso aparece nem muda.
+  // Mensagens (sempre de/para a janela que embute esta página): gemop:pronto, gemop:processo, gemop:resultado, gemop:criar.
+  function iniciarEmbutido() {
+    if (window.parent === window) return;
+    document.body.classList.add('embutido');
+    $('criar-sei').hidden = false;
+    var pai = window.parent;
+    $('criar-sei').addEventListener('click', function () {
+      var c = conteudoParaCopiar();
+      pai.postMessage({ gemop: 'criar', html: c.html, texto: c.texto }, '*');
+    });
+    // O processo fica guardado: se a planilha só chegar depois (pasta escolhida agora), ele é lido de novo e a portaria é montada
+    function receber(arquivos) {
+      erroSei('');
+      var procs;
+      try { procs = importarArquivos(arquivos); } catch (err) { erroSei('Não foi possível ler o processo: ' + err.message); return; }
+      if (!estado.base.length) erroSei('Carregue a planilha dos servidores (pasta ou arquivo) para o programa achar o servidor do processo.');
+      else if (!procs.length) erroSei('Não achei documentos para ler neste processo.');
+      // montagem automática: processo de assunto conhecido, servidor achado e decisão no processo
+      var montada = estado.sei.some(function (x) { return x.incluir && x.servidor; });
+      if (montada) montarDoSei();
+      pai.postMessage({ gemop: 'resultado', processos: procs.length, montada: montada }, '*');
+    }
+    window.addEventListener('message', function (e) {
+      if ((e.source !== pai && e.origin !== location.origin) || !e.data || e.data.gemop !== 'processo') return;
+      estado.processoSei = e.data.arquivos || [];
+      receber(estado.processoSei);
+    });
+    aoCarregarBase = function () { if (estado.processoSei && !estado.sei.some(function (x) { return x.servidor; })) receber(estado.processoSei); };
+    pai.postMessage({ gemop: 'pronto' }, '*');
+  }
+
   // ---------- eventos ----------
   function iniciar() {
     // tipos agrupados por assunto
@@ -1105,6 +1149,7 @@
     window.addEventListener('resize', ajustarEscala);
     atualizarStatus();
     renderizar();
+    iniciarEmbutido();
   }
 
   document.addEventListener('DOMContentLoaded', iniciar);

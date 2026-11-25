@@ -223,6 +223,9 @@
     .app.recolhida .alternar { left: auto; right: 10px; }
     main { padding: 16px; }
   }
+  /* dentro do painel do SEI (iframe do script do Tampermonkey) */
+  body.embutido .topo-faixa { display: none; }
+  body.embutido #criar-sei:not([hidden]) { order: -1; flex: 1 1 100%; }
   @page { size: A4; margin: 14mm 20mm; }
   @media print {
     body { background: #fff; }
@@ -341,6 +344,7 @@
     <p class="nota">Clique no texto da folha para ajustá-lo antes de imprimir; campos em amarelo ainda precisam ser preenchidos. A planilha é lida só neste navegador — nada é enviado para a internet. Apenas os textos fixos ficam salvos neste computador.</p>
 
     <div class="botoes">
+      <button id="criar-sei" class="prim" hidden title="Cria a Portaria no processo do SEI (só aparece dentro do SEI, pelo script do Tampermonkey)">Criar Portaria no SEI</button>
       <button id="imprimir" class="prim" disabled title="Abre a impressão; escolha &quot;Salvar como PDF&quot; para gerar o arquivo">Imprimir / PDF</button>
       <button id="copiar" disabled title="Copia o texto e as tabelas da portaria para colar no SEI ou no Word">Copiar texto</button>
       <button id="baixar-word" disabled title="Baixa a portaria como arquivo do Word (.docx), com a tabela">Baixar Word</button>
