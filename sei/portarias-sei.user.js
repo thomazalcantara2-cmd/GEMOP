@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.3.1
+// @version      1.4.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.3.1';
+  const VERSION = '1.4.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -225,7 +225,7 @@
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
   // Devolve { docId, numero, titulo, url, gravado, aviso, nota }. Depois que o documento existe, falhas voltam em "aviso" (não lançam).
-  async function createPortaria(item, bodyHtml) {
+  async function createPortaria(item, bodyHtml, numero) {
     const t = await readTree(item);
     if (t.sigiloso) throw new Error('processo sigiloso');
     const antes = new Set(treeDocs(t.arvore, t.arvoreUrl).map(d => d.id));
@@ -261,6 +261,11 @@
     if (form.fd.has('selHipoteseLegal')) form.fd.set('selHipoteseLegal', 'null');
     if (form.fd.has('hdnIdHipoteseLegal')) form.fd.set('hdnIdHipoteseLegal', '');
     form.fd.set('rdoTextoInicial', 'N');
+    // Nesta unidade o Número da Portaria é obrigatório e digitado por quem faz (ex.: 1559/2026)
+    if (form.el.querySelector('[name="txtNumero"]')) {
+      if (!numero) throw new Error('informe o número da Portaria (ex.: 1559/2026)');
+      form.fd.set('txtNumero', numero);
+    }
     form.fd.set('hdnFlagDocumentoCadastro', '2');
     // Valores de campos técnicos (sem dados de servidores) para o diagnóstico de recusas do SEI
     const diag = (f) => ['hdnAnexos', 'rdoTextoInicial', 'hdnStaDocumento', 'hdnIdTipoConferencia', 'hdnIdSerie', 'txtNumero', 'txtNomeArvore', 'txtDescricao', 'hdnIdDocumentoTextoBase', 'txtProtocoloDocumentoTextoBase', 'hdnIdTextoPadrao', 'rdoNivelAcesso', 'hdnStaNivelAcessoLocal', 'hdnIdHipoteseLegal', 'selGrauSigilo']
@@ -466,11 +471,11 @@
     const confirmView = () => {
       box.innerHTML = head('Criar Portaria no processo ' + proc, 'Confira antes de criar') +
         '<div class="gp-gr"><div><small>Tipo de documento</small><b>Portaria</b></div><div><small>Nível de acesso</small><b>Público</b></div>' +
-        '<div><small>Número no SEI</small><b>automático do SEI</b>' + (p.numeroGerador ? ' <span style="color:#64748b;font-size:12px;">(o ' + esc(p.numeroGerador) + ' do gerador não vai: o modelo numera)</span>' : '') + '</div><div><small>Assinatura</small><b>sem assinatura</b> <span style="color:#64748b;font-size:12px;">(você assina no SEI)</span></div></div>' +
+        '<div><small>Número da Portaria (obrigatório no SEI)</small><input id="gp-num" value="' + esc(p.numeroGerador) + '" placeholder="ex.: 1559/2026" style="width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font:700 13px system-ui,sans-serif;"></div><div><small>Assinatura</small><b>sem assinatura</b> <span style="color:#64748b;font-size:12px;">(você assina no SEI)</span></div></div>' +
         '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Texto que vai para o corpo da Portaria</div>' +
         '<iframe sandbox="" style="width:100%;height:250px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;" srcdoc="' + esc('<body style="margin:12px;font:12.5px/1.5 Calibri,Arial,sans-serif;">' + p.corpoHtml + '</body>') + '"></iframe>' +
         (p.pendentes ? '<div class="gp-av"><b>' + p.pendentes + ' campo(s) pendente(s)</b> (em amarelo no gerador). Complete no painel, ou crie assim mesmo e complete no SEI.</div>' : '') +
-        '<div class="gp-av">O título, o número e a data vêm do modelo da Portaria no SEI; aqui vai só o corpo, como o gerador montou.</div>' +
+        '<div class="gp-av">Aqui vai só o corpo da Portaria (sem o título). O número que você digitar vai no campo Número do SEI.</div>' +
         '<div class="gp-ac"><button type="button" data-a="x">Cancelar</button><button type="button" class="pri" data-a="ok">' + (p.pendentes ? 'Criar assim mesmo' : 'Criar Portaria') + '</button></div>';
     };
     confirmView();
@@ -479,10 +484,12 @@
       if (!a) return;
       if (a === 'x') { if (!busy) close(); return; }
       if (a === 'ok' && !busy) {
+        const numero = (box.querySelector('#gp-num')?.value || '').replace(/\s+/g, '');
+        if (!/^\d[\d.]*\/\d{4}$/.test(numero)) { let er = box.querySelector('.gp-numerr'); if (!er) { er = el(doc, 'div', '', 'gp-er gp-numerr'); box.querySelector('.gp-ac').before(er); } er.textContent = 'Digite o número no formato 1559/2026.'; return; }
         busy = true;
         box.innerHTML = head('Criando a Portaria…', 'Processo ' + proc + ' · sem abrir o processo na tela') + '<div style="margin:18px 0;display:flex;align-items:center;gap:10px;"><span style="display:inline-block;animation:gpSpin 1s linear infinite;font-size:18px;">⏳</span><span>Escolhendo o tipo, cadastrando e gravando o texto no editor...</span></div>';
         let falha = '';
-        try { result = await createPortaria(item, p.corpoHtml); } catch (err) { falha = errText(err); }
+        try { result = await createPortaria(item, p.corpoHtml, numero); } catch (err) { falha = errText(err); }
         busy = false;
         if (falha) { box.innerHTML = head('Não foi possível criar a Portaria', 'Processo ' + proc) + '<div class="gp-er">' + esc(falha) + '. Nada foi criado.</div><details style="margin-top:10px;font-size:11.5px;color:#64748b;"><summary>Detalhes técnicos (para enviar a quem mantém o script)</summary>Portarias SEI v' + VERSION + ' · ' + esc(lastDebug) + '</details><div class="gp-ac"><button type="button" data-a="x">Fechar</button></div>'; return; }
         if (item.arvoreUrl) { try { rootDoc.getElementById('ifrArvore')?.contentWindow.location.reload(); } catch { /* ignora */ } }
