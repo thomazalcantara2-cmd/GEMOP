@@ -28,6 +28,7 @@ de servidor, de banco de dados nem do `Portarias.bat`.
 
 ## Limites
 
-- Só lê documentos internos em HTML; PDFs e anexos do processo são ignorados.
+- Lê os documentos internos (HTML) e os **PDFs que têm texto** (por exemplo Ficha Funcional e Ficha Financeira), com a biblioteca pdf.js carregada pelo Tampermonkey. **PDFs digitalizados** (só imagem, como requerimentos escaneados e perícias) **não são lidos**: não há reconhecimento de imagem (OCR). O cabeçalho do painel informa quantos PDFs foram lidos e quantos eram digitalizados.
+- Outros anexos (planilhas, imagens, ZIP) são ignorados.
 - Processo sigiloso não é lido.
 - A versão do painel vem da branch indicada no `@resource` (hoje `claude/sei-portarias`). Depois de unir ao ramo principal, troque o endereço no cabeçalho do script.

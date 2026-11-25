@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.1.0
+// @version      1.2.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -9,6 +9,8 @@
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/sei/portarias-sei.user.js
 // @downloadURL  https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/sei/portarias-sei.user.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js
 // @grant        GM_getResourceText
 // @resource     GEMOP_PORTARIAS https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/dist/portarias-embutida.html
 // ==/UserScript==
@@ -41,17 +43,21 @@
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // ── rede (sessão do usuário; o SEI responde em ISO-8859-1) ──
-  async function request(url, opts = {}) {
+  async function requestRaw(url, opts = {}) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       const resp = await fetch(url, { credentials: 'same-origin', signal: ctrl.signal, ...opts });
       if (!resp.ok) throw new Error('o SEI respondeu ' + resp.status);
-      return { html: new TextDecoder('windows-1252').decode(await resp.arrayBuffer()), url: resp.url || url, type: resp.headers.get('content-type') || '' };
+      return { buf: await resp.arrayBuffer(), url: resp.url || url, type: resp.headers.get('content-type') || '' };
     } catch (e) {
       if (e && e.name === 'AbortError') throw new Error('o SEI demorou demais para responder');
       throw e;
     } finally { clearTimeout(timer); }
+  }
+  async function request(url, opts = {}) {
+    const r = await requestRaw(url, opts);
+    return { html: new TextDecoder('windows-1252').decode(r.buf), url: r.url, type: r.type };
   }
 
   // Corpo de formulário em ISO-8859-1. O que passa de U+00FF (travessão, aspas curvas) vira referência numérica nos campos de HTML.
@@ -125,25 +131,43 @@
   const SAFE = /acao=(arvore_visualizar|documento_visualizar)(&|$)/;
   async function docHtml(url, wantId, depth = 0, seen = new Set()) {
     seen.add(url);
-    const r = await request(url);
-    if (!/html/i.test(r.type)) return null;
+    const raw = await requestRaw(url);
+    if (/pdf/i.test(raw.type)) return { pdf: raw.buf, inner: true };                 // anexo em PDF: o texto sai em pdfText()
+    if (!/html/i.test(raw.type)) return null;
+    const r = { html: new TextDecoder('windows-1252').decode(raw.buf), url: raw.url, type: raw.type };
     const doc = new DOMParser().parseFromString(r.html, 'text/html');
     if (depth < 3) {
       const cand = new Set();
-      for (const f of doc.querySelectorAll('iframe')) { const s = f.getAttribute('src'); if (s && !/ifrDownload|ifrPasta/i.test(f.id || f.name || '')) cand.add(s); }
+      for (const f of doc.querySelectorAll('iframe')) { const src = f.getAttribute('src'); if (src && !/ifrDownload|ifrPasta/i.test(f.id || f.name || '')) cand.add(src); }
       for (const u of r.html.match(/controlador\.php\?acao=[a-z_]+[^"'\s<>]*id_documento=\d+[^"'\s<>]*/g) || []) cand.add(decode(u));
       for (const c of cand) {
         let next; try { next = new URL(c, url).href; } catch { continue; }
         const nid = param('id_documento', next);
         if (wantId && nid && nid !== wantId) continue;
-        if (seen.has(next) || next === url || !/acao=[a-z_]*(visualizar|conteudo|exibir)[a-z_]*(&|$)/.test(next)) continue;
+        if (seen.has(next) || next === url || !/acao=[a-z_]*(visualizar|conteudo|exibir|download_anexo)[a-z_]*(&|$)/.test(next)) continue;
         if (/(excluir|assinar|cancelar|alterar|remover|enviar|concluir|gerar|incluir|consultar|cadastrar)/.test(next.split('?')[0] + '?' + (next.match(/acao=[^&]*/) || [''])[0])) continue;
         const inner = await docHtml(next, wantId, depth + 1, seen).catch(() => null);
+        if (inner && inner.pdf) return inner;
         if (inner && inner.inner && compact(inner.html.replace(/<[^>]*>/g, ' ')).length > 40) return inner;
       }
     }
     return { html: r.html, inner: depth > 0 };
   }
+
+  // Texto de um PDF com camada de texto (pdf.js, no navegador). PDF digitalizado (só imagem) devolve '' — não há OCR aqui.
+  async function pdfText(buf) {
+    if (typeof pdfjsLib === 'undefined') return '';
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+    let out = '';
+    for (let i = 1; i <= Math.min(pdf.numPages, 30); i++) {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      out += tc.items.map(x => x.str + (x.hasEOL ? '\n' : ' ')).join('') + '\n';
+    }
+    const letras = out.replace(/[^A-Za-zÀ-ÿ0-9]/g, '').length;
+    return letras >= 40 ? out : '';
+  }
+  const htmlOfText = (t) => '<html><body>' + String(t).split(/\n+/).map(l => compact(l)).filter(Boolean).map(l => '<p>' + esc(l) + '</p>').join('') + '</body></html>';
 
   // Nomes no estilo do zip do SEI ("[03]-1110422_Ficha_Funcional.html"), que o gerador já sabe ler
   function fileName(i, doc) {
@@ -172,15 +196,20 @@
     if (!todos.length) throw new Error('não achei documentos na árvore do processo');
     const docs = todos.filter(d => SAFE.test(d.href)).slice(0, 80);
     const titulos = todos.map(d => (/^(.*?)\s*\((\d{3,})\)\s*$/.exec(d.title) || [null, d.title])[1]);   // títulos de TODOS os documentos, inclusive PDFs
-    const arquivos = [];
+    const arquivos = [], pdfs = { lidos: 0, digitalizados: 0, falhas: 0 };
     for (let i = 0; i < docs.length; i++) {
       onStep('Lendo os documentos (' + (i + 1) + ' de ' + docs.length + ')...');
       const h = await docHtml(docs[i].href, docs[i].id).catch(() => null);
-      if (h && h.html && h.inner) arquivos.push({ nome: fileName(i, docs[i]), html: h.html });
+      if (h && h.pdf) {
+        try {
+          const texto = await pdfText(h.pdf);
+          if (texto) { pdfs.lidos++; arquivos.push({ nome: fileName(i, docs[i]), html: htmlOfText(texto) }); } else pdfs.digitalizados++;
+        } catch { pdfs.falhas++; }
+      } else if (h && h.html && h.inner) arquivos.push({ nome: fileName(i, docs[i]), html: h.html });
     }
     onStep('Lendo o cadastro do processo...');
     const meta = await readMeta(t, item);
-    return { arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', t };
+    return { arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
   }
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
@@ -372,6 +401,10 @@
     frame.srcdoc = recurso;
     try {
       leitura = await readProcess(item, (t) => { ldTxt.textContent = t; });
+      const q = leitura.pdfs, resumo = [leitura.arquivos.length + ' documento' + (leitura.arquivos.length === 1 ? '' : 's') + ' lido' + (leitura.arquivos.length === 1 ? '' : 's')];
+      if (q.lidos) resumo.push(q.lidos + ' PDF' + (q.lidos > 1 ? 's' : '') + ' lido' + (q.lidos > 1 ? 's' : '') + ' pelo texto');
+      if (q.digitalizados) resumo.push(q.digitalizados + ' PDF' + (q.digitalizados > 1 ? 's' : '') + ' digitalizado' + (q.digitalizados > 1 ? 's' : '') + ' (imagem) não lido' + (q.digitalizados > 1 ? 's' : ''));
+      dr.querySelector('header span').textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · ');
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
     } catch (e) {
