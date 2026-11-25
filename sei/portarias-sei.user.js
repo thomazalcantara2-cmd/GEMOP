@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.3.0
+// @version      1.3.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -264,7 +264,8 @@
     form.fd.set('hdnFlagDocumentoCadastro', '2');
     // Valores de campos técnicos (sem dados de servidores) para o diagnóstico de recusas do SEI
     const diag = (f) => ['hdnAnexos', 'rdoTextoInicial', 'hdnStaDocumento', 'hdnIdTipoConferencia', 'hdnIdSerie', 'txtNumero', 'txtNomeArvore', 'txtDescricao', 'hdnIdDocumentoTextoBase', 'txtProtocoloDocumentoTextoBase', 'hdnIdTextoPadrao', 'rdoNivelAcesso', 'hdnStaNivelAcessoLocal', 'hdnIdHipoteseLegal', 'selGrauSigilo']
-      .filter(k => f.fd.has(k)).map(k => k + '=' + JSON.stringify(String(f.fd.get(k)).slice(0, 40))).join(' ');
+      .filter(k => f.fd.has(k)).map(k => k + '=' + JSON.stringify(String(f.fd.get(k)).slice(0, 40))).join(' ')
+      + ' · campos(todos)=' + [...f.el.querySelectorAll('input,select,textarea')].filter(e => e.name).map(e => e.name + (e.disabled ? '(desab)' : '') + (e.type === 'hidden' ? '(h)' : '')).join(',');
     const sucesso = (c) => (/acao_origem=documento_(?:gerar|cadastrar)/.test(c.url) || /editor_montar/.test(c.html)) && (param('id_documento', c.url) || /id_documento=(\d+)/.test(c.html));
     let criado = await post(form), tentativas = [];
     // O SEI às vezes recusa por causa dos campos de anexo; tenta de novo sem eles, como o SEI Pro (que não envia campos de arquivo)
