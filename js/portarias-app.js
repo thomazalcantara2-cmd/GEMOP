@@ -861,6 +861,39 @@
     }).catch(function (e) { erroSei('Não foi possível ler os arquivos: ' + e.message); });
   }
 
+  // ---------- assuntos sem leitura completa: sugestão pelas palavras do processo ----------
+  // Cartão do processo com o tipo de portaria sugerido e os servidores possíveis; o usuário confere e manda montar.
+  function iniciaisGeral(g) {
+    var s = g.servidores.length && (g.servidores.length === 1 || g.servidores[0].pontos >= 2 * g.servidores[1].pontos) ? g.servidores[0].servidor : null;
+    return {
+      p: { assunto: { id: 'geral', rotulo: 'sugestão pelas palavras do processo', suportado: false }, bloqueio: '', processo: g.processo, servidor: null,
+        decenios: [], alertas: g.alertas, ignorados: [], decisao: null },
+      geral: g, geralTipo: g.tipo ? g.tipo.id : '', servidor: s, aviso: '', incluir: !!s && !!g.tipo, decisao: 'deferida'
+    };
+  }
+
+  // info: { processo, arquivos, titulos, contexto, interessados } — documentos já lidos do processo e dados do cadastro dele
+  function importarGeral(info) {
+    var g = SEI.reconhecerGeral(info, estado.base);
+    if (!g.processo) return null;
+    estado.sei = estado.sei.filter(function (x) { return x.p.assunto && x.p.assunto.suportado; });   // troca o "assunto não reconhecido" pela sugestão
+    estado.sei.push(iniciaisGeral(g));
+    desenharSei();
+    return g;
+  }
+
+  function geralCampos(it, i) {
+    var g = it.geral;
+    var tipos = R.TIPOS.map(function (t) { return [t.id, t.nome]; });
+    var cand = g.servidores.map(function (c, k) {
+      var atual = it.servidor && it.servidor.matricula === c.servidor.matricula;
+      return '<li><button type="button" data-cand="' + i + ':' + k + '"' + (atual ? ' disabled' : '') + '>' + esc(c.servidor.nome) + ' · Mat. ' + esc(c.servidor.matriculaFormatada) + ' <small>(' + esc(c.motivo) + ')</small>' + (atual ? ' ✓' : '') + '</button></li>';
+    }).join('');
+    return '<div style="grid-column:span 2"><label>Tipo de portaria' + (g.tipo ? ' (sugerido: ' + esc(g.tipo.rotulo) + ' — ' + esc(g.tipo.motivos.slice(0, 2).join('; ')) + ')' : '') + '</label>' +
+      '<select data-c="geralTipo"><option value="">Escolha o tipo…</option>' + opcoesSei(tipos, it.geralTipo) + '</select></div>' +
+      (cand ? '<div style="grid-column:span 2"><label>Servidores encontrados no processo</label><ul class="sei-busca-res" style="display:block">' + cand + '</ul></div>' : '');
+  }
+
   function opcoesSei(lista, atual) {
     return lista.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (o[0] === atual ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('');
   }
@@ -869,7 +902,9 @@
     var p = it.p, nome = it.servidor ? it.servidor.nome : (p.servidor ? p.servidor.nome : 'Servidor não identificado');
     var indef = it.decisao === 'indeferida', exo = p.assunto && p.assunto.id === 'exoneracao', suportado = !!(p.assunto && p.assunto.suportado);
     var campos;
-    if (!suportado) {
+    if (it.geral) {
+      campos = geralCampos(it, i);
+    } else if (!suportado) {
       campos = '';
     } else if (exo) {
       campos = '<div><label>Nº do requerimento</label><input data-c="exoReq" type="text" value="' + esc(it.exoReq) + '"></div>' +
@@ -895,10 +930,10 @@
     p.alertas.forEach(function (t) { avisos.push('<li>' + esc(t) + '</li>'); });
     var busca = it.servidor ? '' : '<div class="sei-sub"><input data-busca="' + i + '" type="search" placeholder="Buscar o servidor na planilha (nome ou matrícula)"></div><ul class="sei-busca-res" id="sei-res-' + i + '"></ul>';
     return '<li class="sei-item' + (indef ? ' indef' : '') + (p.bloqueio ? ' bloq' : '') + (it.incluir ? '' : ' fora') + '" data-i="' + i + '">' +
-      '<div class="sei-topo"><label><input type="checkbox" data-c="incluir"' + (it.incluir ? ' checked' : '') + (it.servidor && suportado ? '' : ' disabled') + '> ' + esc(nome) + '</label>' +
+      '<div class="sei-topo"><label><input type="checkbox" data-c="incluir"' + (it.incluir ? ' checked' : '') + (it.servidor && (suportado || (it.geral && it.geralTipo)) ? '' : ' disabled') + '> ' + esc(nome) + '</label>' +
       (suportado && !exo ? '<select data-c="decisao" aria-label="Decisão"><option value="deferida"' + (indef ? '' : ' selected') + '>Deferida</option><option value="indeferida"' + (indef ? ' selected' : '') + '>Indeferida</option></select>' : '') +
       '<button type="button" data-tirar="' + i + '" title="Tirar da lista" aria-label="Tirar da lista">✕</button></div>' +
-      '<div class="sei-sub"><b>' + esc(suportado ? p.assunto.rotulo : 'Assunto não reconhecido' + (p.assunto && p.assunto.rotulo ? ': ' + p.assunto.rotulo : '')) + '</b> · Processo ' + esc(p.processo) + (it.servidor ? ' · Mat. ' + esc(it.servidor.matriculaFormatada) : '') + (p.saldo != null ? ' · saldo na Ficha: ' + p.saldo + ' mês(es)' : '') + '</div>' +
+      '<div class="sei-sub"><b>' + esc(it.geral ? 'Tipo ' + (it.geral.tipo ? 'sugerido: ' + it.geral.tipo.rotulo : 'a escolher') : (suportado ? p.assunto.rotulo : 'Assunto não reconhecido' + (p.assunto && p.assunto.rotulo ? ': ' + p.assunto.rotulo : ''))) + '</b> · Processo ' + esc(p.processo) + (it.servidor ? ' · Mat. ' + esc(it.servidor.matriculaFormatada) : '') + (p.saldo != null ? ' · saldo na Ficha: ' + p.saldo + ' mês(es)' : '') + '</div>' +
       busca + '<div class="sei-campos">' + campos + '</div>' +
       (avisos.length ? '<ul class="sei-avisos">' + avisos.join('') + '</ul>' : '') + '</li>';
   }
@@ -925,6 +960,7 @@
       if (c === 'incluir') { it.incluir = e.target.checked; li.classList.toggle('fora', !it.incluir); resumoSei(); return; }
       it[c] = e.target.value;
       if (c === 'decisao') desenharSei();
+      if (c === 'geralTipo') { it.incluir = !!it.servidor && !!it.geralTipo; desenharSei(); }
     });
     lista.addEventListener('input', function (e) {
       var li = e.target.closest('.sei-item');
@@ -946,10 +982,14 @@
     lista.addEventListener('click', function (e) {
       var t = e.target.closest('button'); if (!t) return;
       if (t.dataset.tirar != null) { estado.sei.splice(+t.dataset.tirar, 1); desenharSei(); return; }
+      if (t.dataset.cand != null) {
+        var pc = t.dataset.cand.split(':'), ic = estado.sei[+pc[0]];
+        ic.servidor = ic.geral.servidores[+pc[1]].servidor; ic.aviso = ''; ic.incluir = !!ic.geralTipo; desenharSei(); return;
+      }
       if (t.dataset.escolher != null) {
         var par = t.dataset.escolher.split(':'), it = estado.sei[+par[0]];
         it.servidor = $('sei-res-' + par[0])._achados[+par[1]];
-        it.aviso = ''; it.incluir = !!it.p.decisao && !!(it.p.assunto && it.p.assunto.suportado) && !it.p.bloqueio;
+        it.aviso = ''; it.incluir = it.geral ? !!it.geralTipo : (!!it.p.decisao && !!(it.p.assunto && it.p.assunto.suportado) && !it.p.bloqueio);
         desenharSei();
       }
     });
@@ -984,10 +1024,39 @@
       (cargos.length > 1 ? ' Os tipos de cargo são diferentes: conferi só o primeiro.' : '');
   }
 
+  // Assuntos sem leitura completa: usa o tipo e o servidor sugeridos (e confirmados na tela); o resto dos campos o usuário preenche.
+  function montarGeralDoSei(itens) {
+    var ids = unicos(itens.map(function (x) { return x.geralTipo; }));
+    if (ids.length > 1) { erroSei('Os processos marcados têm tipos de portaria diferentes: monte uma portaria de cada tipo.'); return; }
+    var id = ids[0], tipo = R.tipoPorId(id);
+    if (!tipo) { erroSei('Escolha o tipo da portaria no cartão do processo.'); return; }
+    erroSei('');
+    var matriculas = itens.map(function (x) { return x.servidor.matricula; });
+    if (unicos(matriculas).length < matriculas.length) { erroSei('Há dois processos do mesmo servidor marcados: deixe só um.'); return; }
+    estado.selecionados = itens.map(function (x) { return x.servidor; });
+    itens.forEach(function (x) {
+      var v = {};
+      (tipo.campos || []).forEach(function (c) {
+        if (c.porServidor && (c.id === 'processo' || c.id === 'requerimento')) v[c.id] = x.p.processo;   // o requerimento é o próprio processo no SEI
+      });
+      estado.valoresServ[x.servidor.matricula + '|' + id] = v;
+    });
+    $('tipo').value = id;
+    salvarConfig();
+    montarCamposDoTipo();
+    renderizar();
+    $('sei-resumo').textContent = 'Portaria "' + tipo.nome + '" montada com ' + itens.length + (itens.length === 1 ? ' servidor' : ' servidores') +
+      '. O tipo e o servidor foram sugeridos pelo processo: confira e preencha os campos que faltam (em amarelo).';
+  }
+
   // Preenche a portaria de licença prêmio com os processos marcados (um servidor por processo).
   function montarDoSei() {
     var itens = estado.sei.filter(function (x) { return x.incluir && x.servidor; });
     if (!itens.length) return;
+    if (itens.some(function (x) { return x.geral; })) {
+      if (itens.some(function (x) { return !x.geral; })) { erroSei('Os processos marcados misturam leitura completa e sugestão: monte um grupo de cada vez.'); return; }
+      montarGeralDoSei(itens); return;
+    }
     var decisoes = unicos(itens.filter(function (x) { return x.p.assunto.id !== 'exoneracao'; }).map(function (x) { return x.decisao; }));
     if (decisoes.length > 1) { erroSei('Marque só deferimentos ou só indeferimentos: cada portaria tem um verbo só (conceder ou indeferir). Monte uma de cada vez.'); return; }
     var matriculas = itens.map(function (x) { return x.servidor.matricula; });
@@ -1047,20 +1116,25 @@
       pai.postMessage({ gemop: 'criar', html: c.html, texto: c.texto }, '*');
     });
     // O processo fica guardado: se a planilha só chegar depois (pasta escolhida agora), ele é lido de novo e a portaria é montada
-    function receber(arquivos) {
+    function receber(msg) {
       erroSei('');
       var procs;
-      try { procs = importarArquivos(arquivos); } catch (err) { erroSei('Não foi possível ler o processo: ' + err.message); return; }
+      try { procs = importarArquivos(msg.arquivos || []); } catch (err) { erroSei('Não foi possível ler o processo: ' + err.message); return; }
+      var completa = procs.some(function (p) { return p.assunto && p.assunto.suportado; });
+      // assunto sem leitura completa (ou só PDFs): sugere o tipo e o servidor pelas palavras do processo
+      if (!completa) {
+        try { importarGeral({ processo: msg.processo || (procs[0] && procs[0].processo) || '', arquivos: msg.arquivos || [], titulos: msg.titulos || [], contexto: msg.contexto || '', interessados: msg.interessados || [] }); }
+        catch (err) { erroSei('Não foi possível analisar o processo: ' + err.message); }
+      }
       if (!estado.base.length) erroSei('Carregue a planilha dos servidores (pasta ou arquivo) para o programa achar o servidor do processo.');
-      else if (!procs.length) erroSei('Não achei documentos para ler neste processo.');
-      // montagem automática: processo de assunto conhecido, servidor achado e decisão no processo
+      // montagem automática: assunto conhecido, servidor achado e (na leitura completa) decisão no processo
       var montada = estado.sei.some(function (x) { return x.incluir && x.servidor; });
       if (montada) montarDoSei();
-      pai.postMessage({ gemop: 'resultado', processos: procs.length, montada: montada }, '*');
+      pai.postMessage({ gemop: 'resultado', processos: estado.sei.length, montada: montada }, '*');
     }
     window.addEventListener('message', function (e) {
       if ((e.source !== pai && e.origin !== location.origin) || !e.data || e.data.gemop !== 'processo') return;
-      estado.processoSei = e.data.arquivos || [];
+      estado.processoSei = e.data;
       receber(estado.processoSei);
     });
     aoCarregarBase = function () { if (estado.processoSei && !estado.sei.some(function (x) { return x.servidor; })) receber(estado.processoSei); };

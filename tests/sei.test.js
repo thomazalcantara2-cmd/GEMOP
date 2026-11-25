@@ -216,3 +216,55 @@ test('assunto desconhecido não vira portaria e licença prêmio continua sendo 
   assert.ok(sf.alertas[0].includes('só sei montar licença prêmio e exoneração'));
   assert.strictEqual(S.lerProcesso([{ nome: '[03]-1000001_Ficha_Funcional.html', html: ficha() }]).assunto.id, 'licenca-premio');
 });
+
+// ---------- reconhecimento geral (qualquer assunto) ----------
+const baseGeral = () => D.montarBase([
+  { nu_matricula: '000123456', nm_Funcionario: 'FULANA DE TESTE DA SILVA', nu_cpfFunc: 11122233344, nm_cargo: 'PROFESSOR 1', tp_sexo: 'F', cd_centroCusto: '151022', nm_centroCusto: 'SEGPPE' },
+  { nu_matricula: '000654321', nm_Funcionario: 'BELTRANO DE TESTE LIMA', nu_cpfFunc: 55566677788, nm_cargo: 'ANALISTA', tp_sexo: 'M', cd_centroCusto: '131022', nm_centroCusto: 'SEGEP' },
+  { nu_matricula: '000111111', nm_Funcionario: 'CHEFE DE TESTE SOUZA', nu_cpfFunc: 99988877766, nm_cargo: 'GERENTE', tp_sexo: 'M', cd_centroCusto: '131022', nm_centroCusto: 'SEGEP' }
+], { servidores: [], lotacoes: [] });
+
+test('geral: processo só com PDFs — o tipo vem do título e o servidor do interessado', () => {
+  const r = S.reconhecerGeral({ processo: PROC, arquivos: [], titulos: ['Perícia Médica'], contexto: 'Pessoal: Readaptação', interessados: ['FULANA DE TESTE DA SILVA'] }, baseGeral());
+  assert.strictEqual(r.tipo.id, 'readaptacao');
+  assert.strictEqual(r.tipo.firme, true);
+  assert.strictEqual(r.servidores[0].servidor.nome, 'FULANA DE TESTE DA SILVA');
+  assert.match(r.servidores[0].motivo, /interessado/);
+  assert.deepStrictEqual(r.alertas, []);
+});
+
+test('geral: salário família pelo texto; acha o servidor pela matrícula e ignora a portaria já feita', () => {
+  const r = S.reconhecerGeral({
+    processo: PROC,
+    arquivos: [
+      { nome: '[01]-1000001_Solicitacao.html', html: doc(['SEI/PMJG - 1000001 - Solicitação', 'Solicito o salário família do servidor BELTRANO DE TESTE LIMA, matrícula 0.0065432.1', PROC]) },
+      { nome: '[02]-1000002_Despacho.html', html: doc(['SEI/PMJG - 1000002 - Despacho', 'Encaminhe-se ao CHEFE DE TESTE SOUZA para análise.', PROC]) },
+      { nome: '[03]-1000003_Portaria_1500_2026.html', html: doc(['Portaria 1500/2026', 'EXONERAR a pedido a servidora FULANA DE TESTE DA SILVA']) }
+    ], titulos: [], contexto: '', interessados: []
+  }, baseGeral());
+  assert.strictEqual(r.tipo.id, 'salario-familia');   // "exonerar" só aparece na portaria, que não conta
+  assert.strictEqual(r.servidores[0].servidor.nome, 'BELTRANO DE TESTE LIMA');
+  assert.ok(r.servidores[0].pontos > r.servidores[1].pontos);
+  assert.ok(!r.servidores.some((x) => x.servidor.nome === 'FULANA DE TESTE DA SILVA'));
+});
+
+test('geral: dois assuntos parecidos não viram sugestão firme, e sem palavras não há tipo', () => {
+  const dois = S.reconhecerGeral({ processo: PROC, arquivos: [], titulos: ['Licença Prêmio', 'Readaptação'], contexto: '', interessados: [] }, baseGeral());
+  assert.strictEqual(dois.tipo.firme, false);
+  assert.ok(dois.alternativas.length >= 2);
+  assert.match(dois.alertas.join(' '), /Mais de um assunto/);
+  const nada = S.reconhecerGeral({ processo: PROC, arquivos: [], titulos: ['Anexo'], contexto: '', interessados: [] }, baseGeral());
+  assert.strictEqual(nada.tipo, null);
+  assert.match(nada.alertas.join(' '), /escolha o tipo/);
+  assert.match(nada.alertas.join(' '), /servidor/);
+});
+
+test('geral: homônimos na planilha pedem escolha; nome com menos de 3 palavras não é achado no texto', () => {
+  const base = D.montarBase([
+    { nu_matricula: '1', nm_Funcionario: 'JOSE DA SILVA' }, { nu_matricula: '2', nm_Funcionario: 'JOSE DA SILVA' },
+    { nu_matricula: '3', nm_Funcionario: 'ANA LIMA' }
+  ], { servidores: [], lotacoes: [] });
+  const r = S.reconhecerGeral({ processo: PROC, arquivos: [{ nome: '[01]-1_Despacho.html', html: doc(['Despacho sobre ANA LIMA e JOSE DA SILVA']) }], titulos: [], contexto: 'readaptação', interessados: ['JOSE DA SILVA'] }, base);
+  assert.strictEqual(r.servidores.length, 2);              // os dois homônimos; ANA LIMA (2 palavras) não é achada pelo texto
+  assert.match(r.alertas.join(' '), /mais de um servidor possível/);
+});

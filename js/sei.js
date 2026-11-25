@@ -430,7 +430,129 @@
     return { servidor: null, aviso: 'Não achei ' + servidor.nome + ' na planilha: escolha na busca.' };
   }
 
+
+  // ---------- reconhecimento geral (qualquer assunto): sugere o tipo de portaria e acha o servidor ----------
+  // Só sugere, nunca decide: o usuário confere o tipo, o servidor e os campos. Para licença prêmio e exoneração a pedido
+  // continua valendo a leitura completa de cima; aqui é para os outros assuntos (e para processos só com PDFs).
+  var PALAVRAS_TIPO = [
+    ['prorrogacao-pos', /PRORROGACAO DE LICENCA (PARA )?(POS|MESTRADO|DOUTORADO)/],
+    ['retorno-licenca-curso', /RETORNO DE LICENCA PARA (CURSO|CAPACITACAO)/],
+    ['licenca-curso', /LICENCA PARA (CURSO|CAPACITACAO|ESTUDOS?|MESTRADO|DOUTORADO|POS GRADUACAO)/],
+    ['licenca-sem-vencimentos', /LICENCA SEM (VENCIMENTOS?|REMUNERACAO)|LICENCA PARA TRATAR DE INTERESSES/],
+    ['licenca-doenca-familia', /DOENCA (EM|DE) PESSOA DA FAMILIA|LICENCA POR MOTIVO DE DOENCA/],
+    ['licenca-premio', /LICENCA[- ]PREMIO/],
+    ['readaptacao', /READAPTACAO|PERICIA MEDICA|JUNTA MEDICA/],
+    ['reducao-ch', /REDUCAO DE CARGA HORARIA/],
+    ['majoracao-jornada', /MAJORACAO DE (JORNADA|CARGA HORARIA)/],
+    ['exoneracao', /EXONERACAO/],
+    ['encerramento-cessao', /(ENCERRAMENTO|TERMINO|FIM) DE CESSAO|RETORNO DE CESSAO/],
+    ['enquadramento', /ENQUADRAMENTO/],
+    ['dispensa-estagio', /DISPENSA DE ESTAGIO/],
+    ['abono-permanencia', /ABONO DE PERMANENCIA/],
+    ['salario-familia', /SALARIO[- ]FAMILIA/],
+    ['fgs', /FUNCAO GRATIFICADA|\bFGS\b/],
+    ['fas', /APOIO E SUPERVISAO|\bFAS\b/],
+    ['tornar-sem-efeito', /TORNAR SEM EFEITO/]
+  ];
+  var ROTULO_TIPO = {
+    'prorrogacao-pos': 'Prorrogação de licença para pós-graduação', 'retorno-licenca-curso': 'Retorno de licença para curso', 'licenca-curso': 'Licença para curso',
+    'licenca-sem-vencimentos': 'Licença sem vencimentos', 'licenca-doenca-familia': 'Licença por doença em pessoa da família', 'licenca-premio': 'Licença prêmio',
+    'readaptacao': 'Readaptação de função', 'reducao-ch': 'Redução de carga horária', 'majoracao-jornada': 'Majoração de jornada de trabalho', 'exoneracao': 'Exoneração a pedido',
+    'encerramento-cessao': 'Encerramento de cessão', 'enquadramento': 'Enquadramento', 'dispensa-estagio': 'Dispensa de estágio probatório', 'abono-permanencia': 'Abono de permanência',
+    'salario-familia': 'Salário família', 'fgs': 'Função gratificada (FGS)', 'fas': 'Função de apoio e supervisão (FAS)', 'tornar-sem-efeito': 'Tornar sem efeito'
+  };
+
+  // Título do documento a partir do nome do arquivo do SEI ("[03]-1110422_Ficha_Funcional.html" → "Ficha Funcional")
+  function tituloDoArquivo(nome) {
+    var base = String(nome || '').split(/[\\/]/).pop();
+    var m = base.match(/^\[\d+\]-\d+_(.+?)\.[A-Za-z0-9]+$/);
+    return m ? m[1].replace(/_/g, ' ') : '';
+  }
+
+  /*
+   * entrada: { processo, arquivos: [{ nome, html }], titulos: ['Perícia Médica', …], contexto: 'tipo e especificação do processo', interessados: ['NOME', …] }
+   * base: Dados.montarBase(...) (pode ser vazia). Devolve:
+   *   { processo, tipo: { id, rotulo, pontos, motivos } | null, alternativas: [{ id, rotulo, pontos }], servidores: [{ servidor, motivo, pontos }], alertas: [] }
+   */
+  function reconhecerGeral(entrada, base) {
+    entrada = entrada || {};
+    var pontos = {}, motivos = {};
+    function marcar(id, p, motivo) {
+      pontos[id] = (pontos[id] || 0) + p;
+      (motivos[id] = motivos[id] || []).indexOf(motivo) < 0 && motivos[id].push(motivo);
+    }
+    var norm = function (t) { return D.normalizar(String(t || '')); };
+    function procurar(texto, peso, fonte) {
+      var n = norm(texto);
+      PALAVRAS_TIPO.forEach(function (par) { if (par[1].test(n)) marcar(par[0], peso, fonte); });
+    }
+    procurar(entrada.contexto, 6, 'tipo do processo');
+    var titulos = (entrada.titulos || []).slice();
+    var docs = [];
+    (entrada.arquivos || []).forEach(function (a) {
+      var info = infoDoArquivo(a.nome), t = tituloDoArquivo(a.nome);
+      if (t) titulos.push(t);
+      if (a.html && info.tipo !== 'portaria') docs.push({ info: info, texto: textoDoHtml(a.html) });
+    });
+    // Portarias já feitas no processo não contam: falam do assunto de que o processo é o resultado
+    titulos.filter(function (t) { return !/^portaria/i.test(norm(t).trim().toLowerCase()); }).forEach(function (t) { procurar(t, 4, 'documento "' + t + '"'); });
+    docs.forEach(function (d) { procurar(d.texto, 1, 'texto dos documentos'); });
+
+    var ordem = Object.keys(pontos).sort(function (a, b) { return pontos[b] - pontos[a]; });
+    var tipo = null;
+    if (ordem.length) {
+      var topo = ordem[0], segundo = ordem[1];
+      // só vira sugestão firme se não houver empate com outro tipo
+      tipo = { id: topo, rotulo: ROTULO_TIPO[topo] || topo, pontos: pontos[topo], motivos: motivos[topo], firme: !segundo || pontos[topo] >= 2 * pontos[segundo] };
+    }
+    var alternativas = ordem.slice(0, 4).map(function (id) { return { id: id, rotulo: ROTULO_TIPO[id] || id, pontos: pontos[id] }; });
+
+    // Servidores: interessados do processo (mais forte) e depois nomes, matrículas e CPFs que aparecem nos documentos
+    var achados = {};
+    function somar(s, p, motivo) {
+      var a = achados[s.matricula] = achados[s.matricula] || { servidor: s, pontos: 0, motivos: [] };
+      a.pontos += p; if (a.motivos.indexOf(motivo) < 0) a.motivos.push(motivo);
+    }
+    (base || []).forEach(function () { /* só para validar o tipo de base */ });
+    var porNome = {};
+    (base || []).forEach(function (s) { var n = norm(s.nome); (porNome[n] = porNome[n] || []).push(s); });
+    (entrada.interessados || []).forEach(function (nome) {
+      var lista = porNome[norm(nome).replace(/\s*\(.*$/, '').trim()] || [];
+      lista.forEach(function (s) { somar(s, lista.length === 1 ? 20 : 6, 'interessado do processo'); });
+    });
+    var corpo = norm(docs.map(function (d) { return d.texto; }).join('\n'));
+    var cabecalhos = docs.length ? corpo : '';
+    if (cabecalhos) {
+      var digitos = {};
+      (corpo.match(/\b\d{1,2}\.\d{3}-\d\b|\b\d\.\d{7}\.\d\b|\b\d{9}\b/g) || []).forEach(function (m) { digitos[soDigitos(m)] = 1; });
+      var cpfs = {};
+      (corpo.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g) || []).forEach(function (m) { cpfs[soDigitos(m)] = 1; });
+      (base || []).forEach(function (s) {
+        var mat = soDigitos(s.matricula);
+        if (cpfs[soDigitos(s.cpf)] && soDigitos(s.cpf)) somar(s, 8, 'CPF no documento');
+        var curta = mat.replace(/^0+/, '');
+        if (mat && (digitos[mat] || (curta.length >= 5 && digitos[curta]))) somar(s, 8, 'matrícula no documento');
+        var n = norm(s.nome);
+        if (n.split(' ').length >= 3 && corpo.indexOf(n) >= 0) {
+          var vezes = docs.filter(function (d) { return norm(d.texto).indexOf(n) >= 0; }).length;
+          somar(s, 4 + Math.min(vezes, 3), 'nome nos documentos');
+        }
+      });
+    }
+    var servidores = Object.keys(achados).map(function (k) { return achados[k]; })
+      .sort(function (a, b) { return b.pontos - a.pontos; }).slice(0, 6)
+      .map(function (a) { return { servidor: a.servidor, motivo: a.motivos.join(', '), pontos: a.pontos }; });
+
+    var alertas = [];
+    if (!tipo) alertas.push('Não achei palavras do pedido (licença, readaptação, exoneração, salário família…): escolha o tipo da portaria.');
+    else if (!tipo.firme) alertas.push('Mais de um assunto aparece neste processo: confira o tipo sugerido.');
+    if (!servidores.length) alertas.push(base && base.length ? 'Não achei o servidor pelos dados do processo: busque na planilha.' : 'Carregue a planilha dos servidores para eu achar o servidor.');
+    else if (servidores.length > 1 && servidores[0].pontos < 2 * servidores[1].pontos) alertas.push('Há mais de um servidor possível: escolha quem é o interessado do pedido.');
+    return { processo: entrada.processo || '', tipo: tipo, alternativas: alternativas, servidores: servidores, alertas: alertas };
+  }
+
   var api = {
+    reconhecerGeral: reconhecerGeral, ROTULO_TIPO: ROTULO_TIPO, tituloDoArquivo: tituloDoArquivo,
     textoDoHtml: textoDoHtml, linhasDeTabela: linhasDeTabela, infoDoArquivo: infoDoArquivo, numeroDoProcesso: numeroDoProcesso,
     periodoDoTexto: periodoDoTexto, fimDoGozo: fimDoGozo, somarDias: somarDias, lerFicha: lerFicha, decenioSugerido: decenioSugerido,
     lerProcesso: lerProcesso, lerProcessos: lerProcessos, acharServidor: acharServidor, matriculaCombina: matriculaCombina,

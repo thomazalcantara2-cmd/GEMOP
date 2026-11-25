@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.0.1
+// @version      1.1.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -150,20 +150,37 @@
     const m = /^(.*?)\s*\((\d{3,})\)\s*$/.exec(doc.title) || [null, doc.title, doc.id];
     return '[' + String(i + 1).padStart(2, '0') + ']-' + m[2] + '_' + compact(m[1]).replace(/[^A-Za-z0-9ÀÁÂÃÇÉÊÍÓÔÕÚàáâãçéêíóôõú]+/g, '_') + '.html';
   }
+  // Cadastro do processo ("Consultar/Alterar Processo"): tipo, especificação e interessados — de onde sai o servidor quando só há PDFs
+  async function readMeta(t, item) {
+    try {
+      const link = actionLink(t.arvore, 'procedimento_alterar', item.id);
+      if (!link) return { contexto: '', interessados: [] };
+      const r = await request(new URL(link, t.arvoreUrl).href);
+      const doc = new DOMParser().parseFromString(r.html, 'text/html');
+      const tipo = doc.querySelector('#selTipoProcedimento option[selected], #selTipoProcedimento option:checked');
+      const txt = (doc.querySelector('#txtDescricao') || {}).value || '';
+      const inter = [...doc.querySelectorAll('#selInteressados option')].map(o => compact(o.textContent)).filter(Boolean);
+      return { contexto: [tipo && compact(tipo.textContent), compact(txt)].filter(Boolean).join(' · '), interessados: inter };
+    } catch { return { contexto: '', interessados: [] }; }
+  }
+
   async function readProcess(item, onStep) {
     onStep('Lendo a árvore do processo...');
     const t = await readTree(item);
     if (t.sigiloso) throw new Error('processo sigiloso: não é lido');
-    const docs = treeDocs(t.arvore, t.arvoreUrl).filter(d => SAFE.test(d.href)).slice(0, 80);
-    if (!docs.length) throw new Error('não achei documentos na árvore do processo');
+    const todos = treeDocs(t.arvore, t.arvoreUrl);
+    if (!todos.length) throw new Error('não achei documentos na árvore do processo');
+    const docs = todos.filter(d => SAFE.test(d.href)).slice(0, 80);
+    const titulos = todos.map(d => (/^(.*?)\s*\((\d{3,})\)\s*$/.exec(d.title) || [null, d.title])[1]);   // títulos de TODOS os documentos, inclusive PDFs
     const arquivos = [];
     for (let i = 0; i < docs.length; i++) {
       onStep('Lendo os documentos (' + (i + 1) + ' de ' + docs.length + ')...');
       const h = await docHtml(docs[i].href, docs[i].id).catch(() => null);
       if (h && h.html && h.inner) arquivos.push({ nome: fileName(i, docs[i]), html: h.html });
     }
-    if (!arquivos.length) throw new Error('não consegui ler o texto de nenhum documento');
-    return { arquivos, t };
+    onStep('Lendo o cadastro do processo...');
+    const meta = await readMeta(t, item);
+    return { arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', t };
   }
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
@@ -343,7 +360,7 @@
     const entregar = () => {
       if (!leitura || !pronto || entregue) return;
       entregue = true;
-      frame.contentWindow.postMessage({ gemop: 'processo', arquivos: leitura.arquivos }, '*');
+      frame.contentWindow.postMessage({ gemop: 'processo', arquivos: leitura.arquivos, titulos: leitura.titulos, contexto: leitura.contexto, interessados: leitura.interessados, processo: leitura.processo }, '*');
       ld.remove();
     };
     const onMessage = (e) => {
@@ -426,11 +443,13 @@
 
   // ── Controle de Processos: botão por linha ──
   const isControle = () => /[?&]acao=procedimento_controlar\b/.test(location.search) && !!document.querySelector('table[id^="tblProcessos"]');
+  const sigiloso0 = (rotulo, link) => /^Sigiloso\b/.test(rotulo) || /Sigiloso/.test(link.getAttribute('class') || '');   // do processo sigiloso nada é lido
   function rowItem(tr) {
     const link = tr.querySelector("a[href*='procedimento_trabalhar']"), chk = tr.querySelector('input[type=checkbox]');
     if (!link || !chk) return null;
     const rotulo = chk.getAttribute('aria-label') || '';
     return { id: chk.getAttribute('value') || param('id_procedimento', link.href) || '', num: chk.getAttribute('title') || compact(link.textContent), href: link.href,
+      contexto: sigiloso0(rotulo, link) ? '' : compact(rotulo + ' ' + (link.getAttribute('title') || '')),
       sigiloso: /^Sigiloso\b/.test(rotulo) || /Sigiloso/.test(link.getAttribute('class') || '') };
   }
   function decorate() {
