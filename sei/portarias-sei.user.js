@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.2.1
+// @version      1.2.2
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.2.1';
+  const VERSION = '1.2.2';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -253,9 +253,23 @@
     if (form.fd.has('hdnIdHipoteseLegal')) form.fd.set('hdnIdHipoteseLegal', '');
     form.fd.set('rdoTextoInicial', 'N');
     form.fd.set('hdnFlagDocumentoCadastro', '2');
-    const criado = await post(form);
+    // Valores de campos técnicos (sem dados de servidores) para o diagnóstico de recusas do SEI
+    const diag = (f) => ['hdnAnexos', 'rdoTextoInicial', 'hdnStaDocumento', 'hdnIdTipoConferencia', 'hdnIdSerie', 'txtNumero', 'txtNomeArvore', 'txtDescricao', 'hdnIdDocumentoTextoBase', 'txtProtocoloDocumentoTextoBase', 'hdnIdTextoPadrao', 'rdoNivelAcesso', 'hdnStaNivelAcessoLocal', 'hdnIdHipoteseLegal', 'selGrauSigilo']
+      .filter(k => f.fd.has(k)).map(k => k + '=' + JSON.stringify(String(f.fd.get(k)).slice(0, 40))).join(' ');
+    const sucesso = (c) => (/acao_origem=documento_(?:gerar|cadastrar)/.test(c.url) || /editor_montar/.test(c.html)) && (param('id_documento', c.url) || /id_documento=(\d+)/.test(c.html));
+    let criado = await post(form), tentativas = [];
+    // O SEI às vezes recusa por causa dos campos de anexo; tenta de novo sem eles, como o SEI Pro (que não envia campos de arquivo)
+    for (const variante of ['sem hdnAnexos', 'mínimo']) {
+      if (sucesso(criado) || !/anexo/i.test(alertOf(criado.html))) break;
+      tentativas.push(lastDebug.slice(0, 0) + '[' + (tentativas.length + 1) + '] recusou: ' + alertOf(criado.html) + ' · ' + diag(form));
+      if (variante === 'sem hdnAnexos') form.fd.delete('hdnAnexos');
+      else { for (const k of [...form.fd.keys()]) if (/^(hdnAnexos|hdnContatoObject|hdnContatoIdentificador|hdnAssuntoIdentificador|txtDinValor|txtRemetente|txtDestinatario|txtInteressado|txtAssunto)$/.test(k)) form.fd.delete(k); }
+      criado = await post(form);
+    }
+    if (tentativas.length) lastDebug += ' · tentativas: ' + tentativas.join(' | ') + ' · final: ' + (sucesso(criado) ? 'ok' : (alertOf(criado.html) || 'sem alerta'));
     const docId = param('id_documento', criado.url) || (/id_documento=(\d+)/.exec(criado.html) || [])[1] || '';
-    if (!(/acao_origem=documento_(?:gerar|cadastrar)/.test(criado.url) || /editor_montar/.test(criado.html)) || !docId) {
+    if (!sucesso(criado) || !docId) {
+      if (!tentativas.length) lastDebug += ' · ' + diag(form);
       throw new Error(alertOf(criado.html) ? 'o SEI recusou: ' + alertOf(criado.html) : 'o SEI não confirmou a criação da Portaria');
     }
     const out = { docId, numero: '', titulo: '', url: '', aviso: '', nota: '' };
