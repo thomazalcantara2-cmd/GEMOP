@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.0.0
+// @version      1.0.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
 // @match        *://sei.jaboatao.pe.gov.br/*
 // @run-at       document-idle
+// @updateURL    https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/sei/portarias-sei.user.js
+// @downloadURL  https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/sei/portarias-sei.user.js
 // @grant        GM_getResourceText
 // @resource     GEMOP_PORTARIAS https://raw.githubusercontent.com/thomazalcantara2-cmd/GEMOP/claude/sei-portarias/dist/portarias-embutida.html
 // ==/UserScript==
@@ -74,7 +76,7 @@
     if (!el) return null;
     return { doc, el, action: new URL(decode(el.getAttribute('action') || ''), baseUrl).href, fd: new FormData(el) };
   }
-  const post = (form, htmlNames = []) => request(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body([...form.fd.entries()].map(([k, v]) => [k, String(v)]), htmlNames) });
+  const post = (form, htmlNames = []) => request(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body([...form.fd.entries()].map(([k, v]) => [k, typeof v === 'string' ? v : ((v && v.name) || '')]), htmlNames) });   // campo de arquivo sem arquivo: vai o nome (vazio), como o navegador envia
   const alertOf = (html) => { const m = /alert\(\s*['"]([^'"]{3,240})['"]/.exec(html); return m ? m[1] : ''; };
 
   // Link de uma ação (do processo, sem id_documento) dentro de um texto da árvore
