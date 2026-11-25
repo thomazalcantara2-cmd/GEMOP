@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.4.1
+// @version      1.4.2
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.4.1';
+  const VERSION = '1.4.2';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -534,7 +534,7 @@
     return id ? { id, num: num || rootDoc.title.replace(/^SEI\s*[-–]\s*/i, ''), href: arvoreUrl, arvoreUrl, sigiloso: false } : null;
   }
   function docSvg(size) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" stroke="#0f766e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:block"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="#ccfbf1"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + size + '" height="' + size + '" aria-hidden="true" style="display:block"><path d="M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#0f9488"/><path d="M14 2l6 6h-4a2 2 0 0 1-2-2z" fill="#5eead4"/><path d="M8 13h8M8 17h8" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>';
   }
   function injectToolbarIcon() {
     const incluir = document.querySelector(SEL_INCLUIR);
