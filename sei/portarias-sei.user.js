@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.2.0
+// @version      1.2.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,6 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
+  const VERSION = '1.2.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -82,7 +83,8 @@
     if (!el) return null;
     return { doc, el, action: new URL(decode(el.getAttribute('action') || ''), baseUrl).href, fd: new FormData(el) };
   }
-  const post = (form, htmlNames = []) => request(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body([...form.fd.entries()].map(([k, v]) => [k, typeof v === 'string' ? v : ((v && v.name) || '')]), htmlNames) });   // campo de arquivo sem arquivo: vai o nome (vazio), como o navegador envia
+  let lastDebug = '';
+  const post = (form, htmlNames = []) => request(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: (lastDebug = 'POST ' + (form.action.match(/acao=[^&]*/) || [''])[0] + ' · campos enviados: ' + [...form.fd.entries()].filter(([, v]) => typeof v === 'string').map(([k]) => k).join(','), body([...form.fd.entries()].filter(([, v]) => typeof v === 'string').map(([k, v]) => [k, v]), htmlNames)) });   // campos de arquivo não vão: o SEI trata a presença deles como anexo
   const alertOf = (html) => { const m = /alert\(\s*['"]([^'"]{3,240})['"]/.exec(html); return m ? m[1] : ''; };
 
   // Link de uma ação (do processo, sem id_documento) dentro de um texto da árvore
@@ -378,7 +380,7 @@
     let recurso = '';
     try { recurso = GM_getResourceText('GEMOP_PORTARIAS'); } catch { /* sem o recurso */ }
     if (!recurso) { state.busy = false; flash('Portarias SEI: não consegui carregar o gerador (recurso do script). Reinstale o script.'); return; }
-    const dr = el(doc, 'div', '<header><b>Portarias</b><span>processo ' + esc(item.num || item.id) + '</span><button type="button" aria-label="Fechar" title="Fechar">×</button></header><iframe title="Gerador de Portarias" allow=""></iframe><div class="gp-ld"><div><div style="display:inline-block;animation:gpSpin 1s linear infinite;font-size:20px;">⏳</div><div id="gp-ld-txt" style="margin-top:8px;">Abrindo o gerador...</div></div></div>', 'gp-dr');
+    const dr = el(doc, 'div', '<header><b>Portarias <small style="opacity:.7;font-weight:400;">v' + VERSION + '</small></b><span>processo ' + esc(item.num || item.id) + '</span><button type="button" aria-label="Fechar" title="Fechar">×</button></header><iframe title="Gerador de Portarias" allow=""></iframe><div class="gp-ld"><div><div style="display:inline-block;animation:gpSpin 1s linear infinite;font-size:20px;">⏳</div><div id="gp-ld-txt" style="margin-top:8px;">Abrindo o gerador...</div></div></div>', 'gp-dr');
     doc.body.append(dr);
     state.item = item; state.drawer = dr;
     const frame = dr.querySelector('iframe'), ld = dr.querySelector('.gp-ld'), ldTxt = dr.querySelector('#gp-ld-txt');
@@ -456,7 +458,7 @@
         let falha = '';
         try { result = await createPortaria(item, p.corpoHtml); } catch (err) { falha = errText(err); }
         busy = false;
-        if (falha) { box.innerHTML = head('Não foi possível criar a Portaria', 'Processo ' + proc) + '<div class="gp-er">' + esc(falha) + '. Nada foi criado.</div><div class="gp-ac"><button type="button" data-a="x">Fechar</button></div>'; return; }
+        if (falha) { box.innerHTML = head('Não foi possível criar a Portaria', 'Processo ' + proc) + '<div class="gp-er">' + esc(falha) + '. Nada foi criado.</div><details style="margin-top:10px;font-size:11.5px;color:#64748b;"><summary>Detalhes técnicos (para enviar a quem mantém o script)</summary>Portarias SEI v' + VERSION + ' · ' + esc(lastDebug) + '</details><div class="gp-ac"><button type="button" data-a="x">Fechar</button></div>'; return; }
         if (item.arvoreUrl) { try { rootDoc.getElementById('ifrArvore')?.contentWindow.location.reload(); } catch { /* ignora */ } }
         const num = (/(\d+\/\d{4})/.exec(result.titulo || '') || [])[1] || '';
         box.innerHTML = head('Portaria' + (num ? ' ' + esc(num) : '') + (result.numero ? ' (' + esc(result.numero) + ')' : '') + ' criada', 'Processo ' + proc + ' · ainda sem assinatura') +
