@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.2.2
+// @version      1.3.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.2.2';
+  const VERSION = '1.3.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -85,6 +85,15 @@
   }
   let lastDebug = '';
   const post = (form, htmlNames = []) => request(form.action, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: (lastDebug = 'POST ' + (form.action.match(/acao=[^&]*/) || [''])[0] + ' · campos enviados: ' + [...form.fd.entries()].filter(([, v]) => typeof v === 'string').map(([k]) => k).join(','), body([...form.fd.entries()].filter(([, v]) => typeof v === 'string').map(([k, v]) => [k, v]), htmlNames)) });   // campos de arquivo não vão: o SEI trata a presença deles como anexo
+  // Envio "como o navegador": multipart, com o campo de arquivo presente e vazio (o SEI da unidade pode exigir isso na Portaria)
+  const postMultipart = (form) => {
+    const fd = new FormData();
+    for (const [k, v] of form.fd.entries()) fd.append(k, v);
+    const arquivos = [...form.el.querySelectorAll('input[type=file]')].map(i => i.getAttribute('name')).filter(Boolean);
+    for (const n of arquivos) if (!fd.has(n)) fd.append(n, new File([], ''));
+    lastDebug = 'POST(multipart) ' + (form.action.match(/acao=[^&]*/) || [''])[0] + ' · arquivos: ' + (arquivos.join(',') || 'nenhum');
+    return request(form.action, { method: 'POST', body: fd });
+  };
   const alertOf = (html) => { const m = /alert\(\s*['"]([^'"]{3,240})['"]/.exec(html); return m ? m[1] : ''; };
 
   // Link de uma ação (do processo, sem id_documento) dentro de um texto da árvore
@@ -259,12 +268,14 @@
     const sucesso = (c) => (/acao_origem=documento_(?:gerar|cadastrar)/.test(c.url) || /editor_montar/.test(c.html)) && (param('id_documento', c.url) || /id_documento=(\d+)/.test(c.html));
     let criado = await post(form), tentativas = [];
     // O SEI às vezes recusa por causa dos campos de anexo; tenta de novo sem eles, como o SEI Pro (que não envia campos de arquivo)
-    for (const variante of ['sem hdnAnexos', 'mínimo']) {
+    for (const variante of ['multipart', 'mínimo']) {
       if (sucesso(criado) || !/anexo/i.test(alertOf(criado.html))) break;
-      tentativas.push(lastDebug.slice(0, 0) + '[' + (tentativas.length + 1) + '] recusou: ' + alertOf(criado.html) + ' · ' + diag(form));
-      if (variante === 'sem hdnAnexos') form.fd.delete('hdnAnexos');
-      else { for (const k of [...form.fd.keys()]) if (/^(hdnAnexos|hdnContatoObject|hdnContatoIdentificador|hdnAssuntoIdentificador|txtDinValor|txtRemetente|txtDestinatario|txtInteressado|txtAssunto)$/.test(k)) form.fd.delete(k); }
-      criado = await post(form);
+      tentativas.push('[' + (tentativas.length + 1) + '] recusou: ' + alertOf(criado.html) + ' · enctype=' + (form.el.getAttribute('enctype') || '(nenhum)') + ' · arquivos=' + form.el.querySelectorAll('input[type=file]').length + ' · ' + diag(form));
+      if (variante === 'multipart') criado = await postMultipart(form);
+      else {
+        for (const k of [...form.fd.keys()]) if (/^(hdnAnexos|hdnContatoObject|hdnContatoIdentificador|hdnAssuntoIdentificador|txtDinValor|txtRemetente|txtDestinatario|txtInteressado|txtAssunto)$/.test(k)) form.fd.delete(k);
+        criado = await post(form);
+      }
     }
     if (tentativas.length) lastDebug += ' · tentativas: ' + tentativas.join(' | ') + ' · final: ' + (sucesso(criado) ? 'ok' : (alertOf(criado.html) || 'sem alerta'));
     const docId = param('id_documento', criado.url) || (/id_documento=(\d+)/.exec(criado.html) || [])[1] || '';
