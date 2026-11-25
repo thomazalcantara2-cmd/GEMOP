@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.4.0
+// @version      1.4.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.4.0';
+  const VERSION = '1.4.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -323,7 +323,9 @@
     const editaveis = secoes.filter(s => !s.ro);
     const corpo = editaveis.length === 1 ? editaveis[0] : editaveis.find(s => /corpo|texto do documento|conte[uú]do/i.test(s.titulo));
     if (!corpo) throw new Error(editaveis.length ? 'o modelo tem ' + editaveis.length + ' seções editáveis (' + editaveis.map(x => x.titulo).join(', ') + ') e não sei qual é o corpo' : 'o editor não tem uma seção editável');
-    const visivel = String(corpo.html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+    // o SEI põe um texto de ajuda ("Digite aqui o conteúdo do(s) anexo(s)...") no editor novo: sai
+    corpo.html = String(corpo.html || '').replace(/<(p|div)\b[^>]*>(?:(?!<\/\1>)[\s\S])*?Digite aqui o conte[úu]do[\s\S]*?<\/\1>/gi, '');
+    const visivel = String(corpo.html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/Digite aqui o conte[úu]do[^.]*\.*/i, '').trim();
     form.fd.set(corpo.nome, (visivel ? corpo.html : '') + bodyHtml);   // se o modelo já traz texto, o nosso vai ao final
     const resp = await post(form, secoes.map(s => s.nome));
     const resposta = compact(new DOMParser().parseFromString(resp.html, 'text/html').body?.textContent || resp.html);
@@ -510,42 +512,7 @@
   }
 
   // ── Controle de Processos: botão por linha ──
-  const isControle = () => /[?&]acao=procedimento_controlar\b/.test(location.search) && !!document.querySelector('table[id^="tblProcessos"]');
   const sigiloso0 = (rotulo, link) => /^Sigiloso\b/.test(rotulo) || /Sigiloso/.test(link.getAttribute('class') || '');   // do processo sigiloso nada é lido
-  function rowItem(tr) {
-    const link = tr.querySelector("a[href*='procedimento_trabalhar']"), chk = tr.querySelector('input[type=checkbox]');
-    if (!link || !chk) return null;
-    const rotulo = chk.getAttribute('aria-label') || '';
-    return { id: chk.getAttribute('value') || param('id_procedimento', link.href) || '', num: chk.getAttribute('title') || compact(link.textContent), href: link.href,
-      contexto: sigiloso0(rotulo, link) ? '' : compact(rotulo + ' ' + (link.getAttribute('title') || '')),
-      sigiloso: /^Sigiloso\b/.test(rotulo) || /Sigiloso/.test(link.getAttribute('class') || '') };
-  }
-  function decorate() {
-    ensureCss(document);
-    for (const table of document.querySelectorAll('table[id^="tblProcessos"]')) {
-      const rows = [...table.querySelectorAll('tr')];
-      const head = rows.find(r => r.querySelector('th'));
-      if (head && !head.querySelector('[data-gp-col]')) { const th = document.createElement('th'); th.setAttribute('data-gp-col', ''); th.setAttribute(UI, ''); th.textContent = 'Portaria'; head.append(th); }
-      for (const tr of rows) {
-        if (tr.querySelector('[data-gp-col]')) continue;
-        const it = rowItem(tr); if (!it) continue;
-        const td = document.createElement('td'); td.setAttribute('data-gp-col', ''); td.setAttribute(UI, ''); td.style.cssText = 'text-align:center;white-space:nowrap;';
-        const b = el(document, 'button', DOC_ICON + ' Gerar portaria', 'gp-bt'); b.type = 'button';
-        b.title = it.sigiloso ? 'Processo sigiloso: não é lido' : 'Lê o processo sem abri-lo na tela e monta a portaria para você conferir. Nada é criado até você confirmar.';
-        if (it.sigiloso) { b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed'; }
-        b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (!it.sigiloso) askTop('open', it); });
-        td.append(b); tr.append(td);
-      }
-    }
-  }
-  function watchControle() {
-    if (!isControle()) return;
-    let t = null;
-    const refresh = () => { clearTimeout(t); t = setTimeout(() => { try { decorate(); } catch (e) { console.warn('[Portarias SEI]', e); } }, 250); };
-    refresh();
-    new MutationObserver((muts) => { if (muts.some(m => !(m.target.closest && m.target.closest('[' + UI + ']')) && ![...m.addedNodes, ...m.removedNodes].every(n => n.nodeType === 1 && n.hasAttribute && n.hasAttribute(UI)))) refresh(); }).observe(document.body, { childList: true, subtree: true });
-  }
-
   // ── processo aberto: ícone na barra de ações (o ícone avisa a janela principal por evento) ──
   const EVT = 'gemop-portarias-abrir';
   const SEL_INCLUIR = 'a[href*="acao=documento_escolher_tipo"]';
@@ -610,6 +577,5 @@
       openPanel(item);
     });
   }
-  watchControle();
   watchToolbar();
 })();
