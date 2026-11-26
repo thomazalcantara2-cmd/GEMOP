@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.5.1
+// @version      1.5.2
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.5.1';
+  const VERSION = '1.5.2';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -200,27 +200,38 @@
   }
 
   async function readProcess(item, onStep) {
+    const T0 = Date.now();
     onStep('Lendo a árvore do processo...');
     const t = await readTree(item);
+    const T1 = Date.now();
     if (t.sigiloso) throw new Error('processo sigiloso: não é lido');
     const todos = treeDocs(t.arvore, t.arvoreUrl);
     if (!todos.length) throw new Error('não achei documentos na árvore do processo');
     const docs = todos.filter(d => SAFE.test(d.href)).slice(0, 80);
     const titulos = todos.map(d => (/^(.*?)\s*\((\d{3,})\)\s*$/.exec(d.title) || [null, d.title])[1]);   // títulos de TODOS os documentos, inclusive PDFs
-    const arquivos = [], pdfs = { lidos: 0, digitalizados: 0, falhas: 0 };
+    const arquivos = [], pdfs = { lidos: 0, digitalizados: 0, falhas: 0 }, lentos = []; let msPdf = 0;
     for (let i = 0; i < docs.length; i++) {
       onStep('Lendo os documentos (' + (i + 1) + ' de ' + docs.length + ')...');
+      const D0 = Date.now();
       const h = await docHtml(docs[i].href, docs[i].id).catch(() => null);
+      lentos.push({ t: (/^(.*?)\s*\(\d{3,}\)\s*$/.exec(docs[i].title) || [null, docs[i].title])[1], ms: Date.now() - D0, pdf: !!(h && h.pdf) });
       if (h && h.pdf) {
         try {
+          const P0 = Date.now();
           const texto = await pdfText(h.pdf);
+          msPdf += Date.now() - P0; lentos[lentos.length - 1].ms += Date.now() - P0;
           if (texto) { pdfs.lidos++; arquivos.push({ nome: fileName(i, docs[i]), html: htmlOfText(texto) }); } else pdfs.digitalizados++;
         } catch { pdfs.falhas++; }
       } else if (h && h.html && h.inner) arquivos.push({ nome: fileName(i, docs[i]), html: h.html });
     }
+    const T2 = Date.now();
     onStep('Lendo o cadastro do processo...');
     const meta = await readMeta(t, item);
-    return { arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
+    const T3 = Date.now(), seg = (a, b) => ((b - a) / 1000).toFixed(1).replace('.', ',') + ' s';
+    const tempo = 'lido em ' + seg(T0, T3) + ' (árvore ' + seg(T0, T1) + ' · ' + docs.length + ' documentos ' + seg(T1, T2) + (msPdf ? ', dos quais PDFs ' + seg(0, msPdf) : '') + ' · cadastro ' + seg(T2, T3) + ')';
+    const maisLentos = lentos.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map(x => x.t + (x.pdf ? ' [PDF]' : '') + ' ' + seg(0, x.ms)).join(' | ');
+    try { console.log('[Portarias SEI] ' + tempo + ' · mais lentos: ' + maisLentos); } catch { /* ignora */ }
+    return { tempo, maisLentos, arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
   }
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
@@ -482,7 +493,8 @@
       const q = leitura.pdfs, resumo = [leitura.arquivos.length + ' documento' + (leitura.arquivos.length === 1 ? '' : 's') + ' lido' + (leitura.arquivos.length === 1 ? '' : 's')];
       if (q.lidos) resumo.push(q.lidos + ' PDF' + (q.lidos > 1 ? 's' : '') + ' lido' + (q.lidos > 1 ? 's' : '') + ' pelo texto');
       if (q.digitalizados) resumo.push(q.digitalizados + ' PDF' + (q.digitalizados > 1 ? 's' : '') + ' digitalizado' + (q.digitalizados > 1 ? 's' : '') + ' (imagem) não lido' + (q.digitalizados > 1 ? 's' : ''));
-      dr.querySelector('header span').textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · ');
+      resumo.push('⏱ ' + leitura.tempo);
+      const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · '); cab.title = 'Documentos mais lentos: ' + leitura.maisLentos;
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
     } catch (e) {
