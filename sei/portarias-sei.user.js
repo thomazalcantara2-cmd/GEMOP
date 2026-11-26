@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.7.0
+// @version      1.7.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.7.0';
+  const VERSION = '1.7.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -254,8 +254,30 @@
     const m = /getElementById\(\s*['"]ifrDownload['"]\s*\)\.src\s*=\s*['"]([^'"]+)['"]/.exec(resp.html);
     if (!m) throw new Error(alertOf(resp.html) ? 'o SEI recusou: ' + alertOf(resp.html) : 'o SEI não devolveu o arquivo');
     const T2 = Date.now();
-    const arq = await requestRaw(new URL(decode(m[1]), acaoForm).href);
-    return { buf: arq.buf, ms: { preparar: T1 - T0, gerar: T2 - T1, baixar: Date.now() - T2 } };
+    const urlArq = new URL(decode(m[1]), acaoForm).href;
+    const arq = await requestRaw(urlArq);
+    return { buf: arq.buf, url: urlArq, ms: { preparar: T1 - T0, gerar: T2 - T1, baixar: Date.now() - T2 } };
+  }
+
+  // MEDIÇÃO (temporária): a lentidão do download é por conexão ou da rede toda? Baixa o mesmo ZIP de novo, 1 por vez e 3 juntos,
+  // e testa se o SEI aceita pedir só um pedaço do arquivo (Range). Os arquivos baixados são descartados.
+  async function medirParalelo(url, bytes) {
+    const sg = (ms) => (ms / 1000).toFixed(1).replace('.', ',') + ' s', kbs = (b, ms) => Math.round(b / 1024 / (ms / 1000)) + ' KB/s';
+    if (!url) return '';
+    if (bytes < 150 * 1024 || bytes > 8 * 1024 * 1024) return 'Teste de velocidade: não feito (ZIP de ' + Math.round(bytes / 1024) + ' KB; só entre 150 KB e 8 MB)';
+    const baixa = async () => { const T = Date.now(); const r = await requestRaw(url); return { ms: Date.now() - T, b: r.buf.byteLength }; };
+    try {
+      const um = await baixa();
+      if (um.b < bytes * 0.9) return 'Teste de velocidade: o SEI não entregou o ZIP de novo (veio ' + Math.round(um.b / 1024) + ' KB de ' + Math.round(bytes / 1024) + ' KB)';
+      const T3 = Date.now(), tres = await Promise.all([baixa(), baixa(), baixa()]), w3 = Date.now() - T3;
+      let range = '';
+      try {
+        const rr = await fetch(url, { credentials: 'same-origin', headers: { Range: 'bytes=0-1023' } });
+        range = ' · pedir só um pedaço (Range): ' + (rr.status === 206 ? 'o SEI aceita' : 'o SEI ignora (status ' + rr.status + ')') + ' [Accept-Ranges: ' + (rr.headers.get('accept-ranges') || 'não informado') + ']';
+        try { await rr.body.cancel(); } catch { /* ignora */ }
+      } catch (e) { range = ' · Range: erro (' + errText(e) + ')'; }
+      return 'Teste de velocidade (' + Math.round(bytes / 1024) + ' KB): 1 por vez ' + sg(um.ms) + ' (' + kbs(um.b, um.ms) + ') · 3 juntos ' + sg(w3) + ' (soma ' + kbs(um.b * 3, w3) + '; cada um ' + tres.map(x => sg(x.ms)).join(' / ') + ')' + range;
+    } catch (e) { return 'Teste de velocidade: erro (' + errText(e) + ')'; }
   }
 
   async function readProcess(item, onStep) {
@@ -270,10 +292,11 @@
     const titulos = todos.map(d => (/^(.*?)\s*\((\d{3,})\)\s*$/.exec(d.title) || [null, d.title])[1]);   // títulos de TODOS os documentos, inclusive PDFs
     const arquivos = [], pdfs = { lidos: 0, digitalizados: 0, falhas: 0 }, lentos = []; let msPdf = 0;
     // 1º: o ZIP do processo. Se falhar, passar de ZIP_LIMITE_MS ou vier sem documentos, lê documento por documento.
-    let viaZip = '';
+    let viaZip = '', zipUrl = '', zipBytes = 0;
     try {
       onStep('Baixando o processo (ZIP)...');
       const z = await Promise.race([baixarZip(t, item), new Promise((_, no) => setTimeout(() => no(new Error('o ZIP demorou mais de ' + ZIP_LIMITE_MS / 1000 + ' s')), ZIP_LIMITE_MS))]);
+      zipUrl = z.url; zipBytes = z.buf.byteLength;
       const P0 = Date.now();
       const entradas = await lerZip(new Uint8Array(z.buf));
       for (const e of entradas) {
@@ -317,7 +340,7 @@
     const relatorio = 'RELATÓRIO DE TEMPO — Portarias SEI v' + VERSION + '\n' + tempo + '\n' + lentos.map((x, i) => (i + 1) + '. ' + x.t + (x.pdf ? ' [PDF]' : '') + ' — ' + seg(0, x.ms) + ' — ' + x.reqs.length + ' pág.: ' + x.reqs.map(r => r.a + ' ' + r.ms + 'ms ' + r.kb + 'KB').join(' → ')).join('\n');
     const maisLentos = lentos.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map(x => x.t + (x.pdf ? ' [PDF]' : '') + ' ' + seg(0, x.ms)).join(' | ');
     try { console.log('[Portarias SEI] ' + tempo + ' · mais lentos: ' + maisLentos); } catch { /* ignora */ }
-    return { tempo, relatorio, mediaPag: lentos.length ? (lentos.reduce((n, x) => n + x.reqs.length, 0) / lentos.length) : 0, maisLentos, arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
+    return { tempo, relatorio, mediaPag: lentos.length ? (lentos.reduce((n, x) => n + x.reqs.length, 0) / lentos.length) : 0, maisLentos, zipUrl, zipBytes, arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
   }
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
@@ -584,6 +607,7 @@
       cab.onclick = () => { try { navigator.clipboard.writeText(leitura.relatorio).then(() => flash('Relatório de tempo copiado. Cole na conversa.'), () => flash('Não consegui copiar o relatório.')); } catch { flash('Não consegui copiar o relatório.'); } };
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
+      medirParalelo(leitura.zipUrl, leitura.zipBytes).then((txt) => { if (!txt) return; try { cab.textContent += ' · ⏱ ' + txt; leitura.relatorio += '\n' + txt; } catch { /* painel fechado */ } });
     } catch (e) {
       ldTxt.innerHTML = '<span style="color:#b91c1c;">Não foi possível ler o processo: ' + esc(errText(e)) + '</span><br><br><button type="button" id="gp-seguir" style="padding:8px 14px;border-radius:9px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-weight:700;cursor:pointer;">Abrir o gerador mesmo assim</button>';
       ldTxt.querySelector('#gp-seguir').onclick = () => ld.remove();
