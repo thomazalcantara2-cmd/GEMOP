@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.5.3
+// @version      1.6.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.5.3';
+  const VERSION = '1.6.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -155,7 +155,10 @@
       const cand = new Set();
       for (const f of doc.querySelectorAll('iframe')) { const src = f.getAttribute('src'); if (src && !/ifrDownload|ifrPasta/i.test(f.id || f.name || '')) cand.add(src); }
       for (const u of r.html.match(/controlador\.php\?acao=[a-z_]+[^"'\s<>]*id_documento=\d+[^"'\s<>]*/g) || []) cand.add(decode(u));
-      for (const c of cand) {
+      // O endereço do texto do documento (documento_visualizar) vai primeiro: os outros, como a árvore do processo
+      // (procedimento_visualizar, 76 KB, igual em todo documento), só entram como reserva
+      const ordem = (u) => (/acao=(documento_visualizar|[a-z_]*download_anexo)(&|$)/.test(u) ? 0 : 1);
+      for (const c of [...cand].sort((a, b) => ordem(a) - ordem(b))) {
         let next; try { next = new URL(c, url).href; } catch { continue; }
         const nid = param('id_documento', next);
         if (wantId && nid && nid !== wantId) continue;
