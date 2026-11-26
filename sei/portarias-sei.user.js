@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.5.0
+// @version      1.5.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.5.0';
+  const VERSION = '1.5.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

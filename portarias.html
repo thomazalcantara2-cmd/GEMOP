@@ -225,6 +225,10 @@
   }
   /* dentro do painel do SEI (iframe do script do Tampermonkey) */
   body.embutido .topo-faixa { display: none; }
+  /* dentro do SEI o painel é estreito: os cartões ocupam a largura toda, sem margens laterais */
+  body.embutido aside { padding: 8px 6px 0; }
+  body.embutido aside > * { max-width: none; }
+  body.embutido .botoes { margin: auto -6px 0; width: calc(100% + 12px); padding: 8px 6px 10px; }
   body.embutido #criar-sei:not([hidden]) { order: -1; flex: 1 1 100%; }
   @page { size: A4; margin: 14mm 20mm; }
   @media print {
