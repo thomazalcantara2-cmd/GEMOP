@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.6.1
+// @version      1.7.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.6.1';
+  const VERSION = '1.7.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -155,10 +155,7 @@
       const cand = new Set();
       for (const f of doc.querySelectorAll('iframe')) { const src = f.getAttribute('src'); if (src && !/ifrDownload|ifrPasta/i.test(f.id || f.name || '')) cand.add(src); }
       for (const u of r.html.match(/controlador\.php\?acao=[a-z_]+[^"'\s<>]*id_documento=\d+[^"'\s<>]*/g) || []) cand.add(decode(u));
-      // O endereço do texto do documento (documento_visualizar) vai primeiro: os outros, como a árvore do processo
-      // (procedimento_visualizar, 76 KB, igual em todo documento), só entram como reserva
-      const ordem = (u) => (/acao=(documento_visualizar|[a-z_]*download_anexo)(&|$)/.test(u) ? 0 : 1);
-      for (const c of [...cand].sort((a, b) => ordem(a) - ordem(b))) {
+      for (const c of cand) {
         let next; try { next = new URL(c, url).href; } catch { continue; }
         const nid = param('id_documento', next);
         if (wantId && nid && nid !== wantId) continue;
@@ -206,30 +203,59 @@
     } catch { return { contexto: '', interessados: [] }; }
   }
 
-  // MEDIÇÃO (temporária): quanto o SEI levaria para gerar e entregar o ZIP do processo. O arquivo é descartado:
-  // a leitura continua sendo a de sempre. Roda depois da leitura, para não atrapalhar os tempos dela.
-  async function medirZip(t, item) {
-    const seg = (ms) => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
-    try {
-      const T0 = Date.now();
-      const link = actionLink(t.arvore, 'procedimento_gerar_zip', item.id);
-      if (!link) return 'ZIP indisponível (o SEI não oferece "Gerar ZIP" neste processo)';
-      const telaUrl = new URL(link, t.arvoreUrl).href;
-      const tela = await request(telaUrl);
-      const form = new DOMParser().parseFromString(tela.html, 'text/html').querySelector('#frmProcedimentoZip, #frmProcedimentoPdf');
-      if (!form) return 'ZIP indisponível (tela de ZIP diferente do esperado)';
-      const params = new URLSearchParams(new FormData(form));
-      params.set('rdoTipo', 'T'); params.set('hdnFlagGerar', '1');
-      const acaoForm = new URL(decode(form.getAttribute('action') || ''), telaUrl).href;
-      const T1 = Date.now();
-      const resp = await request(acaoForm, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
-      const m = /getElementById\(\s*['"]ifrDownload['"]\s*\)\.src\s*=\s*['"]([^'"]+)['"]/.exec(resp.html);
-      if (!m) return 'ZIP indisponível (' + (alertOf(resp.html) || 'o SEI não devolveu o arquivo') + ')';
-      const T2 = Date.now();
-      const arq = await requestRaw(new URL(decode(m[1]), acaoForm).href);
-      const T3 = Date.now();
-      return 'ZIP: ' + seg(T3 - T0) + ' (preparar ' + seg(T1 - T0) + ' · gerar ' + seg(T2 - T1) + ' · baixar ' + seg(T3 - T2) + ' · ' + Math.round(arq.buf.byteLength / 1024) + ' KB)';
-    } catch (e) { return 'ZIP indisponível (' + errText(e) + ')'; }
+  // ── ZIP do processo: o SEI monta e entrega todos os documentos de uma vez (bem mais rápido que abrir página por página) ──
+  const ZIP_LIMITE_MS = 30000;   // passou disso: cai na leitura documento por documento
+  function u16(b, i) { return b[i] | (b[i + 1] << 8); }
+  function u32(b, i) { return (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0; }
+  async function inflar(dados) {
+    if (typeof DecompressionStream === 'undefined') throw new Error('o navegador não abre ZIP compactado');
+    return new Uint8Array(await new Response(new Blob([dados]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  }
+  async function lerZip(bytes) {
+    let fim = -1;
+    for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) if (u32(bytes, i) === 0x06054b50) { fim = i; break; }
+    if (fim < 0) throw new Error('o arquivo não parece um ZIP');
+    const total = u16(bytes, fim + 10); let pos = u32(bytes, fim + 16); const entradas = [];
+    for (let n = 0; n < total; n++) {
+      if (u32(bytes, pos) !== 0x02014b50) break;
+      const flags = u16(bytes, pos + 8), metodo = u16(bytes, pos + 10), tam = u32(bytes, pos + 20);
+      const tn = u16(bytes, pos + 28), te = u16(bytes, pos + 30), tc = u16(bytes, pos + 32), local = u32(bytes, pos + 42);
+      entradas.push({ nome: new TextDecoder((flags & 0x800) ? 'utf-8' : 'windows-1252').decode(bytes.subarray(pos + 46, pos + 46 + tn)), metodo, tam, local });
+      pos += 46 + tn + te + tc;
+    }
+    const out = [];
+    for (const e of entradas) {
+      if (/\/$/.test(e.nome) || !/\.(html?|pdf)$/i.test(e.nome)) continue;   // só o que interessa: documentos e PDFs
+      const ini = e.local + 30 + u16(bytes, e.local + 26) + u16(bytes, e.local + 28), comp = bytes.subarray(ini, ini + e.tam);
+      if (e.metodo === 0) out.push({ nome: e.nome, dados: comp });
+      else if (e.metodo === 8) out.push({ nome: e.nome, dados: await inflar(comp) });
+      else throw new Error('compressão de ZIP não suportada');
+    }
+    return out;
+  }
+  function htmlDoZip(bytes) {   // o SEI entrega ISO-8859-1; só usa UTF-8 se o próprio arquivo disser
+    const inicio = new TextDecoder('windows-1252').decode(bytes.subarray(0, 2000));
+    return new TextDecoder(/charset=["']?utf-8/i.test(inicio) ? 'utf-8' : 'windows-1252').decode(bytes);
+  }
+  // Pede o ZIP ("Gerar Arquivo ZIP do Processo", todos os documentos) e devolve { buf, ms: {...} }. Lança se algo falhar.
+  async function baixarZip(t, item) {
+    const T0 = Date.now();
+    const link = actionLink(t.arvore, 'procedimento_gerar_zip', item.id);
+    if (!link) throw new Error('o SEI não oferece "Gerar ZIP" neste processo');
+    const telaUrl = new URL(link, t.arvoreUrl).href;
+    const tela = await request(telaUrl);
+    const form = new DOMParser().parseFromString(tela.html, 'text/html').querySelector('#frmProcedimentoZip');
+    if (!form) throw new Error('a tela de ZIP do SEI veio diferente do esperado');
+    const params = new URLSearchParams(new FormData(form));
+    params.set('rdoTipo', 'T'); params.set('hdnFlagGerar', '1');
+    const acaoForm = new URL(decode(form.getAttribute('action') || ''), telaUrl).href;
+    const T1 = Date.now();
+    const resp = await request(acaoForm, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+    const m = /getElementById\(\s*['"]ifrDownload['"]\s*\)\.src\s*=\s*['"]([^'"]+)['"]/.exec(resp.html);
+    if (!m) throw new Error(alertOf(resp.html) ? 'o SEI recusou: ' + alertOf(resp.html) : 'o SEI não devolveu o arquivo');
+    const T2 = Date.now();
+    const arq = await requestRaw(new URL(decode(m[1]), acaoForm).href);
+    return { buf: arq.buf, ms: { preparar: T1 - T0, gerar: T2 - T1, baixar: Date.now() - T2 } };
   }
 
   async function readProcess(item, onStep) {
@@ -243,7 +269,31 @@
     const docs = todos.filter(d => SAFE.test(d.href)).slice(0, 80);
     const titulos = todos.map(d => (/^(.*?)\s*\((\d{3,})\)\s*$/.exec(d.title) || [null, d.title])[1]);   // títulos de TODOS os documentos, inclusive PDFs
     const arquivos = [], pdfs = { lidos: 0, digitalizados: 0, falhas: 0 }, lentos = []; let msPdf = 0;
-    for (let i = 0; i < docs.length; i++) {
+    // 1º: o ZIP do processo. Se falhar, passar de ZIP_LIMITE_MS ou vier sem documentos, lê documento por documento.
+    let viaZip = '';
+    try {
+      onStep('Baixando o processo (ZIP)...');
+      const z = await Promise.race([baixarZip(t, item), new Promise((_, no) => setTimeout(() => no(new Error('o ZIP demorou mais de ' + ZIP_LIMITE_MS / 1000 + ' s')), ZIP_LIMITE_MS))]);
+      const P0 = Date.now();
+      const entradas = await lerZip(new Uint8Array(z.buf));
+      for (const e of entradas) {
+        if (/\.pdf$/i.test(e.nome)) {
+          try {
+            const texto = await pdfText(e.dados.buffer.slice(e.dados.byteOffset, e.dados.byteOffset + e.dados.byteLength));
+            if (texto) { pdfs.lidos++; arquivos.push({ nome: e.nome.replace(/\.pdf$/i, '.html'), html: htmlOfText(texto) }); } else pdfs.digitalizados++;
+          } catch { pdfs.falhas++; }
+        } else arquivos.push({ nome: e.nome, html: htmlDoZip(e.dados) });
+      }
+      msPdf = Date.now() - P0;
+      if (!arquivos.length && !pdfs.digitalizados) throw new Error('o ZIP veio sem documentos');
+      const sg = (ms) => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+      viaZip = 'ZIP ' + (z.buf.byteLength / 1024 < 1024 ? Math.round(z.buf.byteLength / 1024) + ' KB' : (z.buf.byteLength / 1048576).toFixed(1).replace('.', ',') + ' MB') + ': preparar ' + sg(z.ms.preparar) + ' · gerar ' + sg(z.ms.gerar) + ' · baixar ' + sg(z.ms.baixar) + ' · abrir ' + sg(msPdf);
+    } catch (e) {
+      arquivos.length = 0; pdfs.lidos = pdfs.digitalizados = pdfs.falhas = 0; viaZip = ''; msPdf = 0;
+      try { console.warn('[Portarias SEI] ZIP indisponível, lendo documento por documento: ' + errText(e)); } catch { /* ignora */ }
+      var motivoZip = errText(e);
+    }
+    for (let i = 0; i < (viaZip ? 0 : docs.length); i++) {
       onStep('Lendo os documentos (' + (i + 1) + ' de ' + docs.length + ')...');
       const D0 = Date.now();
       trace = [];
@@ -263,7 +313,7 @@
     onStep('Lendo o cadastro do processo...');
     const meta = await readMeta(t, item);
     const T3 = Date.now(), seg = (a, b) => ((b - a) / 1000).toFixed(1).replace('.', ',') + ' s';
-    const tempo = 'lido em ' + seg(T0, T3) + ' (árvore ' + seg(T0, T1) + ' · ' + docs.length + ' documentos ' + seg(T1, T2) + (msPdf ? ', dos quais PDFs ' + seg(0, msPdf) : '') + ' · cadastro ' + seg(T2, T3) + ')';
+    const tempo = 'lido em ' + seg(T0, T3) + (viaZip ? ' pelo ZIP (árvore ' + seg(T0, T1) + ' · ' + viaZip + ' · cadastro ' + seg(T2, T3) + ')' : ' documento por documento' + (motivoZip ? ' (ZIP: ' + motivoZip + ')' : '') + ' (árvore ' + seg(T0, T1) + ' · ' + docs.length + ' documentos ' + seg(T1, T2) + (msPdf ? ', dos quais PDFs ' + seg(0, msPdf) : '') + ' · cadastro ' + seg(T2, T3) + ')');
     const relatorio = 'RELATÓRIO DE TEMPO — Portarias SEI v' + VERSION + '\n' + tempo + '\n' + lentos.map((x, i) => (i + 1) + '. ' + x.t + (x.pdf ? ' [PDF]' : '') + ' — ' + seg(0, x.ms) + ' — ' + x.reqs.length + ' pág.: ' + x.reqs.map(r => r.a + ' ' + r.ms + 'ms ' + r.kb + 'KB').join(' → ')).join('\n');
     const maisLentos = lentos.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map(x => x.t + (x.pdf ? ' [PDF]' : '') + ' ' + seg(0, x.ms)).join(' | ');
     try { console.log('[Portarias SEI] ' + tempo + ' · mais lentos: ' + maisLentos); } catch { /* ignora */ }
@@ -529,12 +579,11 @@
       const q = leitura.pdfs, resumo = [leitura.arquivos.length + ' documento' + (leitura.arquivos.length === 1 ? '' : 's') + ' lido' + (leitura.arquivos.length === 1 ? '' : 's')];
       if (q.lidos) resumo.push(q.lidos + ' PDF' + (q.lidos > 1 ? 's' : '') + ' lido' + (q.lidos > 1 ? 's' : '') + ' pelo texto');
       if (q.digitalizados) resumo.push(q.digitalizados + ' PDF' + (q.digitalizados > 1 ? 's' : '') + ' digitalizado' + (q.digitalizados > 1 ? 's' : '') + ' (imagem) não lido' + (q.digitalizados > 1 ? 's' : ''));
-      resumo.push('⏱ ' + leitura.tempo + ' · ' + String(leitura.mediaPag.toFixed(1)).replace('.', ',') + ' páginas por documento');
+      resumo.push('⏱ ' + leitura.tempo + (leitura.mediaPag ? ' · ' + String(leitura.mediaPag.toFixed(1)).replace('.', ',') + ' páginas por documento' : ''));
       const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · ') + ' · (clique aqui para copiar o relatório de tempo)'; cab.title = 'Documentos mais lentos: ' + leitura.maisLentos; cab.style.cursor = 'pointer';
       cab.onclick = () => { try { navigator.clipboard.writeText(leitura.relatorio).then(() => flash('Relatório de tempo copiado. Cole na conversa.'), () => flash('Não consegui copiar o relatório.')); } catch { flash('Não consegui copiar o relatório.'); } };
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
-      medirZip(leitura.t, item).then((txt) => { try { cab.textContent += ' · ⏱ ' + txt; leitura.relatorio += '\n' + txt; } catch { /* painel fechado */ } });
     } catch (e) {
       ldTxt.innerHTML = '<span style="color:#b91c1c;">Não foi possível ler o processo: ' + esc(errText(e)) + '</span><br><br><button type="button" id="gp-seguir" style="padding:8px 14px;border-radius:9px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-weight:700;cursor:pointer;">Abrir o gerador mesmo assim</button>';
       ldTxt.querySelector('#gp-seguir').onclick = () => ld.remove();

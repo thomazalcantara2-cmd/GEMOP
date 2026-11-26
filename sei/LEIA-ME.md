@@ -12,7 +12,7 @@ de servidor, de banco de dados nem do `Portarias.bat`.
 
 ## Como usar
 
-1. Clique em **Gerar portaria** (na linha do processo ou no ícone da barra). O script lê os documentos do processo, **sem abri-lo na tela**, e abre o painel à direita: é a própria página de Portarias.
+1. Clique em **Gerar portaria** (na linha do processo ou no ícone da barra). O script lê os documentos do processo, **sem abri-lo na tela**, e abre o painel à direita: é a própria página de Portarias. A leitura usa o **ZIP do processo** (o SEI monta todos os documentos de uma vez, bem mais rápido); se o ZIP falhar ou passar de 30 s, lê documento por documento. O cabeçalho do painel mostra o tempo de cada etapa; clicar nele copia o relatório de tempo.
 2. **Primeira vez:** no painel, escolha a **pasta das planilhas** (a que tem a FichaContabilis). Fica lembrada neste navegador; o Chrome pode pedir para permitir de novo de vez em quando. A planilha é lida só no computador.
 3. Para **licença prêmio** e **exoneração a pedido**, o painel lê os documentos, acha o servidor na planilha e monta a portaria completa (decênio, período, decisão). Para **qualquer outro assunto**, o painel **sugere o tipo** de portaria pelas palavras do processo (tipo e especificação, títulos dos documentos, inclusive PDFs, e o texto) e **sugere o servidor** (interessado do processo, matrícula, CPF ou nome nos documentos). Você confere o tipo e o servidor no cartão do processo, clica em **Montar portaria com os marcados** e preenche os campos que faltarem (em amarelo), como na página de Portarias.
 4. Confira o texto (clique nele para ajustar), digite o número da portaria se quiser ver o título pronto e clique em **Criar Portaria no SEI**.
