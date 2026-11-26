@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.5.2
+// @version      1.5.3
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.5.2';
+  const VERSION = '1.5.3';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -44,13 +44,17 @@
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // ── rede (sessão do usuário; o SEI responde em ISO-8859-1) ──
+  let trace = null;   // medição: páginas abertas por documento
   async function requestRaw(url, opts = {}) {
+    const T = Date.now();
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
       const resp = await fetch(url, { credentials: 'same-origin', signal: ctrl.signal, ...opts });
       if (!resp.ok) throw new Error('o SEI respondeu ' + resp.status);
-      return { buf: await resp.arrayBuffer(), url: resp.url || url, type: resp.headers.get('content-type') || '' };
+      const buf = await resp.arrayBuffer();
+      if (trace) trace.push({ a: (String(url).match(/acao=([^&]*)/) || [])[1] || '?', ms: Date.now() - T, kb: Math.round(buf.byteLength / 1024), t: (resp.headers.get('content-type') || '').split(';')[0] });
+      return { buf, url: resp.url || url, type: resp.headers.get('content-type') || '' };
     } catch (e) {
       if (e && e.name === 'AbortError') throw new Error('o SEI demorou demais para responder');
       throw e;
@@ -213,8 +217,10 @@
     for (let i = 0; i < docs.length; i++) {
       onStep('Lendo os documentos (' + (i + 1) + ' de ' + docs.length + ')...');
       const D0 = Date.now();
+      trace = [];
       const h = await docHtml(docs[i].href, docs[i].id).catch(() => null);
-      lentos.push({ t: (/^(.*?)\s*\(\d{3,}\)\s*$/.exec(docs[i].title) || [null, docs[i].title])[1], ms: Date.now() - D0, pdf: !!(h && h.pdf) });
+      const reqs = trace; trace = null;
+      lentos.push({ reqs, t: (/^(.*?)\s*\(\d{3,}\)\s*$/.exec(docs[i].title) || [null, docs[i].title])[1], ms: Date.now() - D0, pdf: !!(h && h.pdf) });
       if (h && h.pdf) {
         try {
           const P0 = Date.now();
@@ -229,9 +235,10 @@
     const meta = await readMeta(t, item);
     const T3 = Date.now(), seg = (a, b) => ((b - a) / 1000).toFixed(1).replace('.', ',') + ' s';
     const tempo = 'lido em ' + seg(T0, T3) + ' (árvore ' + seg(T0, T1) + ' · ' + docs.length + ' documentos ' + seg(T1, T2) + (msPdf ? ', dos quais PDFs ' + seg(0, msPdf) : '') + ' · cadastro ' + seg(T2, T3) + ')';
+    const relatorio = 'RELATÓRIO DE TEMPO — Portarias SEI v' + VERSION + '\n' + tempo + '\n' + lentos.map((x, i) => (i + 1) + '. ' + x.t + (x.pdf ? ' [PDF]' : '') + ' — ' + seg(0, x.ms) + ' — ' + x.reqs.length + ' pág.: ' + x.reqs.map(r => r.a + ' ' + r.ms + 'ms ' + r.kb + 'KB').join(' → ')).join('\n');
     const maisLentos = lentos.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map(x => x.t + (x.pdf ? ' [PDF]' : '') + ' ' + seg(0, x.ms)).join(' | ');
     try { console.log('[Portarias SEI] ' + tempo + ' · mais lentos: ' + maisLentos); } catch { /* ignora */ }
-    return { tempo, maisLentos, arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
+    return { tempo, relatorio, mediaPag: lentos.length ? (lentos.reduce((n, x) => n + x.reqs.length, 0) / lentos.length) : 0, maisLentos, arquivos, titulos, contexto: [item.contexto, meta.contexto].filter(Boolean).join(' · '), interessados: meta.interessados, processo: item.num || '', pdfs, t };
   }
 
   // ── criar a Portaria (tipo, cadastro Público, texto no editor) ──
@@ -493,8 +500,9 @@
       const q = leitura.pdfs, resumo = [leitura.arquivos.length + ' documento' + (leitura.arquivos.length === 1 ? '' : 's') + ' lido' + (leitura.arquivos.length === 1 ? '' : 's')];
       if (q.lidos) resumo.push(q.lidos + ' PDF' + (q.lidos > 1 ? 's' : '') + ' lido' + (q.lidos > 1 ? 's' : '') + ' pelo texto');
       if (q.digitalizados) resumo.push(q.digitalizados + ' PDF' + (q.digitalizados > 1 ? 's' : '') + ' digitalizado' + (q.digitalizados > 1 ? 's' : '') + ' (imagem) não lido' + (q.digitalizados > 1 ? 's' : ''));
-      resumo.push('⏱ ' + leitura.tempo);
-      const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · '); cab.title = 'Documentos mais lentos: ' + leitura.maisLentos;
+      resumo.push('⏱ ' + leitura.tempo + ' · ' + String(leitura.mediaPag.toFixed(1)).replace('.', ',') + ' páginas por documento');
+      const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · ') + ' · (clique aqui para copiar o relatório de tempo)'; cab.title = 'Documentos mais lentos: ' + leitura.maisLentos; cab.style.cursor = 'pointer';
+      cab.onclick = () => { try { navigator.clipboard.writeText(leitura.relatorio).then(() => flash('Relatório de tempo copiado. Cole na conversa.'), () => flash('Não consegui copiar o relatório.')); } catch { flash('Não consegui copiar o relatório.'); } };
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
     } catch (e) {
