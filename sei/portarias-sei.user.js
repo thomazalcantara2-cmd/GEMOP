@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.7.1
+// @version      1.7.2
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.7.1';
+  const VERSION = '1.7.2';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -204,7 +204,7 @@
   }
 
   // ── ZIP do processo: o SEI monta e entrega todos os documentos de uma vez (bem mais rápido que abrir página por página) ──
-  const ZIP_LIMITE_MS = 30000;   // passou disso: cai na leitura documento por documento
+  const ZIP_LIMITE_MS = 150000;   // passou disso: cai na leitura documento por documento (que num processo grande leva ainda mais)
   function u16(b, i) { return b[i] | (b[i + 1] << 8); }
   function u32(b, i) { return (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0; }
   async function inflar(dados) {
