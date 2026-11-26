@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.6.0
+// @version      1.6.1
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.6.0';
+  const VERSION = '1.6.1';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -204,6 +204,32 @@
       const inter = [...doc.querySelectorAll('#selInteressados option')].map(o => compact(o.textContent)).filter(Boolean);
       return { contexto: [tipo && compact(tipo.textContent), compact(txt)].filter(Boolean).join(' · '), interessados: inter };
     } catch { return { contexto: '', interessados: [] }; }
+  }
+
+  // MEDIÇÃO (temporária): quanto o SEI levaria para gerar e entregar o ZIP do processo. O arquivo é descartado:
+  // a leitura continua sendo a de sempre. Roda depois da leitura, para não atrapalhar os tempos dela.
+  async function medirZip(t, item) {
+    const seg = (ms) => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+    try {
+      const T0 = Date.now();
+      const link = actionLink(t.arvore, 'procedimento_gerar_zip', item.id);
+      if (!link) return 'ZIP indisponível (o SEI não oferece "Gerar ZIP" neste processo)';
+      const telaUrl = new URL(link, t.arvoreUrl).href;
+      const tela = await request(telaUrl);
+      const form = new DOMParser().parseFromString(tela.html, 'text/html').querySelector('#frmProcedimentoZip, #frmProcedimentoPdf');
+      if (!form) return 'ZIP indisponível (tela de ZIP diferente do esperado)';
+      const params = new URLSearchParams(new FormData(form));
+      params.set('rdoTipo', 'T'); params.set('hdnFlagGerar', '1');
+      const acaoForm = new URL(decode(form.getAttribute('action') || ''), telaUrl).href;
+      const T1 = Date.now();
+      const resp = await request(acaoForm, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+      const m = /getElementById\(\s*['"]ifrDownload['"]\s*\)\.src\s*=\s*['"]([^'"]+)['"]/.exec(resp.html);
+      if (!m) return 'ZIP indisponível (' + (alertOf(resp.html) || 'o SEI não devolveu o arquivo') + ')';
+      const T2 = Date.now();
+      const arq = await requestRaw(new URL(decode(m[1]), acaoForm).href);
+      const T3 = Date.now();
+      return 'ZIP: ' + seg(T3 - T0) + ' (preparar ' + seg(T1 - T0) + ' · gerar ' + seg(T2 - T1) + ' · baixar ' + seg(T3 - T2) + ' · ' + Math.round(arq.buf.byteLength / 1024) + ' KB)';
+    } catch (e) { return 'ZIP indisponível (' + errText(e) + ')'; }
   }
 
   async function readProcess(item, onStep) {
@@ -508,6 +534,7 @@
       cab.onclick = () => { try { navigator.clipboard.writeText(leitura.relatorio).then(() => flash('Relatório de tempo copiado. Cole na conversa.'), () => flash('Não consegui copiar o relatório.')); } catch { flash('Não consegui copiar o relatório.'); } };
       ldTxt.textContent = 'Montando a portaria...';
       entregar();
+      medirZip(leitura.t, item).then((txt) => { try { cab.textContent += ' · ⏱ ' + txt; leitura.relatorio += '\n' + txt; } catch { /* painel fechado */ } });
     } catch (e) {
       ldTxt.innerHTML = '<span style="color:#b91c1c;">Não foi possível ler o processo: ' + esc(errText(e)) + '</span><br><br><button type="button" id="gp-seguir" style="padding:8px 14px;border-radius:9px;border:1.5px solid #0f766e;background:#fff;color:#0f766e;font-weight:700;cursor:pointer;">Abrir o gerador mesmo assim</button>';
       ldTxt.querySelector('#gp-seguir').onclick = () => ld.remove();
