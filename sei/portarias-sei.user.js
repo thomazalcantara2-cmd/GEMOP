@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.4.2
+// @version      1.5.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.4.2';
+  const VERSION = '1.5.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -371,10 +371,13 @@
 
   // ── interface (janela principal) ──
   const CSS = `
-    .gp-dr { position:fixed; top:0; right:0; bottom:0; width:min(900px,72vw); z-index:2147483645; background:#fff; border-left:1px solid #cbd5e1; box-shadow:-8px 0 24px rgba(15,23,42,.25); display:flex; flex-direction:column; font:13px system-ui,sans-serif; color:#0f172a; }
+    .gp-dr { position:fixed; top:0; right:0; bottom:0; width:var(--gp-w,min(900px,72vw)); z-index:2147483645; background:#fff; border-left:1px solid #cbd5e1; box-shadow:-8px 0 24px rgba(15,23,42,.25); display:flex; flex-direction:column; font:13px system-ui,sans-serif; color:#0f172a; }
     .gp-dr header { background:#0f766e; color:#fff; padding:10px 14px 10px 18px; display:flex; align-items:center; gap:10px; }
     .gp-dr header b { font-size:14px; }
     .gp-dr header span { opacity:.85; font-size:12px; }
+    html.gp-docked { position:relative !important; width:calc(100% - var(--gp-w)) !important; overflow-x:hidden !important; }
+    .gp-dr header button.gp-dk { margin-left:auto; font-size:16px; opacity:.85; }
+    .gp-dr header button.gp-dk + button { margin-left:0; }
     .gp-dr header button { margin-left:auto; background:none; border:0; color:#fff; font-size:22px; cursor:pointer; line-height:1; }
     .gp-dr iframe { flex:1; border:0; width:100%; background:#fff; }
     .gp-ld { position:absolute; inset:46px 0 0 0; background:rgba(255,255,255,.96); display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; font-size:14px; color:#0f766e; font-weight:700; }
@@ -403,6 +406,42 @@
 
   const state = { busy: false, item: null, drawer: null };
 
+  // Encaixe ao lado: a página do SEI encolhe e o painel ocupa a faixa da direita (como o painel do Archivist)
+  const DOCK_KEY = 'gemop_portarias_encaixar';
+  const dockOn = () => { try { return localStorage.getItem(DOCK_KEY) !== '0'; } catch { return true; } };
+  const panelW = () => Math.max(420, Math.min(900, Math.round(TOP.innerWidth * 0.55)));
+  let dockWatch = null;
+  function fitFrame(on) {
+    const ATTR = 'data-gp-w', el = rootDoc.getElementById('ifrConteudoVisualizacao');
+    if (!el) return;
+    if (el.hasAttribute(ATTR)) { const [v, pr] = el.getAttribute(ATTR).split('|'); if (v) el.style.setProperty('width', v, pr || ''); else el.style.removeProperty('width'); el.removeAttribute(ATTR); }
+    if (!on) return;
+    const limit = TOP.innerWidth - panelW(), r = el.getBoundingClientRect();
+    if (r.right <= limit + 2) return;
+    el.setAttribute(ATTR, el.style.getPropertyValue('width') + '|' + el.style.getPropertyPriority('width'));
+    const inner = parseFloat(TOP.getComputedStyle(el).width) || r.width;
+    el.style.setProperty('width', Math.max(240, Math.floor(limit - r.left - Math.max(0, r.width - inner))) + 'px', 'important');
+  }
+  function applyDock(on) {
+    const html = rootDoc.documentElement;
+    if (dockWatch) { dockWatch.stop(); dockWatch = null; }
+    html.style.setProperty('--gp-w', panelW() + 'px');
+    html.classList.toggle('gp-docked', !!on);
+    fitFrame(!!on);
+    try { TOP.dispatchEvent(new Event('resize')); } catch { /* ignora */ }
+    if (!on) { html.style.removeProperty('--gp-w'); return; }
+    // o SEI refaz a largura dos quadros depois de carregar: refaz o ajuste enquanto o painel estiver encaixado
+    const frame = rootDoc.getElementById('ifrConteudoVisualizacao');
+    let pend = false;
+    const refit = () => { if (pend) return; pend = true; TOP.requestAnimationFrame(() => { pend = false; if (html.classList.contains('gp-docked')) fitFrame(true); }); };
+    const obs = typeof ResizeObserver === 'function' ? new ResizeObserver(refit) : null;
+    if (obs) { obs.observe(html); if (frame) obs.observe(frame); }
+    if (frame) frame.addEventListener('load', refit);
+    TOP.addEventListener('resize', refit);
+    const timers = [150, 500, 1500, 3000].map(ms => setTimeout(refit, ms));
+    dockWatch = { stop() { if (obs) obs.disconnect(); if (frame) frame.removeEventListener('load', refit); TOP.removeEventListener('resize', refit); timers.forEach(clearTimeout); } };
+  }
+
   // Abre o painel (gerador) para o processo e lê os documentos; quando o gerador avisar que está pronto, entrega o processo.
   async function openPanel(item) {
     if (state.busy) return;
@@ -413,12 +452,16 @@
     let recurso = '';
     try { recurso = GM_getResourceText('GEMOP_PORTARIAS'); } catch { /* sem o recurso */ }
     if (!recurso) { state.busy = false; flash('Portarias SEI: não consegui carregar o gerador (recurso do script). Reinstale o script.'); return; }
-    const dr = el(doc, 'div', '<header><b>Portarias <small style="opacity:.7;font-weight:400;">v' + VERSION + '</small></b><span>processo ' + esc(item.num || item.id) + '</span><button type="button" aria-label="Fechar" title="Fechar">×</button></header><iframe title="Gerador de Portarias" allow=""></iframe><div class="gp-ld"><div><div style="display:inline-block;animation:gpSpin 1s linear infinite;font-size:20px;">⏳</div><div id="gp-ld-txt" style="margin-top:8px;">Abrindo o gerador...</div></div></div>', 'gp-dr');
+    const dr = el(doc, 'div', '<header><b>Portarias <small style="opacity:.7;font-weight:400;">v' + VERSION + '</small></b><span>processo ' + esc(item.num || item.id) + '</span><button type="button" class="gp-dk"></button><button type="button" class="gp-x" aria-label="Fechar" title="Fechar">×</button></header><iframe title="Gerador de Portarias" allow=""></iframe><div class="gp-ld"><div><div style="display:inline-block;animation:gpSpin 1s linear infinite;font-size:20px;">⏳</div><div id="gp-ld-txt" style="margin-top:8px;">Abrindo o gerador...</div></div></div>', 'gp-dr');
     doc.body.append(dr);
     state.item = item; state.drawer = dr;
     const frame = dr.querySelector('iframe'), ld = dr.querySelector('.gp-ld'), ldTxt = dr.querySelector('#gp-ld-txt');
-    const close = () => { dr.remove(); window.removeEventListener('message', onMessage); state.drawer = null; };
-    dr.querySelector('header button').onclick = close;
+    const close = () => { dr.remove(); window.removeEventListener('message', onMessage); state.drawer = null; applyDock(false); };
+    dr.querySelector('header .gp-x').onclick = close;
+    const dk = dr.querySelector('.gp-dk');
+    const pintaDock = () => { const on = dockOn(); dr.style.setProperty('--gp-w', panelW() + 'px'); dk.textContent = on ? '⇥' : '⇤'; dk.title = on ? 'Encaixado ao lado (clique para sobrepor)' : 'Sobreposto (clique para encaixar ao lado)'; applyDock(on); };
+    dk.onclick = () => { try { localStorage.setItem(DOCK_KEY, dockOn() ? '0' : '1'); } catch { /* ignora */ } pintaDock(); };
+    pintaDock();
 
     let leitura = null, pronto = false, entregue = false;
     const entregar = () => {
