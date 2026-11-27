@@ -13,7 +13,15 @@
       var leitor = new FileReader();
       leitor.onload = function () {
         try {
-          resolve(global.XLSX.read(new Uint8Array(leitor.result), { type: 'array' }));
+          var bytes = new Uint8Array(leitor.result), wb;
+          // A aba AFASTAMENTO tem mais de 100 mil linhas e pesa na leitura: fica de fora e só é lida quando a portaria precisar dela
+          var nomes = global.XLSX.read(bytes, { type: 'array', bookSheets: true }).SheetNames || [];
+          var aba = nomes.filter(function (n) { var x = D.normalizar(n); return x === 'AFASTAMENTO' || x === 'AFASTAMENTOS'; })[0];
+          if (aba && nomes.length > 1) {
+            wb = global.XLSX.read(bytes, { type: 'array', sheets: nomes.filter(function (n) { return n !== aba; }) });
+            wb.__afastamentos = { nome: aba, bytes: bytes };
+          } else wb = global.XLSX.read(bytes, { type: 'array' });
+          resolve(wb);
         } catch (e) { reject(e); }
       };
       leitor.onerror = function () { reject(leitor.error); };
@@ -24,7 +32,7 @@
   function linhasDaAba(wb, nome) {
     var alvo = D.normalizar(nome);
     var aba = wb.SheetNames.filter(function (n) { return D.normalizar(n) === alvo; })[0];
-    return aba ? global.XLSX.utils.sheet_to_json(wb.Sheets[aba], { raw: true, defval: null }) : null;
+    return aba && wb.Sheets[aba] ? global.XLSX.utils.sheet_to_json(wb.Sheets[aba], { raw: true, defval: null }) : null;   // aba deixada de fora na leitura (AFASTAMENTO) = não existe aqui
   }
 
   // Descobre pelo conteúdo se a planilha é uma Ficha Cadastral ou a FichaContabilis (antigo INDICE).
@@ -38,7 +46,21 @@
     for (var i = 0; i < wb.SheetNames.length; i++) {
       var linhas = global.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[i]], { raw: true, defval: null });
       if (linhas.length && 'nu_matricula' in linhas[0] && 'nm_Funcionario' in linhas[0]) {
-        return { tipo: 'indice', nome: nomeArquivo, linhas: linhas, anoMes: linhas[0].dt_anoMes };
+        // aba AFASTAMENTO (opcional): vira um índice por matrícula só com o que pesa na licença prêmio (a aba tem >100 mil linhas)
+        var abaAfast = linhasDaAba(wb, 'AFASTAMENTO') || linhasDaAba(wb, 'AFASTAMENTOS'), adiada = wb.__afastamentos;
+        return { tipo: 'indice', nome: nomeArquivo, linhas: linhas, anoMes: linhas[0].dt_anoMes,
+          afastamentos: abaAfast && global.Afastamentos ? global.Afastamentos.indexar(abaAfast) : null,
+          // aba lida sob demanda: devolve (em Promise) o índice por matrícula
+          carregarAfastamentos: adiada && global.Afastamentos ? function () {
+            return new Promise(function (ok, no) {
+              setTimeout(function () {   // deixa a tela mostrar o aviso antes de travar na leitura
+                try {
+                  var w = global.XLSX.read(adiada.bytes, { type: 'array', sheets: [adiada.nome] });
+                  ok(global.Afastamentos.indexar(global.XLSX.utils.sheet_to_json(w.Sheets[adiada.nome], { raw: true, defval: null })));
+                } catch (e) { no(e); }
+              }, 40);
+            });
+          } : null };
       }
     }
     return null;

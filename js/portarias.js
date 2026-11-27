@@ -424,7 +424,16 @@
               return [x.v('processo'), x.nome, x.matricula, semPalavraSecretaria(x.secretaria), x.v('decenio', true), periodoGozo(x, true)];
             }), semQuebra: [0, 2] },
           { t: 'p', texto: '**Art. 2º.** Esta portaria entra em vigor na data da sua publicação.' }
-        ];
+        ].reduce(function (lista, b) {
+          // impedimentos achados na aba AFASTAMENTO (preenchido pela tela): observação antes do artigo final, editável na folha
+          if (/^\*\*Art\. 2º/.test(b.texto || '')) {
+            c.servs.filter(function (x) { return x.tem('obsAfastamento'); }).forEach(function (x) {
+              lista.push({ t: 'p', texto: '**Observação' + (plural ? ' (' + x.nome + ')' : '') + ':** ' + x.v('obsAfastamento') });
+            });
+          }
+          lista.push(b);
+          return lista;
+        }, []);
       }
     };
   }

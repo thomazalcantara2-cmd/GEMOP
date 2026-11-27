@@ -5,6 +5,7 @@
   var D = window.Dados;
   var P = window.Planilhas;
   var R = window.Portarias;
+  var A = window.Afastamentos;
   var G = window.GoogleDrive;
   var SEI = window.SeiProcesso;
   var ZIP = window.ZipLeitura;
@@ -243,6 +244,7 @@
     if (!estado.indice) { estado.base = []; return; }
     // sem Ficha Cadastral: só os dados da FichaContabilis (nome, matrícula, cargo, sexo, centro de custo)
     estado.base = D.montarBase(estado.indice.linhas, { servidores: [], lotacoes: [] });
+    estado.afastIdx = estado.indice.afastamentos || null; estado.afastCarregando = false; estado.afastErro = '';
     estado.secretarias = R.mapaSecretarias(estado.base);
     $('busca').disabled = false;
     $('arquivos-sei').disabled = false;
@@ -278,7 +280,7 @@
     $('topo-sub').textContent = i ? textoDaPlanilha(i) : (estado.carregando ? 'SEGEP · carregando a planilha…' : 'SEGEP · preenchimento automático pela FichaContabilis');
     $('topo-sub').title = i ? 'Arquivo: ' + i.nome + ' · ' + i.linhas.length + ' servidores' : '';
     $('status-indice').className = 'arquivo ' + (i ? 'ok' : '');
-    $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) : '<b>Ficha Contabilis</b> — aguardando arquivo';
+    $('status-indice').innerHTML = i ? '<b>Ficha Contabilis</b> — ' + esc(i.nome) + (i.afastamentos ? ' · aba AFASTAMENTO lida' : i.carregarAfastamentos ? ' · aba AFASTAMENTO encontrada (lida ao montar licença prêmio)' : ' · sem aba AFASTAMENTO (impedimentos da licença prêmio não são conferidos)') : '<b>Ficha Contabilis</b> — aguardando arquivo';
     if (i) mostrarCarregamento(false);
   }
 
@@ -490,8 +492,14 @@
     tipoAtual().campos.forEach(function (c) {
       if (c.porServidor) campos[c.id] = lerCampo($('s' + i + '-' + c.id), c);
     });
+    // licença prêmio: impedimentos do decênio pela aba AFASTAMENTO; a observação entra no texto da portaria (editável na folha)
+    var analise = null;
+    if (tipoAtual().id === 'licenca-premio' && A && estado.afastIdx) {
+      analise = A.analisar(estado.afastIdx[s.matricula] || [], s.admissao, campos.decenio, D.paraData($('v-data').value) || D.paraData(hojeISO()));
+      if (analise && analise.observacao && !($('c-indeferido') && $('c-indeferido').checked)) campos.obsAfastamento = analise.observacao;
+    }
     return { nome: s.nome, matricula: s.matricula, cargo: R.capitalizar(s.cargoNome), secretaria: secretariaDe(s), sexo: s.sexo, campos: campos,
-      opcoesSecretaria: R.opcoesSecretaria(s, estado.secretarias) };
+      opcoesSecretaria: R.opcoesSecretaria(s, estado.secretarias), analiseAfastamentos: analise };
   }
 
   function avisosDoServidor(s, varios) {
@@ -514,8 +522,23 @@
     return cfg;
   }
 
+  // A aba AFASTAMENTO (mais de 100 mil linhas) só é lida quando há servidor numa portaria de licença prêmio
+  function garantirAfastamentos() {
+    var i = estado.indice;
+    if (!i || estado.afastIdx || estado.afastCarregando || !i.carregarAfastamentos || tipoAtual().id !== 'licenca-premio' || !estado.selecionados.length) return;
+    estado.afastCarregando = true; estado.afastErro = '';
+    i.carregarAfastamentos().then(function (idx) {
+      if (estado.indice !== i) return;
+      estado.afastIdx = idx; i.afastamentos = idx; estado.afastCarregando = false; atualizarStatus(); renderizar();
+    }, function (e) {
+      if (estado.indice !== i) return;
+      estado.afastCarregando = false; estado.afastErro = e && e.message ? e.message : String(e); renderizar();
+    });
+  }
+
   function renderizar() {
     var escolhidos = estado.selecionados;
+    garantirAfastamentos();
     var dataDoc = D.paraData($('v-data').value) || D.paraData(hojeISO());
     var servidores = escolhidos.map(dadosDoServidor);
     atualizarOpcoesDinamicas(servidores);
@@ -532,7 +555,15 @@
     });
 
     var avisos = [];
-    escolhidos.forEach(function (s) { avisos = avisos.concat(avisosDoServidor(s, escolhidos.length > 1)); });
+    if (estado.afastCarregando) avisos.push('Lendo a aba AFASTAMENTO para conferir impedimentos do decênio (pode levar alguns segundos)…');
+    if (estado.afastErro) avisos.push('Não consegui ler a aba AFASTAMENTO (' + estado.afastErro + '): confira os impedimentos do decênio à parte.');
+    escolhidos.forEach(function (s, i) {
+      avisos = avisos.concat(avisosDoServidor(s, escolhidos.length > 1));
+      if (servidores[i] && servidores[i].analiseAfastamentos) {
+        A.avisos(servidores[i].analiseAfastamentos).forEach(function (t) { avisos.push((escolhidos.length > 1 ? s.nome + ': ' : '') + t); });
+        avisos.push((escolhidos.length > 1 ? s.nome + ': ' : '') + 'Faltas injustificadas (mais de 30 dias) não constam da aba AFASTAMENTO: confira à parte.');
+      }
+    });
     if (tipoAtual().unico && escolhidos.length > 1) {
       avisos.push('Este modelo é para um servidor só: foi usado apenas o primeiro (' + escolhidos[0].nome + '). Retire os demais ou faça outra portaria.');
     }
