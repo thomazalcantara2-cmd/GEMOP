@@ -74,14 +74,27 @@ test('analisar: afastamento em andamento (31/12/9999) não reinicia o decênio a
   assert.strictEqual(r.emCurso, true);
   assert.strictEqual(r.reinicio, null);
   assert.match(r.observacao, /desde 01\/06\/2023/);
-  assert.match(r.observacao, /impede a concessão e o gozo da licença prêmio enquanto perdurar/);
+  assert.match(r.observacao, /impede a contagem de novo decênio por ora/);
 });
 
-test('analisar: inquérito administrativo em andamento impede a concessão', () => {
-  const idx = A.indexar([linha('1', '516 - RESPONDENDO A PROCESSO ADM', '01/06/2020', '31/12/9999')]);
-  const r = A.analisar(idx['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
-  assert.strictEqual(r.emCurso, true);
-  assert.match(r.observacao, /impedimento por inquérito administrativo \(desde 01\/06\/2020\), e há impedimento ainda em andamento/);
+test('analisar: inquérito e reclusão só valem em andamento (qualquer época do decênio); o que já terminou não conta', () => {
+  const andamento = A.indexar([linha('1', '516 - RESPONDENDO A PROCESSO ADM', '01/06/2020', '31/12/9999'), linha('1', '602 - RECLUSAO COM ONUS', '01/01/2025', '31/12/9999')]);
+  const r = A.analisar(andamento['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
+  assert.strictEqual(r.bloqueio, true);
+  assert.strictEqual(r.emCurso, false);
+  assert.strictEqual(r.reinicio, null);
+  assert.match(r.observacao, /impedimentos por inquérito administrativo \(desde 01\/06\/2020\) e reclusão \(desde 01\/01\/2025\), o que impede a concessão e o gozo da licença prêmio enquanto perdurar\./);
+  const terminado = A.indexar([linha('1', '516 - RESPONDENDO A PROCESSO ADM', '01/06/2020', '01/06/2021'), linha('1', '602 - RECLUSAO COM ONUS', '01/01/2016', '01/02/2016')]);
+  const t = A.analisar(terminado['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
+  assert.strictEqual(t.impedem.length, 0);
+  assert.strictEqual(t.bloqueio, false);
+  assert.strictEqual(t.observacao, '');
+  // junto com licença já encerrada: reinício pela licença + bloqueio pelo inquérito
+  const misto = A.indexar([linha('1', '507 - LICENCA SEM VENCIMENTO', '03/02/2019', '02/05/2019'), linha('1', '516 - RESPONDENDO A PROCESSO ADM', '01/06/2025', '31/12/9999')]);
+  const m = A.analisar(misto['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
+  assert.deepStrictEqual(m.reinicio, dt(2, 5, 2019));
+  assert.strictEqual(m.bloqueio, true);
+  assert.match(m.observacao, /completando-se em 02\/05\/2029, e impede a concessão e o gozo da licença prêmio enquanto perdurar/);
 });
 
 test('analisar: o que é "verificar" vai só para os avisos; decênio ainda não completo é avisado; sem admissão ou decênio devolve null', () => {

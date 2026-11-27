@@ -1066,6 +1066,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     // enquanto o servidor responde a inquérito administrativo ou está recluso, a licença prêmio não pode ser concedida nem usufruída
     516: 'inquérito administrativo', 602: 'reclusão'
   };
+  var SO_EM_ANDAMENTO = { 516: true, 602: true };   // só vale enquanto estiver em andamento (o que já terminou não conta)
   var CONDICIONAL = { 509: 'licença por motivo de doença em pessoa da família' };   // só impede se passar de 30 dias
   var VERIFICAR = {
     518: 'cedido para outro órgão, com ônus para a origem (confira o tempo exclusivo no município)',
@@ -1089,7 +1090,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   // Tipo do afastamento: { nivel: 'impede'|'condicional'|'verificar'|'', rotulo }. Primeiro o código, depois palavras, por fim o código SEFIP.
   function classificar(afastamento, sefip) {
     var cod = codigoDe(afastamento);
-    if (IMPEDE[cod]) return { nivel: 'impede', rotulo: IMPEDE[cod] };
+    if (IMPEDE[cod]) return { nivel: 'impede', rotulo: IMPEDE[cod], soAtivo: !!SO_EM_ANDAMENTO[cod] };
     if (CONDICIONAL[cod]) return { nivel: 'condicional', rotulo: CONDICIONAL[cod] };
     if (VERIFICAR[cod]) return { nivel: 'verificar', rotulo: VERIFICAR[cod] };
     if (cod) return { nivel: '', rotulo: '' };   // código conhecido de outro tipo (licença médica, maternidade, rescisão…): não impede
@@ -1122,7 +1123,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var tipo = colunaDe(l, ['Afastamento']), sefip = colunaDe(l, ['Afastamento_SEFIP']);
       var c = classificar(tipo, sefip);
       if (!c.nivel) return;   // só guarda o que pode pesar na licença prêmio
-      (porMatricula[mat] = porMatricula[mat] || []).push({ inicio: inicio, fim: D.paraData(colunaDe(l, ['Fim'])), afastamento: String(tipo || ''), nivel: c.nivel, rotulo: c.rotulo });
+      (porMatricula[mat] = porMatricula[mat] || []).push({ inicio: inicio, fim: D.paraData(colunaDe(l, ['Fim'])), afastamento: String(tipo || ''), nivel: c.nivel, rotulo: c.rotulo, soAtivo: !!c.soAtivo });
     });
     return porMatricula;
   }
@@ -1141,7 +1142,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       var fimU = u && (emAberto(u.fim) ? null : u.fim);
       if (u && u.rotulo === x.rotulo && (emAberto(u.fim) || diasEntre(fimU, x.inicio) <= 2)) {
         if (emAberto(x.fim) || (!emAberto(u.fim) && comparar(x.fim, u.fim) > 0)) u.fim = x.fim;
-      } else out.push({ inicio: x.inicio, fim: x.fim, afastamento: x.afastamento, nivel: x.nivel, rotulo: x.rotulo });
+      } else out.push({ inicio: x.inicio, fim: x.fim, afastamento: x.afastamento, nivel: x.nivel, rotulo: x.rotulo, soAtivo: x.soAtivo });
     });
     return out;
   }
@@ -1157,7 +1158,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     if (!dec || !admissao) return null;
     hoje = hoje || hojeData();
     var janela = { ini: { a: dec.ini, m: admissao.m, d: admissao.d }, fim: { a: dec.fim, m: admissao.m, d: admissao.d } };
+    // inquérito e reclusão só valem em andamento (em qualquer época do decênio); os demais, se caírem dentro do decênio
+    var ativo = function (x) { return emAberto(x.fim) || comparar(x.fim, hoje) >= 0; };
     var dentro = unir((afastamentos || []).filter(function (x) {
+      if (x.soAtivo) return ativo(x) && comparar(x.inicio, hoje) <= 0;
       var fim = emAberto(x.fim) ? hoje : x.fim;
       return comparar(x.inicio, janela.fim) < 0 && comparar(fim, janela.ini) >= 0;
     }));
@@ -1165,29 +1169,33 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     dentro.forEach(function (x) {
       var fimEfetivo = emAberto(x.fim) ? hoje : x.fim;
       var dias = diasEntre(x.inicio, fimEfetivo);
-      var item = { inicio: x.inicio, fim: emAberto(x.fim) ? null : x.fim, rotulo: x.rotulo, dias: dias };
+      var item = { inicio: x.inicio, fim: emAberto(x.fim) ? null : x.fim, rotulo: x.rotulo, dias: dias, bloqueio: !!x.soAtivo };
       if (x.nivel === 'impede') impedem.push(item);
       else if (x.nivel === 'condicional') { if (dias > DIAS_MAX_FAMILIA) impedem.push(item); }
       else verificar.push(item);
     });
-    var emCurso = impedem.some(function (x) { return !x.fim; });
-    var ultimo = impedem.filter(function (x) { return x.fim; }).sort(function (x, y) { return comparar(y.fim, x.fim); })[0];
-    var reinicio = impedem.length && !emCurso ? ultimo.fim : null;
+    var bloqueio = impedem.some(function (x) { return x.bloqueio; });
+    var licencas = impedem.filter(function (x) { return !x.bloqueio; });
+    var emCurso = licencas.some(function (x) { return !x.fim; });
+    var ultimo = licencas.filter(function (x) { return x.fim; }).sort(function (x, y) { return comparar(y.fim, x.fim); })[0];
+    var reinicio = licencas.length && !emCurso ? ultimo.fim : null;
     var completa = reinicio ? somarAnos(reinicio, 10) : null;
     var incompleto = comparar(janela.fim, hoje) > 0;
-    return { decenio: dec, janela: janela, impedem: impedem, verificar: verificar, reinicio: reinicio, completa: completa, emCurso: emCurso,
-      incompleto: incompleto, observacao: textoObservacao(dec, impedem, reinicio, completa, emCurso) };
+    return { decenio: dec, janela: janela, impedem: impedem, verificar: verificar, reinicio: reinicio, completa: completa, emCurso: emCurso, bloqueio: bloqueio,
+      incompleto: incompleto, observacao: textoObservacao(dec, impedem, reinicio, completa, emCurso, bloqueio) };
   }
 
   function periodoTexto(x) { return x.fim ? D.dataBR(x.inicio) + ' a ' + D.dataBR(x.fim) : 'desde ' + D.dataBR(x.inicio); }
 
   // Texto da portaria: só os impedimentos confirmados pela planilha (o que é "verificar" fica só no aviso da tela)
-  function textoObservacao(dec, impedem, reinicio, completa, emCurso) {
+  function textoObservacao(dec, impedem, reinicio, completa, emCurso, bloqueio) {
     if (!impedem.length) return '';
     var lista = impedem.map(function (x) { return x.rotulo + ' (' + periodoTexto(x) + ')'; });
     var quais = lista.length === 1 ? lista[0] : lista.slice(0, -1).join('; ') + ' e ' + lista[lista.length - 1];
-    var efeito = emCurso ? ', e há impedimento ainda em andamento, o que impede a concessão e o gozo da licença prêmio enquanto perdurar'
-      : ', o que reinicia a contagem do decênio a partir de ' + D.dataBR(reinicio) + ', completando-se em ' + D.dataBR(completa);
+    var efeito = '';
+    if (reinicio) efeito += ', o que reinicia a contagem do decênio a partir de ' + D.dataBR(reinicio) + ', completando-se em ' + D.dataBR(completa);
+    if (emCurso) efeito += ', e há afastamento ainda em andamento, o que impede a contagem de novo decênio por ora';
+    if (bloqueio) efeito += (efeito ? ', e ' : ', o que ') + 'impede a concessão e o gozo da licença prêmio enquanto perdurar';
     return 'constam, no decênio ' + dec.ini + '/' + dec.fim + ', ' + (impedem.length === 1 ? 'impedimento por ' : 'impedimentos por ') + quais + efeito + '.';
   }
 
@@ -1195,8 +1203,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function avisos(a) {
     if (!a) return [];
     var out = [];
-    a.impedem.forEach(function (x) { out.push('Impedimento no decênio ' + a.decenio.ini + '/' + a.decenio.fim + ': ' + x.rotulo + ' (' + periodoTexto(x) + ').'); });
-    if (a.impedem.length && !a.emCurso) out.push('O decênio recomeça em ' + D.dataBR(a.reinicio) + ' e se completa em ' + D.dataBR(a.completa) + '.');
+    a.impedem.forEach(function (x) {
+      out.push(x.bloqueio ? 'Em andamento: ' + x.rotulo + ' (' + periodoTexto(x) + '). Enquanto durar, a licença prêmio não pode ser concedida nem usufruída.'
+        : 'Impedimento no decênio ' + a.decenio.ini + '/' + a.decenio.fim + ': ' + x.rotulo + ' (' + periodoTexto(x) + ').');
+    });
+    if (a.reinicio) out.push('O decênio recomeça em ' + D.dataBR(a.reinicio) + ' e se completa em ' + D.dataBR(a.completa) + '.');
     a.verificar.forEach(function (x) { out.push('Confira: ' + x.rotulo + ' (' + periodoTexto(x) + ').'); });
     if (a.incompleto) out.push('O decênio ' + a.decenio.ini + '/' + a.decenio.fim + ' só se completa em ' + D.dataBR(a.janela.fim) + '.');
     return out;
