@@ -73,7 +73,7 @@ test('analisar: afastamento em andamento (31/12/9999) não reinicia o decênio a
   const r = A.analisar(idx['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
   assert.strictEqual(r.emCurso, true);
   assert.strictEqual(r.reinicio, null);
-  assert.match(r.observacao, /em andamento/);
+  assert.match(r.observacao, /desde 01\/06\/2023/);
   assert.match(r.observacao, /impede a concessão e o gozo da licença prêmio enquanto perdurar/);
 });
 
@@ -81,7 +81,7 @@ test('analisar: inquérito administrativo em andamento impede a concessão', () 
   const idx = A.indexar([linha('1', '516 - RESPONDENDO A PROCESSO ADM', '01/06/2020', '31/12/9999')]);
   const r = A.analisar(idx['000000001'], dt(15, 6, 2004), '2014/2024', dt(1, 3, 2026));
   assert.strictEqual(r.emCurso, true);
-  assert.match(r.observacao, /impedimento por processo administrativo \(inquérito administrativo\) \(01\/06\/2020 \(em andamento\)\)|impedimento por processo administrativo \(inquérito administrativo\) \(01\/06\/2020/);
+  assert.match(r.observacao, /impedimento por inquérito administrativo \(desde 01\/06\/2020\), e há impedimento ainda em andamento/);
 });
 
 test('analisar: o que é "verificar" vai só para os avisos; decênio ainda não completo é avisado; sem admissão ou decênio devolve null', () => {

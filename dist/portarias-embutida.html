@@ -1064,7 +1064,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     507: 'licença sem vencimentos', 520: 'licença para tratar de interesse particular', 691: 'licença sem vencimentos (sub judice)',
     605: 'licença para acompanhar cônjuge', 669: 'licença para acompanhar cônjuge (sem remuneração)', 675: 'suspensão disciplinar',
     // enquanto o servidor responde a inquérito administrativo ou está recluso, a licença prêmio não pode ser concedida nem usufruída
-    516: 'processo administrativo (inquérito administrativo)', 602: 'reclusão'
+    516: 'inquérito administrativo', 602: 'reclusão'
   };
   var CONDICIONAL = { 509: 'licença por motivo de doença em pessoa da família' };   // só impede se passar de 30 dias
   var VERIFICAR = {
@@ -1179,14 +1179,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       incompleto: incompleto, observacao: textoObservacao(dec, impedem, reinicio, completa, emCurso) };
   }
 
-  function periodoTexto(x) { return D.dataBR(x.inicio) + (x.fim ? ' a ' + D.dataBR(x.fim) : ' (em andamento)'); }
+  function periodoTexto(x) { return x.fim ? D.dataBR(x.inicio) + ' a ' + D.dataBR(x.fim) : 'desde ' + D.dataBR(x.inicio); }
 
   // Texto da portaria: só os impedimentos confirmados pela planilha (o que é "verificar" fica só no aviso da tela)
   function textoObservacao(dec, impedem, reinicio, completa, emCurso) {
     if (!impedem.length) return '';
     var lista = impedem.map(function (x) { return x.rotulo + ' (' + periodoTexto(x) + ')'; });
     var quais = lista.length === 1 ? lista[0] : lista.slice(0, -1).join('; ') + ' e ' + lista[lista.length - 1];
-    var efeito = emCurso ? ', ainda em andamento, o que impede a concessão e o gozo da licença prêmio enquanto perdurar'
+    var efeito = emCurso ? ', e há impedimento ainda em andamento, o que impede a concessão e o gozo da licença prêmio enquanto perdurar'
       : ', o que reinicia a contagem do decênio a partir de ' + D.dataBR(reinicio) + ', completando-se em ' + D.dataBR(completa);
     return 'constam, no decênio ' + dec.ini + '/' + dec.fim + ', ' + (impedem.length === 1 ? 'impedimento por ' : 'impedimentos por ') + quais + efeito + '.';
   }
