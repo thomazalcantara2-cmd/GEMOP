@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Portarias SEI (GEMOP)
 // @namespace    https://github.com/thomazalcantara2-cmd/GEMOP
-// @version      1.7.4
+// @version      1.8.0
 // @description  Lê o processo no SEI, monta a portaria com as regras do gerador de Portarias (GEMOP) e cria o documento "Portaria" no processo, sem assinatura.
 // @author       SEGEP · Prefeitura do Jaboatão dos Guararapes
 // @match        *://*/sei/*
@@ -32,7 +32,7 @@
   const rootDoc = TOP.document;
   const UI = 'data-gemop-ui';                         // tudo o que criamos na página leva este atributo
   const TIMEOUT_MS = 300000;
-  const VERSION = '1.7.4';
+  const VERSION = '1.8.0';
 
   // ── utilidades ──
   const esc = (t) => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -468,7 +468,7 @@
 
   // ── interface (janela principal) ──
   const CSS = `
-    .gp-dr { position:fixed; top:0; right:0; bottom:0; width:var(--gp-w,min(900px,72vw)); z-index:2147483645; background:#fff; border-left:1px solid #cbd5e1; box-shadow:-8px 0 24px rgba(15,23,42,.25); display:flex; flex-direction:column; font:13px system-ui,sans-serif; color:#0f172a; }
+    .gp-dr { position:fixed; top:0; right:0; bottom:0; width:var(--gp-w,min(700px,60vw)); z-index:2147483645; background:#fff; border-left:1px solid #cbd5e1; box-shadow:-8px 0 24px rgba(15,23,42,.25); display:flex; flex-direction:column; font:13px system-ui,sans-serif; color:#0f172a; }
     .gp-dr header { background:#0f766e; color:#fff; padding:10px 14px 10px 18px; display:flex; align-items:center; gap:10px; }
     .gp-dr header b { font-size:14px; }
     .gp-dr header span { opacity:.85; font-size:12px; }
@@ -506,7 +506,7 @@
   // Encaixe ao lado: a página do SEI encolhe e o painel ocupa a faixa da direita (como o painel do Archivist)
   const DOCK_KEY = 'gemop_portarias_encaixar';
   const dockOn = () => { try { return localStorage.getItem(DOCK_KEY) !== '0'; } catch { return true; } };
-  const panelW = () => Math.max(420, Math.min(900, Math.round(TOP.innerWidth * 0.55)));
+  const panelW = () => Math.max(380, Math.min(700, Math.round(TOP.innerWidth * 0.4)));
   let dockWatch = null;
   function fitFrame(on) {
     const ATTR = 'data-gp-w', el = rootDoc.getElementById('ifrConteudoVisualizacao');
@@ -579,8 +579,7 @@
       const q = leitura.pdfs, resumo = [leitura.arquivos.length + ' documento' + (leitura.arquivos.length === 1 ? '' : 's') + ' lido' + (leitura.arquivos.length === 1 ? '' : 's')];
       if (q.lidos) resumo.push(q.lidos + ' PDF' + (q.lidos > 1 ? 's' : '') + ' lido' + (q.lidos > 1 ? 's' : '') + ' pelo texto');
       if (q.digitalizados) resumo.push(q.digitalizados + ' PDF' + (q.digitalizados > 1 ? 's' : '') + ' digitalizado' + (q.digitalizados > 1 ? 's' : '') + ' (imagem) não lido' + (q.digitalizados > 1 ? 's' : ''));
-      resumo.push('⏱ ' + leitura.tempo + (leitura.mediaPag ? ' · ' + String(leitura.mediaPag.toFixed(1)).replace('.', ',') + ' páginas por documento' : ''));
-      const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · ') + ' · (clique aqui para copiar o relatório de tempo)'; cab.title = 'Documentos mais lentos: ' + leitura.maisLentos; cab.style.cursor = 'pointer';
+      const cab = dr.querySelector('header span'); cab.textContent = 'processo ' + (item.num || item.id) + ' · ' + resumo.join(' · '); cab.title = 'Clique para copiar o relatório de tempo (' + leitura.tempo + ')'; cab.style.cursor = 'pointer';
       cab.onclick = () => { try { navigator.clipboard.writeText(leitura.relatorio).then(() => flash('Relatório de tempo copiado. Cole na conversa.'), () => flash('Não consegui copiar o relatório.')); } catch { flash('Não consegui copiar o relatório.'); } };
       ldTxt.textContent = 'Montando a portaria...';
       entregar();

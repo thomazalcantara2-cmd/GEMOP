@@ -229,6 +229,10 @@
   body.embutido aside { padding: 8px 6px 0; }
   body.embutido aside > * { max-width: none; }
   body.embutido .botoes { margin: auto -6px 0; width: calc(100% + 12px); padding: 8px 6px 10px; }
+  /* e a folha de exemplo ocupa a largura toda do painel, sem faixas nem margem de papel (a impressão, o PDF e o Word não mudam) */
+  body.embutido main { padding: 0; overflow-x: hidden; }
+  body.embutido .folha { width: auto; min-height: 0; margin: 0; padding: 6mm 6mm 8mm; box-shadow: none; }
+  body.embutido #avisos { width: auto; margin: 0 0 6px; border-radius: 0; }
   body.embutido #criar-sei:not([hidden]) { order: -1; flex: 1 1 100%; }
   @page { size: A4; margin: 14mm 20mm; }
   @media print {

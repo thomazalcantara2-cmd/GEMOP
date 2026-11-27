@@ -582,6 +582,7 @@
     var folha = $('folha'), area = document.querySelector('main');
     if (!folha || !area) return;
     folha.style.zoom = '';
+    if (document.body.classList.contains('embutido')) return;   // dentro do SEI a folha já ocupa a largura toda: sem zoom
     var estilo = window.getComputedStyle(area);
     var disponivel = area.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight), largura = folha.offsetWidth;
     // na tela a folha aparece a 90% (mais compacta) e encolhe mais se faltar espaço; a impressão sempre sai em tamanho normal
